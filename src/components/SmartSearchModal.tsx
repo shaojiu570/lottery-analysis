@@ -25,15 +25,15 @@ export function SmartSearchModal({
   settings,
   onAddFormulas,
 }: SmartSearchModalProps) {
-  // 初始化时从settings读取参数
+  // 初始值从 settings 读取
   const [hitRate, setHitRate] = useState(60);
   const [count, setCount] = useState(500);
   const [strategy, setStrategy] = useState<SearchStrategy>('fast');
   const [selectedTypes, setSelectedTypes] = useState<ResultType[]>(['尾数类']);
-  const [offset, setOffset] = useState(0);
-  const [periods, setPeriods] = useState(15);
-  const [leftExpand, setLeftExpand] = useState(0);
-  const [rightExpand, setRightExpand] = useState(0);
+  const [offset, setOffset] = useState(settings.searchOffset);
+  const [periods, setPeriods] = useState(settings.searchPeriods);
+  const [leftExpand, setLeftExpand] = useState(settings.searchLeft);
+  const [rightExpand, setRightExpand] = useState(settings.searchRight);
   
   const [searching, setSearching] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
@@ -54,7 +54,7 @@ export function SmartSearchModal({
       setResults([]);
       setSelectedResults(new Set());
     }
-  }, [isOpen, settings]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

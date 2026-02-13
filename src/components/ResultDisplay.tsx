@@ -64,7 +64,7 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
     lines.push(`[近${Math.min(10, hitsPerPeriod.length)}期开出次数${periodCounts}]`);
     lines.push('');
     
-    // 第三层：按结果类型分组统计
+    // 第三层：按结果类型分组统计（同类公式的最新一期结果）
     groupedResults.forEach((counts, type) => {
       const byCount = new Map<number, string[]>();
       counts.forEach((count: number, result: string) => {
@@ -74,8 +74,9 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
         byCount.get(count)!.push(result);
       });
       const sortedCounts = Array.from(byCount.entries()).sort((a, b) => a[0] - b[0]);
+      // 行数=该类型公式数量，码数=有命中的结果数量
       const formulaCount = counts.size;
-      const uniqueResults = byCount.size;
+      const uniqueResults = Array.from(counts.values() as number[]).filter(c => c > 0).length;
       
       lines.push(`【${type}结果】${latestPeriod}期:`);
       sortedCounts.forEach(([count, resultList]) => {
@@ -85,7 +86,7 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
       lines.push('');
     });
     
-    // 第四层：全码类结果汇总
+    // 第四层：全码类结果汇总（所有公式的最新一期结果转换为号码统计）
     if (allNumberCounts.size > 0) {
       const byCount = new Map<number, number[]>();
       allNumberCounts.forEach((count, num) => {
@@ -95,7 +96,8 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
         byCount.get(count)!.push(num);
       });
       const sortedCounts = Array.from(byCount.entries()).sort((a, b) => a[0] - b[0]);
-      const formulaCount = results.filter(r => r.formula.resultType === '单特类').length;
+      // 行数=全部公式数量，码数=有命中的号码数量
+      const formulaCount = results.length;
       const uniqueResults = Array.from(allNumberCounts.values()).filter(c => c > 0).length;
       
       lines.push(`【全码类结果】${latestPeriod}期:`);
