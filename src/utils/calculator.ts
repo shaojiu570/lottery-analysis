@@ -176,8 +176,9 @@ export function countHitsPerPeriod(results: VerifyResult[]): number[] {
 // 按结果类型分组统计（只统计同类公式的最新一期结果）
 export function groupByResultType(
   results: VerifyResult[]
-): Map<ResultType, Map<string, number>> {
+): { countsMap: Map<ResultType, Map<string, number>>, formulaCountByType: Map<ResultType, number> } {
   const grouped = new Map<ResultType, Map<string, number>>();
+  const formulaCountByType = new Map<ResultType, number>();
   
   // 按类型分组
   const byType = new Map<ResultType, VerifyResult[]>();
@@ -191,6 +192,9 @@ export function groupByResultType(
   
   // 对每个类型统计
   byType.forEach((typeResults, type) => {
+    // 记录该类型的公式数量
+    formulaCountByType.set(type, typeResults.length);
+    
     const typeMap = new Map<string, number>();
     
     // 获取该类型的所有可能结果值
@@ -239,7 +243,7 @@ export function groupByResultType(
     grouped.set(type, typeMap);
   });
   
-  return grouped;
+  return { countsMap: grouped, formulaCountByType };
 }
 
 // 全码类结果汇总（包含0次的号码）

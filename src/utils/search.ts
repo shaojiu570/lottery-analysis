@@ -16,7 +16,10 @@ function generateRandomFormula(
   elementCount: number,
   resultType: ResultType,
   rule: 'D' | 'L',
-  periods: number
+  periods: number,
+  offset: number,
+  leftExpand: number,
+  rightExpand: number
 ): string {
   const shuffled = [...elements].sort(() => Math.random() - 0.5);
   const selected = shuffled.slice(0, Math.min(elementCount, elements.length));
@@ -29,7 +32,12 @@ function generateRandomFormula(
     expression += op + selected[i];
   }
   
-  return `[${rule}${resultType}]${expression}=${periods}`;
+  // 构建公式，包含所有参数
+  const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
+  const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
+  const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
+  
+  return `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
 }
 
 // 智能搜索
@@ -81,7 +89,7 @@ export async function smartSearch(
     const rule = rules[Math.floor(Math.random() * rules.length)];
     const elementCount = Math.floor(Math.random() * (maxElements - minElements + 1)) + minElements;
     
-    const formulaStr = generateRandomFormula(elements, elementCount, resultType, rule, periods);
+    const formulaStr = generateRandomFormula(elements, elementCount, resultType, rule, periods, offset, leftExpand, rightExpand);
     
     if (seenFormulas.has(formulaStr)) continue;
     seenFormulas.add(formulaStr);

@@ -129,11 +129,33 @@ function App() {
       ? current + '\n' + numberedFormulas
       : numberedFormulas;
     setFormulaInput(newInput);
-    // 延迟一点执行验证，确保状态更新完成
+    // 延迟执行验证，确保状态更新完成
     setTimeout(() => {
-      handleVerify();
-    }, 100);
-  }, [formulaInput, setFormulaInput, handleVerify]);
+      // 直接调用验证逻辑
+      const { settings, historyData, setIsVerifying, setVerifyResults } = useAppStore.getState();
+      if (!newInput.trim() || historyData.length === 0) return;
+      setIsVerifying(true);
+      try {
+        const parsed = parseFormulas(newInput);
+        if (parsed.length === 0) {
+          return;
+        }
+        const results = verifyFormulas(
+          parsed,
+          historyData,
+          settings.offset,
+          settings.periods,
+          settings.leftExpand,
+          settings.rightExpand
+        );
+        setVerifyResults(results);
+      } catch (error) {
+        console.error('验证错误:', error);
+      } finally {
+        setIsVerifying(false);
+      }
+    }, 200);
+  }, [formulaInput, setFormulaInput]);
 
   // 保存设置时更新原公式
   const handleSaveSettings = useCallback((newSettings: Partial<typeof settings>) => {

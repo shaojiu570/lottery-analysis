@@ -28,11 +28,13 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
   // 计算统计数据
   const stats = useMemo(() => {
     if (results.length === 0) {
-      return { hitsPerPeriod: [], groupedResults: new Map(), allNumberCounts: new Map() };
+      return { hitsPerPeriod: [], groupedResults: new Map(), formulaCountByType: new Map(), allNumberCounts: new Map() };
     }
+    const { countsMap, formulaCountByType } = groupByResultType(results);
     return {
       hitsPerPeriod: countHitsPerPeriod(results),
-      groupedResults: groupByResultType(results),
+      groupedResults: countsMap,
+      formulaCountByType,
       allNumberCounts: aggregateAllNumbers(results),
     };
   }, [results]);
@@ -43,7 +45,7 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
       return '';
     }
 
-    const { hitsPerPeriod, groupedResults, allNumberCounts } = stats;
+    const { hitsPerPeriod, groupedResults, formulaCountByType, allNumberCounts } = stats;
     const lines: string[] = [];
     
     // 第一层：公式列表
@@ -75,7 +77,7 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
       });
       const sortedCounts = Array.from(byCount.entries()).sort((a, b) => a[0] - b[0]);
       // 行数=该类型公式数量，码数=有命中的结果数量
-      const formulaCount = counts.size;
+      const formulaCount = formulaCountByType.get(type) || 0;
       const uniqueResults = Array.from(counts.values() as number[]).filter(c => c > 0).length;
       
       lines.push(`【${type}结果】${latestPeriod}期:`);
