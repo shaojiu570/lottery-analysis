@@ -80,7 +80,9 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
       const formulaCount = formulaCountByType.get(type) || 0;
       const totalResults = Array.from(counts.values() as number[]).reduce((sum, c) => sum + c, 0);
       
-      lines.push(`【${type}结果】${latestPeriod}期:`);
+      // 预测下一期，期数+1
+      const predictPeriod = latestPeriod > 0 ? latestPeriod + 1 : latestPeriod;
+      lines.push(`【${type}结果】${predictPeriod}期:`);
       sortedCounts.forEach(([count, resultList]) => {
         lines.push(`〖${count}次〗：${resultList.join(',')}（共${resultList.length}码)`);
       });
@@ -102,7 +104,9 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
       const formulaCount = results.length;
       const totalNumbers = Array.from(allNumberCounts.values()).reduce((sum, c) => sum + c, 0);
       
-      lines.push(`【全码类结果】${latestPeriod}期:`);
+      // 预测下一期，期数+1
+      const predictPeriodAll = latestPeriod > 0 ? latestPeriod + 1 : latestPeriod;
+      lines.push(`【全码类结果】${predictPeriodAll}期:`);
       sortedCounts.forEach(([count, numbers]) => {
         const numStr = numbers.sort((a, b) => a - b).map(n => n.toString().padStart(2, '0')).join(',');
         lines.push(`〖${count}次〗：${numStr}（共${numbers.length}码)`);
