@@ -10,23 +10,52 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsModalProps) {
-  const [offset, setOffset] = useState(settings.offset);
-  const [periods, setPeriods] = useState(settings.periods);
-  const [leftExpand, setLeftExpand] = useState(settings.leftExpand);
-  const [rightExpand, setRightExpand] = useState(settings.rightExpand);
+  // 使用字符串状态来管理输入，避免数字转换问题
+  const [offsetInput, setOffsetInput] = useState(settings.offset.toString());
+  const [periodsInput, setPeriodsInput] = useState(settings.periods.toString());
+  const [leftExpandInput, setLeftExpandInput] = useState(settings.leftExpand.toString());
+  const [rightExpandInput, setRightExpandInput] = useState(settings.rightExpand.toString());
 
   useEffect(() => {
-    setOffset(settings.offset);
-    setPeriods(settings.periods);
-    setLeftExpand(settings.leftExpand);
-    setRightExpand(settings.rightExpand);
+    setOffsetInput(settings.offset.toString());
+    setPeriodsInput(settings.periods.toString());
+    setLeftExpandInput(settings.leftExpand.toString());
+    setRightExpandInput(settings.rightExpand.toString());
   }, [settings, isOpen]);
 
   if (!isOpen) return null;
 
   const handleSave = () => {
+    const offset = offsetInput === '' ? 0 : parseInt(offsetInput) || 0;
+    const periods = periodsInput === '' ? 15 : parseInt(periodsInput) || 15;
+    const leftExpand = leftExpandInput === '' ? 0 : parseInt(leftExpandInput) || 0;
+    const rightExpand = rightExpandInput === '' ? 0 : parseInt(rightExpandInput) || 0;
+    
     onSave({ offset, periods, leftExpand, rightExpand });
     onClose();
+  };
+
+  // 处理输入变化，允许空值和负号
+  const handleInputChange = (value: string, setter: (val: string) => void, allowNegative = false) => {
+    // 只允许数字和负号（如果允许负数）
+    if (value === '' || value === '-') {
+      setter(value);
+      return;
+    }
+    
+    // 如果是允许负数，检查负号开头
+    if (allowNegative && value.startsWith('-')) {
+      const numPart = value.slice(1);
+      if (numPart === '' || /^\d*$/.test(numPart)) {
+        setter(value);
+      }
+      return;
+    }
+    
+    // 只允许数字
+    if (/^\d*$/.test(value)) {
+      setter(value);
+    }
   };
 
   return (
@@ -43,20 +72,10 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
               补偿值
             </label>
             <input
-              type="number"
+              type="text"
               inputMode="numeric"
-              value={offset}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '' || val === '-') {
-                  setOffset(val === '-' ? -0 : 0);
-                } else {
-                  const num = parseInt(val);
-                  if (!isNaN(num)) setOffset(num);
-                }
-              }}
-              min={-99}
-              max={99}
+              value={offsetInput}
+              onChange={(e) => handleInputChange(e.target.value, setOffsetInput, true)}
               className={cn(
                 'w-full px-3 py-2 rounded-lg border border-gray-300',
                 'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200',
@@ -70,20 +89,10 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
               验证期数
             </label>
             <input
-              type="number"
+              type="text"
               inputMode="numeric"
-              value={periods}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '') {
-                  setPeriods(15);
-                } else {
-                  const num = parseInt(val);
-                  if (!isNaN(num)) setPeriods(num);
-                }
-              }}
-              min={1}
-              max={200}
+              value={periodsInput}
+              onChange={(e) => handleInputChange(e.target.value, setPeriodsInput, false)}
               className={cn(
                 'w-full px-3 py-2 rounded-lg border border-gray-300',
                 'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200',
@@ -98,20 +107,10 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
                 左扩展
               </label>
               <input
-                type="number"
+                type="text"
                 inputMode="numeric"
-                value={leftExpand}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '') {
-                    setLeftExpand(0);
-                  } else {
-                    const num = parseInt(val);
-                    if (!isNaN(num)) setLeftExpand(num);
-                  }
-                }}
-                min={0}
-                max={10}
+                value={leftExpandInput}
+                onChange={(e) => handleInputChange(e.target.value, setLeftExpandInput, false)}
                 className={cn(
                   'w-full px-3 py-2 rounded-lg border border-gray-300',
                   'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200',
@@ -124,20 +123,10 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
                 右扩展
               </label>
               <input
-                type="number"
+                type="text"
                 inputMode="numeric"
-                value={rightExpand}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '') {
-                    setRightExpand(0);
-                  } else {
-                    const num = parseInt(val);
-                    if (!isNaN(num)) setRightExpand(num);
-                  }
-                }}
-                min={0}
-                max={10}
+                value={rightExpandInput}
+                onChange={(e) => handleInputChange(e.target.value, setRightExpandInput, false)}
                 className={cn(
                   'w-full px-3 py-2 rounded-lg border border-gray-300',
                   'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200',
