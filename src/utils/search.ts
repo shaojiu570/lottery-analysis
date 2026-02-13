@@ -15,7 +15,8 @@ function generateRandomFormula(
   elements: string[],
   elementCount: number,
   resultType: ResultType,
-  rule: 'D' | 'L'
+  rule: 'D' | 'L',
+  periods: number
 ): string {
   const shuffled = [...elements].sort(() => Math.random() - 0.5);
   const selected = shuffled.slice(0, Math.min(elementCount, elements.length));
@@ -28,7 +29,7 @@ function generateRandomFormula(
     expression += op + selected[i];
   }
   
-  return `[${rule}${resultType}]${expression}=100`;
+  return `[${rule}${resultType}]${expression}=${periods}`;
 }
 
 // 智能搜索
@@ -80,7 +81,7 @@ export async function smartSearch(
     const rule = rules[Math.floor(Math.random() * rules.length)];
     const elementCount = Math.floor(Math.random() * (maxElements - minElements + 1)) + minElements;
     
-    const formulaStr = generateRandomFormula(elements, elementCount, resultType, rule);
+    const formulaStr = generateRandomFormula(elements, elementCount, resultType, rule, periods);
     
     if (seenFormulas.has(formulaStr)) continue;
     seenFormulas.add(formulaStr);
