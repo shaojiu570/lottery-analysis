@@ -30,10 +30,11 @@ export function SmartSearchModal({
   const [count, setCount] = useState(500);
   const [strategy, setStrategy] = useState<SearchStrategy>('fast');
   const [selectedTypes, setSelectedTypes] = useState<ResultType[]>(['尾数类']);
-  const [offset, setOffset] = useState(settings.searchOffset);
-  const [periods, setPeriods] = useState(settings.searchPeriods);
-  const [leftExpand, setLeftExpand] = useState(settings.searchLeft);
-  const [rightExpand, setRightExpand] = useState(settings.searchRight);
+  // 使用字符串状态管理数字输入
+  const [offsetInput, setOffsetInput] = useState(settings.searchOffset.toString());
+  const [periodsInput, setPeriodsInput] = useState(settings.searchPeriods.toString());
+  const [leftExpandInput, setLeftExpandInput] = useState(settings.searchLeft.toString());
+  const [rightExpandInput, setRightExpandInput] = useState(settings.searchRight.toString());
   
   const [searching, setSearching] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
@@ -47,14 +48,14 @@ export function SmartSearchModal({
       setCount(500);
       setStrategy('fast');
       setSelectedTypes(['尾数类']);
-      setOffset(settings.searchOffset);
-      setPeriods(settings.searchPeriods);
-      setLeftExpand(settings.searchLeft);
-      setRightExpand(settings.searchRight);
+      setOffsetInput(settings.searchOffset.toString());
+      setPeriodsInput(settings.searchPeriods.toString());
+      setLeftExpandInput(settings.searchLeft.toString());
+      setRightExpandInput(settings.searchRight.toString());
       setResults([]);
       setSelectedResults(new Set());
     }
-  }, [isOpen]);
+  }, [isOpen, settings]);
 
   if (!isOpen) return null;
 
@@ -66,6 +67,26 @@ export function SmartSearchModal({
     );
   };
 
+  // 处理输入变化，允许空值和负号
+  const handleInputChange = (value: string, setter: (val: string) => void, allowNegative = false) => {
+    if (value === '' || value === '-') {
+      setter(value);
+      return;
+    }
+    
+    if (allowNegative && value.startsWith('-')) {
+      const numPart = value.slice(1);
+      if (numPart === '' || /^\d*$/.test(numPart)) {
+        setter(value);
+      }
+      return;
+    }
+    
+    if (/^\d*$/.test(value)) {
+      setter(value);
+    }
+  };
+
   const handleSearch = async () => {
     if (historyData.length === 0) {
       alert('请先导入开奖记录');
@@ -75,6 +96,12 @@ export function SmartSearchModal({
       alert('请至少选择一种结果类型');
       return;
     }
+
+    // 转换字符串为数字
+    const offset = offsetInput === '' ? 0 : parseInt(offsetInput) || 0;
+    const periods = periodsInput === '' ? 15 : parseInt(periodsInput) || 15;
+    const leftExpand = leftExpandInput === '' ? 0 : parseInt(leftExpandInput) || 0;
+    const rightExpand = rightExpandInput === '' ? 0 : parseInt(rightExpandInput) || 0;
 
     setSearching(true);
     setResults([]);
@@ -152,7 +179,7 @@ export function SmartSearchModal({
           <div className="p-3 sm:p-4 border-b border-gray-200 space-y-3 sm:space-y-4">
             {/* 参数提示行 */}
             <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 px-2 sm:px-3 py-2 rounded-lg gap-2">
-              <span className="truncate">补偿:{offset} 期:{periods} 左:{leftExpand} 右:{rightExpand}</span>
+              <span className="truncate">补偿:{offsetInput || '0'} 期:{periodsInput || '15'} 左:{leftExpandInput || '0'} 右:{rightExpandInput || '0'}</span>
               <button
                 onClick={handleSearch}
                 disabled={searching}
@@ -236,77 +263,45 @@ export function SmartSearchModal({
               </div>
             </div>
 
-            {/* 参数设置 */}
+            {/* 参数设置 - 使用字符串输入 */}
             <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
               <div>
                 <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">补偿</label>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  value={offset}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === '' || val === '-') {
-                      setOffset(val === '-' ? -0 : 0);
-                    } else {
-                      const num = parseInt(val);
-                      if (!isNaN(num)) setOffset(num);
-                    }
-                  }}
+                  value={offsetInput}
+                  onChange={(e) => handleInputChange(e.target.value, setOffsetInput, true)}
                   className="w-full px-1 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded"
                 />
               </div>
               <div>
                 <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">期数</label>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  value={periods}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === '') {
-                      setPeriods(15);
-                    } else {
-                      const num = parseInt(val);
-                      if (!isNaN(num)) setPeriods(num);
-                    }
-                  }}
+                  value={periodsInput}
+                  onChange={(e) => handleInputChange(e.target.value, setPeriodsInput, false)}
                   className="w-full px-1 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded"
                 />
               </div>
               <div>
                 <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">左扩</label>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  value={leftExpand}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === '') {
-                      setLeftExpand(0);
-                    } else {
-                      const num = parseInt(val);
-                      if (!isNaN(num)) setLeftExpand(num);
-                    }
-                  }}
+                  value={leftExpandInput}
+                  onChange={(e) => handleInputChange(e.target.value, setLeftExpandInput, false)}
                   className="w-full px-1 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded"
                 />
               </div>
               <div>
                 <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">右扩</label>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  value={rightExpand}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === '') {
-                      setRightExpand(0);
-                    } else {
-                      const num = parseInt(val);
-                      if (!isNaN(num)) setRightExpand(num);
-                    }
-                  }}
+                  value={rightExpandInput}
+                  onChange={(e) => handleInputChange(e.target.value, setRightExpandInput, false)}
                   className="w-full px-1 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded"
                 />
               </div>
