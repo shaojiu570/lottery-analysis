@@ -78,11 +78,11 @@ export function getZodiacPosition(num: number): number {
   return 1;
 }
 
-// 肖位名称
+// 肖位名称（不带"位"字）
 export function getZodiacName(position: number): string {
   const names = ['', '鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'];
   const pos = ((position - 1) % 12) + 1;
-  return names[pos] + '位';
+  return names[pos];
 }
 
 // 段位映射：号码 -> 段位 (1-7)

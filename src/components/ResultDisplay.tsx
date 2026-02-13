@@ -74,13 +74,14 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
         byCount.get(count)!.push(result);
       });
       const sortedCounts = Array.from(byCount.entries()).sort((a, b) => a[0] - b[0]);
-      const totalCodes = Array.from(counts.values() as number[]).reduce((sum, c) => sum + c, 0);
+      const formulaCount = counts.size;
+      const uniqueResults = byCount.size;
       
       lines.push(`【${type}结果】${latestPeriod}期:`);
       sortedCounts.forEach(([count, resultList]) => {
         lines.push(`〖${count}次〗：${resultList.join(',')}（共${resultList.length}码)`);
       });
-      lines.push(`〖本次运算共${counts.size}行, 总计${totalCodes}码〗`);
+      lines.push(`本次运算共${formulaCount}行, 总计${uniqueResults}码`);
       lines.push('');
     });
     
@@ -94,14 +95,15 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
         byCount.get(count)!.push(num);
       });
       const sortedCounts = Array.from(byCount.entries()).sort((a, b) => a[0] - b[0]);
-      const totalCodes = Array.from(allNumberCounts.values()).reduce((sum, c) => sum + c, 0);
+      const formulaCount = results.filter(r => r.formula.resultType === '单特类').length;
+      const uniqueResults = Array.from(allNumberCounts.values()).filter(c => c > 0).length;
       
       lines.push(`【全码类结果】${latestPeriod}期:`);
       sortedCounts.forEach(([count, numbers]) => {
         const numStr = numbers.sort((a, b) => a - b).map(n => n.toString().padStart(2, '0')).join(',');
         lines.push(`〖${count}次〗：${numStr}（共${numbers.length}码)`);
       });
-      lines.push(`本次运算共${allNumberCounts.size}行, 总计${totalCodes}码`);
+      lines.push(`本次运算共${formulaCount}行, 总计${uniqueResults}码`);
     }
     
     return lines.join('\n');
@@ -111,21 +113,17 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
     scrollToTop();
   }, [results]);
 
-  // 到底部
   const handleScrollToBottom = () => {
     scrollToBottom();
   };
 
-  // 复制全部
   const handleCopyAll = () => {
     onCopy(resultText);
   };
 
-  // 空结果状态
   if (results.length === 0) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden bg-white">
-        {/* 底部固定工具栏 - 即使没有结果也显示 */}
         <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 shrink-0">
           <span className="text-xs text-gray-400">等待验证...</span>
           <div className="flex gap-2">
@@ -155,12 +153,10 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
-      {/* 公式数量提示 */}
       <div className="px-4 py-1.5 bg-gray-50 border-b border-gray-200 text-xs text-gray-500 shrink-0">
         共 {results.length} 个公式
       </div>
 
-      {/* 结果内容 - 占据剩余空间 */}
       <div className="flex-1 min-h-0 overflow-hidden px-4 py-2">
         <textarea
           ref={textareaRef}
@@ -175,7 +171,6 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
         />
       </div>
 
-      {/* 底部固定工具栏 */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 shrink-0">
         <span className="text-xs text-gray-400">{results.length}个</span>
         <div className="flex gap-2">

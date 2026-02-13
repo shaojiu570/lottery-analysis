@@ -173,19 +173,25 @@ export function countHitsPerPeriod(results: VerifyResult[]): number[] {
   return counts;
 }
 
-// 按结果类型分组统计（包含0次的结果）
+// 按结果类型分组统计（只统计同类公式的最新一期结果）
 export function groupByResultType(
   results: VerifyResult[]
 ): Map<ResultType, Map<string, number>> {
   const grouped = new Map<ResultType, Map<string, number>>();
   
+  // 按类型分组
+  const byType = new Map<ResultType, VerifyResult[]>();
   for (const result of results) {
     const type = result.formula.resultType;
-    if (!grouped.has(type)) {
-      grouped.set(type, new Map<string, number>());
+    if (!byType.has(type)) {
+      byType.set(type, []);
     }
-    
-    const typeMap = grouped.get(type)!;
+    byType.get(type)!.push(result);
+  }
+  
+  // 对每个类型统计
+  byType.forEach((typeResults, type) => {
+    const typeMap = new Map<string, number>();
     
     // 获取该类型的所有可能结果值
     const allPossibleValues: string[] = [];
@@ -219,12 +225,19 @@ export function groupByResultType(
       }
     }
     
-    // 统计每个结果出现的次数
+    // 统计每个结果在同类公式中出现的次数
     for (const val of allPossibleValues) {
-      const count = result.results.filter(r => r === val).length;
+      let count = 0;
+      for (const r of typeResults) {
+        if (r.results.includes(val)) {
+          count++;
+        }
+      }
       typeMap.set(val, count);
     }
-  }
+    
+    grouped.set(type, typeMap);
+  });
   
   return grouped;
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/utils/cn';
 import { LotteryData, ResultType, SearchStrategy, Settings } from '@/types';
 import { smartSearch, SearchResult } from '@/utils/search';
@@ -25,19 +25,36 @@ export function SmartSearchModal({
   settings,
   onAddFormulas,
 }: SmartSearchModalProps) {
+  // 初始化时从settings读取参数
   const [hitRate, setHitRate] = useState(60);
   const [count, setCount] = useState(500);
   const [strategy, setStrategy] = useState<SearchStrategy>('fast');
   const [selectedTypes, setSelectedTypes] = useState<ResultType[]>(['尾数类']);
-  const [offset, setOffset] = useState(settings.searchOffset);
-  const [periods, setPeriods] = useState(settings.searchPeriods);
-  const [leftExpand, setLeftExpand] = useState(settings.searchLeft);
-  const [rightExpand, setRightExpand] = useState(settings.searchRight);
+  const [offset, setOffset] = useState(0);
+  const [periods, setPeriods] = useState(15);
+  const [leftExpand, setLeftExpand] = useState(0);
+  const [rightExpand, setRightExpand] = useState(0);
   
   const [searching, setSearching] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedResults, setSelectedResults] = useState<Set<number>>(new Set());
+
+  // 弹窗打开时初始化参数和清空结果
+  useEffect(() => {
+    if (isOpen) {
+      setHitRate(60);
+      setCount(500);
+      setStrategy('fast');
+      setSelectedTypes(['尾数类']);
+      setOffset(settings.searchOffset);
+      setPeriods(settings.searchPeriods);
+      setLeftExpand(settings.searchLeft);
+      setRightExpand(settings.searchRight);
+      setResults([]);
+      setSelectedResults(new Set());
+    }
+  }, [isOpen, settings]);
 
   if (!isOpen) return null;
 
