@@ -60,13 +60,10 @@ function App() {
         return;
       }
 
+      // 使用公式里写的参数进行验证
       const results = verifyFormulas(
         parsed,
-        historyData,
-        settings.offset,
-        settings.periods,
-        settings.leftExpand,
-        settings.rightExpand
+        historyData
       );
       
       setVerifyResults(results);
@@ -76,7 +73,7 @@ function App() {
     } finally {
       setIsVerifying(false);
     }
-  }, [formulaInput, historyData, settings, setIsVerifying, setVerifyResults]);
+  }, [formulaInput, historyData, setIsVerifying, setVerifyResults]);
 
   // 清空结果和输入
   const handleClearResults = useCallback(() => {
@@ -132,7 +129,7 @@ function App() {
     // 延迟执行验证，确保状态更新完成
     setTimeout(() => {
       // 直接调用验证逻辑
-      const { settings, historyData, setIsVerifying, setVerifyResults } = useAppStore.getState();
+      const { historyData, setIsVerifying, setVerifyResults } = useAppStore.getState();
       if (!newInput.trim() || historyData.length === 0) return;
       setIsVerifying(true);
       try {
@@ -140,14 +137,8 @@ function App() {
         if (parsed.length === 0) {
           return;
         }
-        const results = verifyFormulas(
-          parsed,
-          historyData,
-          settings.offset,
-          settings.periods,
-          settings.leftExpand,
-          settings.rightExpand
-        );
+        // 使用公式里写的参数进行验证
+        const results = verifyFormulas(parsed, historyData);
         setVerifyResults(results);
       } catch (error) {
         console.error('验证错误:', error);
@@ -232,13 +223,14 @@ function App() {
           setShowFavorites(false);
           // 延迟执行验证
           setTimeout(() => {
-            const { settings, historyData, setIsVerifying, setVerifyResults } = useAppStore.getState();
+            const { historyData, setIsVerifying, setVerifyResults } = useAppStore.getState();
             if (!newInput.trim() || historyData.length === 0) return;
             setIsVerifying(true);
             try {
               const parsed = parseFormulas(newInput);
               if (parsed.length === 0) return;
-              const results = verifyFormulas(parsed, historyData, settings.offset, settings.periods, settings.leftExpand, settings.rightExpand);
+              // 使用公式里写的参数进行验证
+              const results = verifyFormulas(parsed, historyData);
               setVerifyResults(results);
             } catch (error) {
               console.error('验证错误:', error);
