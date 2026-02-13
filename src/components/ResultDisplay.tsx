@@ -128,8 +128,7 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
   if (results.length === 0) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden bg-white">
-        <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 shrink-0">
-          <span className="text-xs text-gray-400">等待验证...</span>
+        <div className="flex items-center justify-end px-4 py-3 bg-white border-t border-gray-200 shrink-0">
           <div className="flex gap-2">
             <button
               onClick={handleScrollToBottom}
@@ -157,10 +156,6 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
-      <div className="px-4 py-1.5 bg-gray-50 border-b border-gray-200 text-xs text-gray-500 shrink-0">
-        共 {results.length} 个公式
-      </div>
-
       <div className="flex-1 min-h-0 overflow-hidden px-4 py-2">
         <textarea
           ref={textareaRef}
@@ -175,8 +170,7 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
         />
       </div>
 
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 shrink-0">
-        <span className="text-xs text-gray-400">{results.length}个</span>
+      <div className="flex items-center justify-end px-4 py-3 bg-white border-t border-gray-200 shrink-0">
         <div className="flex gap-2">
           <button
             onClick={handleScrollToBottom}

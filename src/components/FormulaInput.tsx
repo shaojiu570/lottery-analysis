@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { cn } from '@/utils/cn';
 
 interface FormulaInputProps {
@@ -20,7 +20,6 @@ export function FormulaInput({
   onSaveToFavorites,
   isVerifying,
 }: FormulaInputProps) {
-  const [showHelp, setShowHelp] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
@@ -37,31 +36,13 @@ export function FormulaInput({
 
   return (
     <div className="bg-white border-t border-gray-200 flex flex-col shrink-0">
-      {/* 帮助按钮行 */}
-      <div className="flex justify-between items-center px-4 py-1.5 border-b border-gray-100">
-        <button
-          onClick={() => setShowHelp(!showHelp)}
-          className="text-emerald-600 hover:text-emerald-700 text-xs"
-        >
-          {showHelp ? '隐藏帮助' : '格式帮助'}
-        </button>
-      </div>
-
-      {/* 帮助信息 */}
-      {showHelp && (
-        <div className="px-4 py-2 bg-gray-50 text-xs text-gray-600 space-y-1">
-          <p>格式：[规则结果类型]表达式+补偿值=期数</p>
-          <p>示例：[D尾数类]期数合+总分合=50</p>
-        </div>
-      )}
-
       {/* 输入框 */}
       <div className="px-4 py-2">
         <textarea
           ref={textareaRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="请输入公式，每行一个&#10;例：[D尾数类]期数合+总分合=50"
+          placeholder="输入公式"
           className={cn(
             'w-full h-20 sm:h-24 p-2 rounded-lg border border-gray-300',
             'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200',

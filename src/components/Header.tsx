@@ -10,10 +10,7 @@ export function Header({ onOpenFavorites, onOpenSearch, onOpenHistory }: HeaderP
   return (
     <header className="bg-emerald-600 text-white shadow-lg sticky top-0 z-20">
       <div className="max-w-4xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-base sm:text-lg font-bold truncate">
-            号码分析工具
-          </h1>
+        <div className="flex items-center justify-end">
           <nav className="flex gap-1 sm:gap-2">
             <HeaderButton onClick={onOpenFavorites} icon="📚">
               <span className="hidden xs:inline">收藏</span>
