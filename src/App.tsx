@@ -227,12 +227,25 @@ function App() {
         onDeleteGroup={removeGroup}
         onSelectFormulas={(formulas) => {
           const numberedFormulas = addFormulaNumbers(formulas.join('\n'));
-          setFormulaInput(numberedFormulas);
+          const newInput = numberedFormulas;
+          setFormulaInput(newInput);
           setShowFavorites(false);
-          // 自动验证
+          // 延迟执行验证
           setTimeout(() => {
-            handleVerify();
-          }, 100);
+            const { settings, historyData, setIsVerifying, setVerifyResults } = useAppStore.getState();
+            if (!newInput.trim() || historyData.length === 0) return;
+            setIsVerifying(true);
+            try {
+              const parsed = parseFormulas(newInput);
+              if (parsed.length === 0) return;
+              const results = verifyFormulas(parsed, historyData, settings.offset, settings.periods, settings.leftExpand, settings.rightExpand);
+              setVerifyResults(results);
+            } catch (error) {
+              console.error('验证错误:', error);
+            } finally {
+              setIsVerifying(false);
+            }
+          }, 200);
         }}
         onRemoveFormula={removeFromFavorites}
       />
