@@ -43,7 +43,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
-  base: './',
+  base: process.env.GITHUB_PAGES === 'true' ? '/lottery-analysis/' : './',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
