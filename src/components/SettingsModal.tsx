@@ -46,7 +46,15 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
               type="number"
               inputMode="numeric"
               value={offset}
-              onChange={(e) => setOffset(parseInt(e.target.value) || 0)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === '' || val === '-') {
+                  setOffset(val === '-' ? -0 : 0);
+                } else {
+                  const num = parseInt(val);
+                  if (!isNaN(num)) setOffset(num);
+                }
+              }}
               min={-99}
               max={99}
               className={cn(
@@ -65,7 +73,15 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
               type="number"
               inputMode="numeric"
               value={periods}
-              onChange={(e) => setPeriods(parseInt(e.target.value) || 15)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === '') {
+                  setPeriods(15);
+                } else {
+                  const num = parseInt(val);
+                  if (!isNaN(num)) setPeriods(num);
+                }
+              }}
               min={1}
               max={200}
               className={cn(
@@ -85,7 +101,15 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
                 type="number"
                 inputMode="numeric"
                 value={leftExpand}
-                onChange={(e) => setLeftExpand(parseInt(e.target.value) || 0)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '') {
+                    setLeftExpand(0);
+                  } else {
+                    const num = parseInt(val);
+                    if (!isNaN(num)) setLeftExpand(num);
+                  }
+                }}
                 min={0}
                 max={10}
                 className={cn(
@@ -103,7 +127,15 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
                 type="number"
                 inputMode="numeric"
                 value={rightExpand}
-                onChange={(e) => setRightExpand(parseInt(e.target.value) || 0)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '') {
+                    setRightExpand(0);
+                  } else {
+                    const num = parseInt(val);
+                    if (!isNaN(num)) setRightExpand(num);
+                  }
+                }}
                 min={0}
                 max={10}
                 className={cn(

@@ -242,8 +242,17 @@ export function SmartSearchModal({
                 <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">补偿</label>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={offset}
-                  onChange={(e) => setOffset(parseInt(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || val === '-') {
+                      setOffset(val === '-' ? -0 : 0);
+                    } else {
+                      const num = parseInt(val);
+                      if (!isNaN(num)) setOffset(num);
+                    }
+                  }}
                   className="w-full px-1 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded"
                 />
               </div>
@@ -251,8 +260,17 @@ export function SmartSearchModal({
                 <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">期数</label>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={periods}
-                  onChange={(e) => setPeriods(parseInt(e.target.value) || 15)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      setPeriods(15);
+                    } else {
+                      const num = parseInt(val);
+                      if (!isNaN(num)) setPeriods(num);
+                    }
+                  }}
                   className="w-full px-1 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded"
                 />
               </div>
@@ -260,8 +278,17 @@ export function SmartSearchModal({
                 <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">左扩</label>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={leftExpand}
-                  onChange={(e) => setLeftExpand(parseInt(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      setLeftExpand(0);
+                    } else {
+                      const num = parseInt(val);
+                      if (!isNaN(num)) setLeftExpand(num);
+                    }
+                  }}
                   className="w-full px-1 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded"
                 />
               </div>
@@ -269,8 +296,17 @@ export function SmartSearchModal({
                 <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">右扩</label>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={rightExpand}
-                  onChange={(e) => setRightExpand(parseInt(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      setRightExpand(0);
+                    } else {
+                      const num = parseInt(val);
+                      if (!isNaN(num)) setRightExpand(num);
+                    }
+                  }}
                   className="w-full px-1 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded"
                 />
               </div>
