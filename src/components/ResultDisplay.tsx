@@ -76,15 +76,15 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
         byCount.get(count)!.push(result);
       });
       const sortedCounts = Array.from(byCount.entries()).sort((a, b) => a[0] - b[0]);
-      // 行数=该类型公式数量，码数=有命中的结果数量
+      // 行数=该类型公式数量，总计=所有公式结果数量的总和
       const formulaCount = formulaCountByType.get(type) || 0;
-      const uniqueResults = Array.from(counts.values() as number[]).filter(c => c > 0).length;
+      const totalResults = Array.from(counts.values() as number[]).reduce((sum, c) => sum + c, 0);
       
       lines.push(`【${type}结果】${latestPeriod}期:`);
       sortedCounts.forEach(([count, resultList]) => {
         lines.push(`〖${count}次〗：${resultList.join(',')}（共${resultList.length}码)`);
       });
-      lines.push(`本次运算共${formulaCount}行, 总计${uniqueResults}码`);
+      lines.push(`本次运算共${formulaCount}行, 总计${totalResults}码`);
       lines.push('');
     });
     
@@ -98,16 +98,16 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
         byCount.get(count)!.push(num);
       });
       const sortedCounts = Array.from(byCount.entries()).sort((a, b) => a[0] - b[0]);
-      // 行数=全部公式数量，码数=有命中的号码数量
+      // 行数=全部公式数量，总计=所有公式结果转换后的号码数量总和
       const formulaCount = results.length;
-      const uniqueResults = Array.from(allNumberCounts.values()).filter(c => c > 0).length;
+      const totalNumbers = Array.from(allNumberCounts.values()).reduce((sum, c) => sum + c, 0);
       
       lines.push(`【全码类结果】${latestPeriod}期:`);
       sortedCounts.forEach(([count, numbers]) => {
         const numStr = numbers.sort((a, b) => a - b).map(n => n.toString().padStart(2, '0')).join(',');
         lines.push(`〖${count}次〗：${numStr}（共${numbers.length}码)`);
       });
-      lines.push(`本次运算共${formulaCount}行, 总计${uniqueResults}码`);
+      lines.push(`本次运算共${formulaCount}行, 总计${totalNumbers}码`);
     }
     
     return lines.join('\n');
