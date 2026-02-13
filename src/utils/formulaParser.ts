@@ -101,7 +101,9 @@ export function formatFormula(
   hits: boolean[]
 ): string {
   const num = (index + 1).toString().padStart(3, '0');
-  const stars = hits.map(h => h ? '★' : '☆').join('');
+  // 只显示最近10期的星号
+  const recentHits = hits.slice(-10);
+  const stars = recentHits.map(h => h ? '★' : '☆').join('');
   const resultStr = results.join(',');
   
   return `[${num}]${stars}≡${totalPeriods}中${hitCount}次=${resultStr}`;
