@@ -49,7 +49,6 @@ export function FormulaInput({
             'resize-none text-xs sm:text-sm font-mono',
             'placeholder:text-gray-400'
           )}
-          style={{ whiteSpace: 'pre', overflowWrap: 'normal' }}
         />
       </div>
 

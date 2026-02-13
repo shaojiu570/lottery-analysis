@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useAppStore } from '@/stores/appStore';
 import { Header } from '@/components/Header';
 import { FormulaInput } from '@/components/FormulaInput';
@@ -7,6 +7,7 @@ import { HistoryModal } from '@/components/HistoryModal';
 import { FavoritesModal } from '@/components/FavoritesModal';
 import { SmartSearchModal } from '@/components/SmartSearchModal';
 import { SettingsModal } from '@/components/SettingsModal';
+import { FilterModal } from '@/components/FilterModal';
 import { parseFormulas, addFormulaNumbers, removeFormulaNumbers } from '@/utils/formulaParser';
 import { verifyFormulas } from '@/utils/calculator';
 
@@ -41,6 +42,11 @@ function App() {
     setShowSettings,
     latestPeriod,
   } = useAppStore();
+
+  // 筛选状态
+  const [showFilter, setShowFilter] = useState(false);
+  const [filteredResults, setFilteredResults] = useState<typeof verifyResults>([]);
+  const [isUsingFilter, setIsUsingFilter] = useState(false);
 
   useEffect(() => {
     loadHistoryData();
@@ -79,6 +85,8 @@ function App() {
   const handleClearResults = useCallback(() => {
     setVerifyResults([]);
     setFormulaInput('');
+    setIsUsingFilter(false);
+    setFilteredResults([]);
   }, [setVerifyResults, setFormulaInput]);
 
   const handleCopyResults = useCallback((text?: string) => {
@@ -183,7 +191,7 @@ function App() {
 
       <main className="flex-1 flex flex-col overflow-hidden">
         <ResultDisplay 
-          results={verifyResults}
+          results={isUsingFilter ? filteredResults : verifyResults}
           latestPeriod={latestPeriod}
           onClear={handleClearResults}
           onCopy={handleCopyResults}
@@ -194,7 +202,7 @@ function App() {
           onChange={setFormulaInput}
           onVerify={handleVerify}
           onOpenSettings={() => setShowSettings(true)}
-          onOpenFilter={() => {}}
+          onOpenFilter={() => setShowFilter(true)}
           onSaveToFavorites={handleSaveToFavorites}
           isVerifying={isVerifying}
         />
@@ -255,6 +263,16 @@ function App() {
         onClose={() => setShowSettings(false)}
         settings={settings}
         onSave={handleSaveSettings}
+      />
+
+      <FilterModal
+        isOpen={showFilter}
+        onClose={() => setShowFilter(false)}
+        results={verifyResults}
+        onFilter={(filtered) => {
+          setFilteredResults(filtered);
+          setIsUsingFilter(true);
+        }}
       />
     </div>
   );

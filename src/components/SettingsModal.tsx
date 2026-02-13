@@ -44,6 +44,7 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
             </label>
             <input
               type="number"
+              inputMode="numeric"
               value={offset}
               onChange={(e) => setOffset(parseInt(e.target.value) || 0)}
               min={-99}
@@ -54,7 +55,6 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
                 'text-sm'
               )}
             />
-            <p className="text-xs text-gray-500 mt-1">计算结果后加上的数值（-99 ~ 99）</p>
           </div>
 
           <div>
@@ -63,6 +63,7 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
             </label>
             <input
               type="number"
+              inputMode="numeric"
               value={periods}
               onChange={(e) => setPeriods(parseInt(e.target.value) || 15)}
               min={1}
@@ -73,7 +74,6 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
                 'text-sm'
               )}
             />
-            <p className="text-xs text-gray-500 mt-1">用于验证的历史数据期数（1 ~ 200）</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -83,6 +83,7 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
               </label>
               <input
                 type="number"
+                inputMode="numeric"
                 value={leftExpand}
                 onChange={(e) => setLeftExpand(parseInt(e.target.value) || 0)}
                 min={0}
@@ -100,6 +101,7 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
               </label>
               <input
                 type="number"
+                inputMode="numeric"
                 value={rightExpand}
                 onChange={(e) => setRightExpand(parseInt(e.target.value) || 0)}
                 min={0}
@@ -112,7 +114,6 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
               />
             </div>
           </div>
-          <p className="text-xs text-gray-500">结果向左/右扩展的数值（0 ~ 10）</p>
         </div>
 
         <div className="border-t border-gray-200 px-4 py-3 flex justify-end gap-2">

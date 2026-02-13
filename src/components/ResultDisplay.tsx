@@ -161,11 +161,10 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
           ref={textareaRef}
           value={resultText}
           readOnly
-          className="w-full h-full text-xs font-mono bg-gray-50 border border-gray-200 rounded-lg p-3 resize-none focus:outline-none"
+          className="w-full h-full text-xs sm:text-xs font-mono bg-gray-50 border border-gray-200 rounded-lg p-3 resize-none focus:outline-none"
           style={{ 
-            whiteSpace: 'pre',
-            overflowWrap: 'normal',
-            overflowX: 'auto'
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-all'
           }}
         />
       </div>
