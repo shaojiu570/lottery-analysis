@@ -84,15 +84,15 @@ function normalizeElementNamesInExpression(expression: string): string {
   // 先处理简化表达式（如"6波"、"一码"）
   normalized = normalizeSimplifiedExpression(normalized);
   
+  // 先处理特殊的"合尾"、"合头"属性（避免被后续正则错误匹配）
   // 处理"平六合尾"、"平6合尾"等格式（平码的合尾属性）
-  // 需要在处理简单属性之前
-  const pingHePattern = /平([一二三四五六])?(\d)?合尾/g;
-  normalized = normalized.replace(pingHePattern, (_match, cn, num) => {
+  const pingHeTailPattern = /平([一二三四五六])?(\d)?合尾/g;
+  normalized = normalized.replace(pingHeTailPattern, (_match, cn, num) => {
     const cnMap: Record<string, string> = { 
       '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' 
     };
     const finalNum = num || cnMap[cn] || '1';
-    return `平${finalNum}合尾`;
+    return `__PING${finalNum}HETAIL__`;
   });
   
   // 处理"平六合头"、"平6合头"等格式（平码的合头属性）
@@ -102,11 +102,12 @@ function normalizeElementNamesInExpression(expression: string): string {
       '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' 
     };
     const finalNum = num || cnMap[cn] || '1';
-    return `平${finalNum}合头`;
+    return `__PING${finalNum}HEHEAD__`;
   });
   
-  // 处理"平六波"、"平6波"等格式统一为"平6波"
-  const pingPattern = /平([一二三四五六])?(\d)?([波头尾合肖位段行])/g;
+  // 处理"平六波"、"平6波"等格式统一为"平6波"（不包括合尾、合头）
+  // 属性列表排除了"合"，因为合尾和合头已单独处理
+  const pingPattern = /平([一二三四五六])?(\d)?([波头尾肖位段行])/g;
   normalized = normalized.replace(pingPattern, (_match, cn, num, attr) => {
     const cnMap: Record<string, string> = { 
       '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' 
@@ -114,6 +115,20 @@ function normalizeElementNamesInExpression(expression: string): string {
     const finalNum = num || cnMap[cn] || '1';
     return `平${finalNum}${attr}`;
   });
+  
+  // 处理"平六合"（平码的合属性，不是合尾也不是合头）
+  const pingHePattern = /平([一二三四五六])?(\d)?合(?!头|尾)/g;
+  normalized = normalized.replace(pingHePattern, (_match, cn, num) => {
+    const cnMap: Record<string, string> = { 
+      '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' 
+    };
+    const finalNum = num || cnMap[cn] || '1';
+    return `平${finalNum}合`;
+  });
+  
+  // 还原合尾和合头的占位符
+  normalized = normalized.replace(/__PING(\d)HETAIL__/g, '平$1合尾');
+  normalized = normalized.replace(/__PING(\d)HEHEAD__/g, '平$1合头');
   
   // 处理特码相关别名
   normalized = normalized.replace(/特码/g, '特');
