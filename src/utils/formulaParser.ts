@@ -19,7 +19,15 @@ export function parseFormula(input: string): ParsedFormula | null {
   try {
     // 标准化输入
     let formula = input.trim();
+    
+    // 处理公式前可能有数字编号的情况（如 "1[L肖位类]..."）
+    formula = formula.replace(/^\d+/, '').trim();
+    
+    // 转换中文数字为阿拉伯数字
     formula = chineseToNumber(formula);
+    
+    // 处理元素别名（如"特码波" -> "特波"）
+    formula = normalizeElementNamesInExpression(formula);
     
     // 匹配格式: [规则结果类型]表达式+补偿值=期数左左扩展右右扩展
     // 或简化格式: [规则结果类型]表达式=期数
@@ -34,11 +42,17 @@ export function parseFormula(input: string): ParsedFormula | null {
         return null;
       }
       
+      // 清理补偿值（如 +00 -> +0）
+      let offset = 0;
+      if (offsetStr) {
+        offset = parseInt(offsetStr);
+      }
+      
       return {
         rule: rule as 'D' | 'L',
         resultType: resultType as ResultType,
         expression: expression.trim(),
-        offset: offsetStr ? parseInt(offsetStr) : 0,
+        offset,
         periods: parseInt(periodsStr),
         leftExpand: leftStr ? parseInt(leftStr) : 0,
         rightExpand: rightStr ? parseInt(rightStr) : 0,
@@ -47,9 +61,37 @@ export function parseFormula(input: string): ParsedFormula | null {
     }
     
     return null;
-  } catch {
+  } catch (error) {
+    console.error('公式解析错误:', input, error);
     return null;
   }
+}
+
+// 标准化表达式中的元素名称
+function normalizeElementNamesInExpression(expression: string): string {
+  let normalized = expression;
+  
+  // 处理"平六波"、"平6波"等格式统一为"平6波"
+  const pingPattern = /平([一二三四五六])?(\d)?([波头尾合肖位段行])/g;
+  normalized = normalized.replace(pingPattern, (_match, cn, num, attr) => {
+    const cnMap: Record<string, string> = { 
+      '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' 
+    };
+    const finalNum = num || cnMap[cn] || '1';
+    return `平${finalNum}${attr}`;
+  });
+  
+  // 处理特码相关别名
+  normalized = normalized.replace(/特码/g, '特');
+  normalized = normalized.replace(/特号/g, '特');
+  
+  // 处理总分相关别名
+  normalized = normalized.replace(/总分数/g, '总分');
+  
+  // 处理期数相关别名
+  normalized = normalized.replace(/期数/g, '期数');
+  
+  return normalized;
 }
 
 // 将解析的公式转为Formula对象
@@ -78,15 +120,28 @@ export function parseFormulas(input: string): ParsedFormula[] {
   const seen = new Set<string>();
   
   for (const line of lines) {
-    // 去掉行号前缀 [001], [002] 等
-    const cleanLine = line.replace(/^\[\d+\]\s*/, '').trim();
+    // 去掉行号前缀 [001], [002] 等，但保留公式的其他部分
+    let cleanLine = line.replace(/^\[\d+\]\s*/, '').trim();
+    
+    // 处理公式前可能有数字编号的情况（如 "1[L肖位类]..."）
+    cleanLine = cleanLine.replace(/^\d+/, '').trim();
+    
     if (!cleanLine) continue;
     
     const parsed = parseFormula(cleanLine);
-    if (parsed && !seen.has(parsed.expression)) {
-      seen.add(parsed.expression);
+    // 使用完整公式字符串去重，而不是仅表达式部分
+    const formulaKey = `${parsed?.rule}_${parsed?.resultType}_${parsed?.expression}_${parsed?.periods}_${parsed?.offset}_${parsed?.leftExpand}_${parsed?.rightExpand}`;
+    
+    if (parsed && !seen.has(formulaKey)) {
+      seen.add(formulaKey);
       results.push(parsed);
     }
+  }
+  
+  // 记录解析失败的数量
+  const failedCount = lines.length - results.length;
+  if (failedCount > 0) {
+    console.warn(`解析公式: 成功 ${results.length} 个，失败 ${failedCount} 个`);
   }
   
   return results;

@@ -21,9 +21,37 @@ export function chineseToNumber(str: string): string {
   return result;
 }
 
+// 元素别名映射表
+const ELEMENT_ALIASES: Record<string, string> = {
+  // 特码相关
+  '特码': '特',
+  '特号': '特',
+  '特': '特',
+  // 平码相关 - 支持"平六波"、"平6波"
+  '平一': '平1',
+  '平二': '平2',
+  '平三': '平3',
+  '平四': '平4',
+  '平五': '平5',
+  '平六': '平6',
+  // 总分相关
+  '总分数': '总分',
+  '总分合': '总分合',
+  '总分尾': '总分尾',
+  // 期数相关
+  '期数合': '期数合',
+  '期数尾': '期数尾',
+  '期数合尾': '期数合尾',
+};
+
 // 标准化元素名称
 export function normalizeElementName(name: string): string {
   let normalized = chineseToNumber(name);
+  
+  // 处理别名（如"特码波" -> "特波"）
+  for (const [alias, standard] of Object.entries(ELEMENT_ALIASES)) {
+    normalized = normalized.replace(new RegExp(alias, 'g'), standard);
+  }
   
   // 简化格式处理
   // "四五行" -> "平4行"
@@ -32,6 +60,11 @@ export function normalizeElementName(name: string): string {
   normalized = normalized.replace(/^(\d)肖位$/, '平$1肖位');
   // "二波" -> "平2波"
   normalized = normalized.replace(/^(\d)波$/, '平$1波');
+  // "平六波" -> "平6波"（处理中文数字）
+  normalized = normalized.replace(/平([一二三四五六])/, (_, cn) => {
+    const map: Record<string, string> = { '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' };
+    return '平' + (map[cn] || cn);
+  });
   
   return normalized;
 }
