@@ -21,13 +21,19 @@ export function parseFormula(input: string): ParsedFormula | null {
     let formula = input.trim();
     
     // 处理公式前可能有数字编号的情况（如 "1[L肖位类]..."）
-    formula = formula.replace(/^\d+/, '').trim();
+    // 匹配开头的一个或多个数字，后面紧跟着[括号
+    formula = formula.replace(/^\d+(?=\[)/, '').trim();
     
     // 转换中文数字为阿拉伯数字
     formula = chineseToNumber(formula);
     
     // 处理元素别名（如"特码波" -> "特波"）
     formula = normalizeElementNamesInExpression(formula);
+    
+    // 清理补偿值格式（如 +00 -> +0）
+    formula = formula.replace(/([+-])0+(\d+)/g, '$1$2');
+    
+    console.log('标准化后公式:', formula);
     
     // 匹配格式: [规则结果类型]表达式+补偿值=期数左左扩展右右扩展
     // 或简化格式: [规则结果类型]表达式=期数
@@ -39,6 +45,7 @@ export function parseFormula(input: string): ParsedFormula | null {
       const [, rule, resultType, expression, offsetStr, periodsStr, leftStr, rightStr] = fullMatch;
       
       if (!RESULT_TYPES.includes(resultType as ResultType)) {
+        console.log('不支持的类型:', resultType);
         return null;
       }
       
@@ -47,6 +54,8 @@ export function parseFormula(input: string): ParsedFormula | null {
       if (offsetStr) {
         offset = parseInt(offsetStr);
       }
+      
+      console.log('解析成功:', { rule, resultType, expression, offset, periods: parseInt(periodsStr) });
       
       return {
         rule: rule as 'D' | 'L',
@@ -60,6 +69,7 @@ export function parseFormula(input: string): ParsedFormula | null {
       };
     }
     
+    console.log('公式格式不匹配:', formula);
     return null;
   } catch (error) {
     console.error('公式解析错误:', input, error);
@@ -73,6 +83,27 @@ function normalizeElementNamesInExpression(expression: string): string {
   
   // 先处理简化表达式（如"6波"、"一码"）
   normalized = normalizeSimplifiedExpression(normalized);
+  
+  // 处理"平六合尾"、"平6合尾"等格式（平码的合尾属性）
+  // 需要在处理简单属性之前
+  const pingHePattern = /平([一二三四五六])?(\d)?合尾/g;
+  normalized = normalized.replace(pingHePattern, (_match, cn, num) => {
+    const cnMap: Record<string, string> = { 
+      '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' 
+    };
+    const finalNum = num || cnMap[cn] || '1';
+    return `平${finalNum}合尾`;
+  });
+  
+  // 处理"平六合头"、"平6合头"等格式（平码的合头属性）
+  const pingHeHeadPattern = /平([一二三四五六])?(\d)?合头/g;
+  normalized = normalized.replace(pingHeHeadPattern, (_match, cn, num) => {
+    const cnMap: Record<string, string> = { 
+      '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' 
+    };
+    const finalNum = num || cnMap[cn] || '1';
+    return `平${finalNum}合头`;
+  });
   
   // 处理"平六波"、"平6波"等格式统一为"平6波"
   const pingPattern = /平([一二三四五六])?(\d)?([波头尾合肖位段行])/g;
@@ -122,22 +153,40 @@ export function parseFormulas(input: string): ParsedFormula[] {
   const results: ParsedFormula[] = [];
   const seen = new Set<string>();
   
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    console.log(`处理第 ${i + 1} 行:`, line);
+    
     // 去掉行号前缀 [001], [002] 等，但保留公式的其他部分
     let cleanLine = line.replace(/^\[\d+\]\s*/, '').trim();
     
     // 处理公式前可能有数字编号的情况（如 "1[L肖位类]..."）
-    cleanLine = cleanLine.replace(/^\d+/, '').trim();
+    // 只移除紧跟在 [ 前的数字
+    cleanLine = cleanLine.replace(/^(\d+)(?=\[)/, '').trim();
     
-    if (!cleanLine) continue;
+    console.log(`清理后:`, cleanLine);
+    
+    if (!cleanLine) {
+      console.log('清理后为空，跳过');
+      continue;
+    }
     
     const parsed = parseFormula(cleanLine);
-    // 使用完整公式字符串去重，而不是仅表达式部分
-    const formulaKey = `${parsed?.rule}_${parsed?.resultType}_${parsed?.expression}_${parsed?.periods}_${parsed?.offset}_${parsed?.leftExpand}_${parsed?.rightExpand}`;
     
-    if (parsed && !seen.has(formulaKey)) {
+    if (!parsed) {
+      console.error(`第 ${i + 1} 行解析失败:`, cleanLine);
+      continue;
+    }
+    
+    // 使用完整公式字符串去重，而不是仅表达式部分
+    const formulaKey = `${parsed.rule}_${parsed.resultType}_${parsed.expression}_${parsed.periods}_${parsed.offset}_${parsed.leftExpand}_${parsed.rightExpand}`;
+    
+    if (!seen.has(formulaKey)) {
       seen.add(formulaKey);
       results.push(parsed);
+      console.log(`第 ${i + 1} 行解析成功`);
+    } else {
+      console.log(`第 ${i + 1} 行重复，已跳过`);
     }
   }
   
