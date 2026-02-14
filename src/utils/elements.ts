@@ -117,11 +117,14 @@ export function normalizeSimplifiedExpression(expression: string): string {
   
   // 处理简化表达式（如"6波" -> "平6波"）
   // 使用从长到短的顺序匹配，避免"一肖位"被错误匹配为"一平肖位"
+  // 只替换独立的简化表达式（前面不是"平"或"特"）
   const sortedKeys = Object.keys(SIMPLIFIED_EXPRESSIONS).sort((a, b) => b.length - a.length);
   
   for (const simplified of sortedKeys) {
     const standard = SIMPLIFIED_EXPRESSIONS[simplified];
-    normalized = normalized.replace(new RegExp(simplified, 'g'), standard);
+    // 使用负向前瞻，确保前面不是"平"或"特"
+    const pattern = new RegExp(`(?<![平特])${simplified}`, 'g');
+    normalized = normalized.replace(pattern, standard);
   }
   
   return normalized;
