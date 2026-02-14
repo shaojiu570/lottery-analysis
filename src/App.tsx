@@ -8,6 +8,7 @@ import { FavoritesModal } from '@/components/FavoritesModal';
 import { SmartSearchModal } from '@/components/SmartSearchModal';
 import { SettingsModal } from '@/components/SettingsModal';
 import { FilterModal } from '@/components/FilterModal';
+import { AddToFavoritesModal } from '@/components/AddToFavoritesModal';
 import { parseFormulas, addFormulaNumbers, removeFormulaNumbers } from '@/utils/formulaParser';
 import { verifyFormulas } from '@/utils/calculator';
 
@@ -47,6 +48,10 @@ function App() {
   const [showFilter, setShowFilter] = useState(false);
   const [filteredResults, setFilteredResults] = useState<typeof verifyResults>([]);
   const [isUsingFilter, setIsUsingFilter] = useState(false);
+
+  // 收藏到分组状态
+  const [showAddToFavorites, setShowAddToFavorites] = useState(false);
+  const [formulasToAdd, setFormulasToAdd] = useState<string[]>([]);
 
   useEffect(() => {
     loadHistoryData();
@@ -115,16 +120,11 @@ function App() {
       return;
     }
     
-    // 移除编号后收藏
+    // 移除编号后准备收藏
     const cleanLines = lines.map(line => removeFormulaNumbers(line).trim()).filter(l => l);
-    const defaultGroup = favoriteGroups[0];
-    if (defaultGroup) {
-      cleanLines.forEach(line => {
-        addToFavorites(defaultGroup.id, line);
-      });
-      alert(`已添加 ${cleanLines.length} 个公式到"${defaultGroup.name}"分组`);
-    }
-  }, [formulaInput, favoriteGroups, addToFavorites]);
+    setFormulasToAdd(cleanLines);
+    setShowAddToFavorites(true);
+  }, [formulaInput]);
 
   const handleAddFormulasFromSearch = useCallback((formulas: string[]) => {
     const current = formulaInput.trim();
@@ -272,6 +272,22 @@ function App() {
         onFilter={(filtered) => {
           setFilteredResults(filtered);
           setIsUsingFilter(true);
+        }}
+      />
+
+      <AddToFavoritesModal
+        isOpen={showAddToFavorites}
+        onClose={() => setShowAddToFavorites(false)}
+        groups={favoriteGroups}
+        formulas={formulasToAdd}
+        onAdd={(groupId, formulas) => {
+          formulas.forEach(formula => {
+            addToFavorites(groupId, formula);
+          });
+          const group = favoriteGroups.find(g => g.id === groupId);
+          if (group) {
+            alert(`已添加 ${formulas.length} 个公式到"${group.name}"分组`);
+          }
         }}
       />
     </div>
