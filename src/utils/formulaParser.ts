@@ -1,5 +1,5 @@
 import { Formula, ResultType } from '@/types';
-import { chineseToNumber } from './elements';
+import { chineseToNumber, normalizeSimplifiedExpression } from './elements';
 
 const RESULT_TYPES: ResultType[] = ['尾数类', '头数类', '合数类', '波色类', '五行类', '肖位类', '单特类'];
 
@@ -70,6 +70,9 @@ export function parseFormula(input: string): ParsedFormula | null {
 // 标准化表达式中的元素名称
 function normalizeElementNamesInExpression(expression: string): string {
   let normalized = expression;
+  
+  // 先处理简化表达式（如"6波"、"一码"）
+  normalized = normalizeSimplifiedExpression(normalized);
   
   // 处理"平六波"、"平6波"等格式统一为"平6波"
   const pingPattern = /平([一二三四五六])?(\d)?([波头尾合肖位段行])/g;

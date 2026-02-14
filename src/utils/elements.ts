@@ -9,10 +9,20 @@ const CHINESE_NUMBERS: Record<string, number> = {
 
 export function chineseToNumber(str: string): string {
   let result = str;
-  // 处理 "二十三" 这种格式
-  result = result.replace(/十(\S)/g, (_, d) => `1${CHINESE_NUMBERS[d] || d}`);
-  result = result.replace(/(\S)十/g, (_, d) => `${CHINESE_NUMBERS[d] || d}0`);
-  result = result.replace(/十/g, '10');
+  
+  // 处理 "十一" 到 "十九" (11-19)
+  result = result.replace(/十([一二三四五六七八九])/g, (_, d) => `1${CHINESE_NUMBERS[d]}`);
+  
+  // 处理 "二十一" 到 "九十九" (21-99)
+  result = result.replace(/([一二三四五六七八九])十([一二三四五六七八九]?)/g, (_, tens, ones) => {
+    const tenVal = CHINESE_NUMBERS[tens];
+    const oneVal = ones ? CHINESE_NUMBERS[ones] : 0;
+    return (tenVal * 10 + oneVal).toString();
+  });
+  
+  // 处理 "十" 开头 (10-19 的另一种表示)
+  result = result.replace(/^十/g, '10');
+  result = result.replace(/([^\d])十/g, '$110');
   
   // 替换单个汉字数字
   for (const [cn, num] of Object.entries(CHINESE_NUMBERS)) {
@@ -65,6 +75,54 @@ export function normalizeElementName(name: string): string {
     const map: Record<string, string> = { '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' };
     return '平' + (map[cn] || cn);
   });
+  
+  return normalized;
+}
+
+// 简化表达式映射
+const SIMPLIFIED_EXPRESSIONS: Record<string, string> = {
+  // 数字+属性 -> 平码
+  '1波': '平1波', '2波': '平2波', '3波': '平3波', '4波': '平4波', '5波': '平5波', '6波': '平6波',
+  '1头': '平1头', '2头': '平2头', '3头': '平3头', '4头': '平4头', '5头': '平5头', '6头': '平6头',
+  '1尾': '平1尾', '2尾': '平2尾', '3尾': '平3尾', '4尾': '平4尾', '5尾': '平5尾', '6尾': '平6尾',
+  '1合': '平1合', '2合': '平2合', '3合': '平3合', '4合': '平4合', '5合': '平5合', '6合': '平6合',
+  '1号': '平1号', '2号': '平2号', '3号': '平3号', '4号': '平4号', '5号': '平5号', '6号': '平6号',
+  '1行': '平1行', '2行': '平2行', '3行': '平3行', '4行': '平4行', '5行': '平5行', '6行': '平6行',
+  '1段': '平1段', '2段': '平2段', '3段': '平3段', '4段': '平4段', '5段': '平5段', '6段': '平6段',
+  '1肖位': '平1肖位', '2肖位': '平2肖位', '3肖位': '平3肖位', '4肖位': '平4肖位', '5肖位': '平5肖位', '6肖位': '平6肖位',
+  
+  // 中文数字+属性
+  '一波': '平1波', '二波': '平2波', '三波': '平3波', '四波': '平4波', '五波': '平5波', '六波': '平6波',
+  '一头': '平1头', '二头': '平2头', '三头': '平3头', '四头': '平4头', '五头': '平5头', '六头': '平6头',
+  '一尾': '平1尾', '二尾': '平2尾', '三尾': '平3尾', '四尾': '平4尾', '五尾': '平5尾', '六尾': '平6尾',
+  '一合': '平1合', '二合': '平2合', '三合': '平3合', '四合': '平4合', '五合': '平5合', '六合': '平6合',
+  '一号': '平1号', '二号': '平2号', '三号': '平3号', '四号': '平4号', '五号': '平5号', '六号': '平6号',
+  '一行': '平1行', '二行': '平2行', '三行': '平3行', '四行': '平4行', '五行': '平5行', '六行': '平6行',
+  '一段': '平1段', '二段': '平2段', '三段': '平3段', '四段': '平4段', '五段': '平5段', '六段': '平6段',
+  '一肖位': '平1肖位', '二肖位': '平2肖位', '三肖位': '平3肖位', '四肖位': '平4肖位', '五肖位': '平5肖位', '六肖位': '平6肖位',
+  
+  // 单属性 -> 特码
+  '波': '特波',
+  '头': '特头',
+  '尾': '特尾',
+  '合': '特合',
+  '行': '特行',
+  '肖位': '特肖位',
+  '段': '特段',
+};
+
+// 扩展表达式标准化函数
+export function normalizeSimplifiedExpression(expression: string): string {
+  let normalized = chineseToNumber(expression);
+  
+  // 处理简化表达式（如"6波" -> "平6波"）
+  // 使用从长到短的顺序匹配，避免"一肖位"被错误匹配为"一平肖位"
+  const sortedKeys = Object.keys(SIMPLIFIED_EXPRESSIONS).sort((a, b) => b.length - a.length);
+  
+  for (const simplified of sortedKeys) {
+    const standard = SIMPLIFIED_EXPRESSIONS[simplified];
+    normalized = normalized.replace(new RegExp(simplified, 'g'), standard);
+  }
   
   return normalized;
 }
