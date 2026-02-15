@@ -83,6 +83,10 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, onClear, on
     lines.push(`[近${Math.min(10, hitsPerPeriod.length)}期开出次数${periodCounts}]`);
     lines.push('');
     
+    // 计算预测期数：如果有目标期数，预测目标期数+1；否则预测最新期数+1
+    const basePeriod = targetPeriod || latestPeriod;
+    const predictPeriod = basePeriod > 0 ? basePeriod + 1 : basePeriod;
+    
     // 第三层：按结果类型分组统计（同类公式的最新一期结果）
     groupedResults.forEach((counts, type) => {
       const byCount = new Map<number, string[]>();
@@ -97,11 +101,9 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, onClear, on
       const formulaCount = formulaCountByType.get(type) || 0;
       const totalResults = Array.from(counts.values() as number[]).reduce((sum, c) => sum + c, 0);
       
-      // 预测下一期，期数+1
-      const predictPeriod = latestPeriod > 0 ? latestPeriod + 1 : latestPeriod;
       lines.push(`【${type}结果】${predictPeriod}期:`);
       sortedCounts.forEach(([count, resultList]) => {
-        lines.push(`〖${count}次〗：${resultList.join(',')}（共${resultList.length}码)`);
+        lines.push(`〖${count}次〗：${resultList.join(',')}（共${resultList.length}码）`);
       });
       lines.push(`本次运算共${formulaCount}行, 总计${totalResults}码`);
       lines.push('');
@@ -121,18 +123,16 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, onClear, on
       const formulaCount = results.length;
       const totalNumbers = Array.from(allNumberCounts.values()).reduce((sum, c) => sum + c, 0);
       
-      // 预测下一期，期数+1
-      const predictPeriodAll = latestPeriod > 0 ? latestPeriod + 1 : latestPeriod;
-      lines.push(`【全码类结果】${predictPeriodAll}期:`);
+      lines.push(`【全码类结果】${predictPeriod}期:`);
       sortedCounts.forEach(([count, numbers]) => {
         const numStr = numbers.sort((a, b) => a - b).map(n => n.toString().padStart(2, '0')).join(',');
-        lines.push(`〖${count}次〗：${numStr}（共${numbers.length}码)`);
+        lines.push(`〖${count}次〗：${numStr}（共${numbers.length}码）`);
       });
       lines.push(`本次运算共${formulaCount}行, 总计${totalNumbers}码`);
     }
     
     return lines.join('\n');
-  }, [results, stats, latestPeriod, parseErrors]);
+  }, [results, stats, latestPeriod, targetPeriod, parseErrors]);
 
   useEffect(() => {
     scrollToTop();

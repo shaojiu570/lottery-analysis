@@ -62,6 +62,49 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
     onClose();
   };
 
+  // 应用筛选到公式输入框（只显示筛选出的公式）
+  const handleApplyToFormulas = () => {
+    const filtered = getFilteredResults();
+    if (filtered.length === 0) {
+      alert('没有符合条件的公式');
+      return;
+    }
+    
+    if (filtered.length === results.length) {
+      alert('筛选条件没有排除任何公式');
+      return;
+    }
+    
+    // 获取筛选出的公式原始行索引
+    const filteredIndices = new Set(filtered.map(r => r.originalLineIndex));
+    const allLines = formulaInput.split('\n');
+    const keptLines: string[] = [];
+    
+    for (let i = 0; i < allLines.length; i++) {
+      const line = allLines[i];
+      if (!line.trim()) continue;
+      if (filteredIndices.has(i)) {
+        keptLines.push(line);
+      }
+    }
+    
+    if (keptLines.length === 0) {
+      alert('无法匹配公式');
+      return;
+    }
+    
+    // 更新公式输入框（重新编号）
+    const newInput = keptLines.map((line, index) => {
+      const cleanLine = line.replace(/^\[\d+\]\s*/, '').trim();
+      return `[${(index + 1).toString().padStart(3, '0')}] ${cleanLine}`;
+    }).join('\n');
+    
+    onUpdateFormulas(newInput);
+    onFilter(filtered);
+    onClose();
+    alert(`已在输入框中筛选出 ${keptLines.length} 个公式`);
+  };
+
   const handleClear = () => {
     onFilter(results);
     onClose();
@@ -238,6 +281,15 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
               应用
             </button>
           </div>
+          
+          {/* 应用到公式按钮 */}
+          <button
+            onClick={handleApplyToFormulas}
+            className="w-full px-4 py-2 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 text-sm border border-purple-200"
+            title="在公式输入框中只显示筛选出的公式"
+          >
+            📝 应用到公式输入框
+          </button>
           
           {/* 公式编辑按钮 */}
           <div className="flex gap-2 pt-2 border-t border-gray-100">
