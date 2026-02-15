@@ -163,10 +163,18 @@ function generateFormulaId(): string {
   return `f_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
+// 解析错误信息
+export interface ParseError {
+  lineNumber: number;
+  originalLine: string;
+  errorType: 'parse' | 'duplicate';
+}
+
 // 批量解析公式
-export function parseFormulas(input: string): ParsedFormula[] {
+export function parseFormulas(input: string): { formulas: ParsedFormula[]; errors: ParseError[] } {
   const lines = input.split('\n').filter(line => line.trim());
   const results: ParsedFormula[] = [];
+  const errors: ParseError[] = [];
   const seen = new Set<string>();
   
   for (let i = 0; i < lines.length; i++) {
@@ -191,6 +199,11 @@ export function parseFormulas(input: string): ParsedFormula[] {
     
     if (!parsed) {
       console.error(`第 ${i + 1} 行解析失败:`, cleanLine);
+      errors.push({
+        lineNumber: i + 1,
+        originalLine: line.trim(),
+        errorType: 'parse'
+      });
       continue;
     }
     
@@ -203,16 +216,21 @@ export function parseFormulas(input: string): ParsedFormula[] {
       console.log(`第 ${i + 1} 行解析成功`);
     } else {
       console.log(`第 ${i + 1} 行重复，已跳过`);
+      errors.push({
+        lineNumber: i + 1,
+        originalLine: line.trim(),
+        errorType: 'duplicate'
+      });
     }
   }
   
   // 记录解析失败的数量
-  const failedCount = lines.length - results.length;
+  const failedCount = errors.length;
   if (failedCount > 0) {
     console.warn(`解析公式: 成功 ${results.length} 个，失败 ${failedCount} 个`);
   }
   
-  return results;
+  return { formulas: results, errors };
 }
 
 // 格式化公式输出（带编号）

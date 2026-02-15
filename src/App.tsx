@@ -9,7 +9,7 @@ import { SmartSearchModal } from '@/components/SmartSearchModal';
 import { SettingsModal } from '@/components/SettingsModal';
 import { FilterModal } from '@/components/FilterModal';
 import { AddToFavoritesModal } from '@/components/AddToFavoritesModal';
-import { parseFormulas, addFormulaNumbers, removeFormulaNumbers } from '@/utils/formulaParser';
+import { parseFormulas, addFormulaNumbers, removeFormulaNumbers, ParseError } from '@/utils/formulaParser';
 import { verifyFormulas } from '@/utils/calculator';
 
 function App() {
@@ -53,6 +53,9 @@ function App() {
   const [showAddToFavorites, setShowAddToFavorites] = useState(false);
   const [formulasToAdd, setFormulasToAdd] = useState<string[]>([]);
 
+  // 解析错误状态
+  const [parseErrors, setParseErrors] = useState<ParseError[]>([]);
+
   useEffect(() => {
     loadHistoryData();
     loadFavorites();
@@ -65,7 +68,9 @@ function App() {
     setIsVerifying(true);
     
     try {
-      const parsed = parseFormulas(formulaInput);
+      const { formulas: parsed, errors } = parseFormulas(formulaInput);
+      setParseErrors(errors);
+      
       if (parsed.length === 0) {
         alert('未找到有效公式，请检查格式');
         return;
@@ -84,7 +89,7 @@ function App() {
     } finally {
       setIsVerifying(false);
     }
-  }, [formulaInput, historyData, setIsVerifying, setVerifyResults]);
+  }, [formulaInput, historyData, setIsVerifying, setVerifyResults, setParseErrors]);
 
   // 清空结果和输入
   const handleClearResults = useCallback(() => {
@@ -135,13 +140,14 @@ function App() {
       : numberedFormulas;
     setFormulaInput(newInput);
     // 延迟执行验证，确保状态更新完成
-    setTimeout(() => {
+      setTimeout(() => {
       // 直接调用验证逻辑
       const { historyData, setIsVerifying, setVerifyResults } = useAppStore.getState();
       if (!newInput.trim() || historyData.length === 0) return;
       setIsVerifying(true);
       try {
-        const parsed = parseFormulas(newInput);
+        const { formulas: parsed, errors } = parseFormulas(newInput);
+        setParseErrors(errors);
         if (parsed.length === 0) {
           return;
         }
@@ -163,7 +169,8 @@ function App() {
       const update = confirm('是否将新的参数应用到当前公式？');
       if (update) {
         // 重新构建带新参数的公式
-        const parsed = parseFormulas(formulaInput);
+        const { formulas: parsed, errors } = parseFormulas(formulaInput);
+        setParseErrors(errors);
         const updatedLines = parsed.map(p => {
           const offsetVal = newSettings.offset ?? settings.offset;
           const periodsVal = newSettings.periods ?? settings.periods;
@@ -195,6 +202,7 @@ function App() {
           latestPeriod={latestPeriod}
           onClear={handleClearResults}
           onCopy={handleCopyResults}
+          parseErrors={parseErrors}
         />
 
         <FormulaInput
@@ -235,7 +243,8 @@ function App() {
             if (!newInput.trim() || historyData.length === 0) return;
             setIsVerifying(true);
             try {
-              const parsed = parseFormulas(newInput);
+              const { formulas: parsed, errors } = parseFormulas(newInput);
+              setParseErrors(errors);
               if (parsed.length === 0) return;
               // 使用公式里写的参数进行验证
               const results = verifyFormulas(parsed, historyData);

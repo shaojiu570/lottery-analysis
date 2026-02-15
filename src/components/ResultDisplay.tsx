@@ -1,6 +1,6 @@
 import { useRef, useEffect, useMemo } from 'react';
 import { VerifyResult } from '@/types';
-import { formatFormula } from '@/utils/formulaParser';
+import { formatFormula, ParseError } from '@/utils/formulaParser';
 import { countHitsPerPeriod, groupByResultType, aggregateAllNumbers } from '@/utils/calculator';
 
 interface ResultDisplayProps {
@@ -8,9 +8,10 @@ interface ResultDisplayProps {
   latestPeriod: number;
   onClear: () => void;
   onCopy: (text: string) => void;
+  parseErrors?: ParseError[];
 }
 
-export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: ResultDisplayProps) {
+export function ResultDisplay({ results, latestPeriod, onClear, onCopy, parseErrors = [] }: ResultDisplayProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
@@ -60,6 +61,16 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
     });
     
     lines.push('');
+    
+    // 显示解析错误（如果有）
+    if (parseErrors.length > 0) {
+      const errorLines = parseErrors.map(err => {
+        const errType = err.errorType === 'parse' ? '解析错误' : '重复公式';
+        return `[${err.lineNumber.toString().padStart(3, '0')}]${errType}`;
+      });
+      lines.push(errorLines.join('\n'));
+      lines.push('');
+    }
     
     // 第二层：近N期开出次数统计
     const periodCounts = hitsPerPeriod.slice(0, 10).map(count => count.toString().padStart(2, '0')).join(',');
@@ -115,7 +126,7 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy }: Result
     }
     
     return lines.join('\n');
-  }, [results, stats, latestPeriod]);
+  }, [results, stats, latestPeriod, parseErrors]);
 
   useEffect(() => {
     scrollToTop();
