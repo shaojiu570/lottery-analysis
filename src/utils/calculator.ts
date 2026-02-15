@@ -189,7 +189,7 @@ export function verifyFormulas(
   );
 }
 
-// 统计每期命中公式数
+// 统计每期实际特码被多少公式命中
 export function countHitsPerPeriod(results: VerifyResult[], historyData: LotteryData[]): number[] {
   if (results.length === 0 || historyData.length === 0) return [];
   
@@ -214,22 +214,38 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
   }
   
   // 初始化计数数组
-  const counts: number[] = new Array(periodsToCount.length).fill(0);
+  const counts: number[] = [];
   
-  // 对于每个公式，统计在指定范围内的命中情况
-  for (const result of results) {
-    // 创建一个Map方便查找期数的命中情况
-    const hitMap = new Map<number, boolean>();
-    for (const pr of result.periodResults) {
-      hitMap.set(pr.period, pr.hit);
+  // 对每个期数，统计实际特码被多少公式命中
+  for (const period of periodsToCount) {
+    // 找到该期的开奖数据
+    const periodData = historyData.find(d => d.period === period);
+    if (!periodData) {
+      counts.push(0);
+      continue;
     }
     
-    // 统计每个目标期数的命中情况
-    for (let i = 0; i < periodsToCount.length; i++) {
-      if (hitMap.get(periodsToCount[i])) {
-        counts[i]++;
+    // 获取该期的实际特码
+    const actualTeNum = periodData.numbers[6];
+    
+    // 统计有多少公式的结果包含这个特码
+    let hitCount = 0;
+    for (const result of results) {
+      // 找到该公式在该期的计算结果
+      const periodResult = result.periodResults.find(pr => pr.period === period);
+      if (periodResult) {
+        // 将该期的所有扩展结果转换为号码
+        for (const value of periodResult.expandedResults) {
+          const numbers = getNumbersFromResult(value, result.formula.resultType);
+          if (numbers.includes(actualTeNum)) {
+            hitCount++;
+            break; // 该公式已命中，不再重复计数
+          }
+        }
       }
     }
+    
+    counts.push(hitCount);
   }
   
   // 反转数组，让最右边是最新的一期（在指定范围内）
