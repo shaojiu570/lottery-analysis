@@ -110,9 +110,10 @@ export function verifyFormula(
     // 找到验证期数在历史数据中的索引
     const verifyIndex = historyData.findIndex(d => d.period === verifyData.period);
     
-    // 用前一期数据计算（索引+1，因为历史数据按时间倒序）
-    const calcData = (verifyIndex >= 0 && verifyIndex + 1 < historyData.length) 
-      ? historyData[verifyIndex + 1] 
+    // 用下一期数据计算（索引-1，因为历史数据按时间倒序，索引0是最新期）
+    // 例如验证2040期，应该用2041期的数据计算
+    const calcData = (verifyIndex > 0) 
+      ? historyData[verifyIndex - 1] 
       : verifyData;
     
     // 计算表达式值

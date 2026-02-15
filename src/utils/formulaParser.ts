@@ -261,8 +261,9 @@ export function formatFormula(
   hits: boolean[]
 ): string {
   const num = (index + 1).toString().padStart(3, '0');
-  // 只显示最近10期的星号
-  const recentHits = hits.slice(-10);
+  // 只显示最近10期的星号，最右边是最新的一期（索引0）
+  // hits 数组顺序是 [最新期, 次新期, ...]，所以取前10个然后反转显示
+  const recentHits = hits.slice(0, 10).reverse();
   const stars = recentHits.map(h => h ? '★' : '☆').join('');
   const resultStr = results.join(',');
   
