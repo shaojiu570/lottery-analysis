@@ -195,8 +195,9 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
   
   // 获取目标期数（从第一个结果中获取，所有公式应该使用相同的目标期数）
   const targetPeriod = results[0]?.targetPeriod;
+  const periods = results[0]?.totalPeriods || 10;
   
-  // 确定统计范围：从目标期数开始向后取10期
+  // 确定统计范围：从目标期数开始向后取periods期
   let startIndex = 0;
   if (targetPeriod) {
     const targetIdx = historyData.findIndex(d => d.period === targetPeriod);
@@ -205,14 +206,15 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
     }
   }
   
-  // 获取要统计的10个期数
+  // 获取要统计的期数（最多10期用于显示）
+  const displayCount = Math.min(periods, 10);
   const periodsToCount: number[] = [];
-  for (let i = 0; i < 10 && startIndex + i < historyData.length; i++) {
+  for (let i = 0; i < displayCount && startIndex + i < historyData.length; i++) {
     periodsToCount.push(historyData[startIndex + i].period);
   }
   
-  // 如果没有足够的期数，用0填充
-  const counts: number[] = new Array(10).fill(0);
+  // 初始化计数数组
+  const counts: number[] = new Array(periodsToCount.length).fill(0);
   
   // 对于每个公式，统计在指定范围内的命中情况
   for (const result of results) {
@@ -231,7 +233,7 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
   }
   
   // 反转数组，让最右边是最新的一期（在指定范围内）
-  return counts.slice(0, periodsToCount.length).reverse();
+  return counts.reverse();
 }
 
 // 按结果类型分组统计（只统计同类公式的最新一期结果）
