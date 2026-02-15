@@ -82,7 +82,6 @@ export function verifyFormula(
   const rightExpand = overrideRight ?? parsed.rightExpand;
   
   let dataToVerify: LotteryData[];
-  let targetPeriodData: LotteryData | null = null;
   
   if (targetPeriod) {
     // 找到目标期数的索引
@@ -91,11 +90,9 @@ export function verifyFormula(
       // 未找到目标期数，使用最新期数
       dataToVerify = historyData.slice(0, periods);
     } else {
-      // 保存目标期数的数据（用于验证命中）
-      targetPeriodData = historyData[targetIndex];
-      // 从目标期数的后一期开始取数据（历史数据中索引+1是更早的期数）
-      // 因为要"用前一期数据计算，验证目标期"
-      dataToVerify = historyData.slice(targetIndex + 1, targetIndex + 1 + periods);
+      // 从目标期数开始取N期（包括目标期及之后的期数）
+      // 例如目标期2026043，取[2026043, 2026042, 2026041...]
+      dataToVerify = historyData.slice(targetIndex, targetIndex + periods);
     }
   } else {
     // 取最近N期数据
@@ -108,22 +105,24 @@ export function verifyFormula(
   const allResults = new Set<number>();
   
   for (let i = 0; i < dataToVerify.length; i++) {
-    const data = dataToVerify[i];
+    const verifyData = dataToVerify[i];
+    
+    // 找到验证期数在历史数据中的索引
+    const verifyIndex = historyData.findIndex(d => d.period === verifyData.period);
+    
+    // 用前一期数据计算（索引+1，因为历史数据按时间倒序）
+    const calcData = (verifyIndex >= 0 && verifyIndex + 1 < historyData.length) 
+      ? historyData[verifyIndex + 1] 
+      : verifyData;
+    
     // 计算表达式值
-    const rawResult = evaluateExpression(parsed.expression, data, useSort);
+    const rawResult = evaluateExpression(parsed.expression, calcData, useSort);
     // 加补偿值
     const withOffset = rawResult + offset;
     // 应用循环规则
     const cycledResult = applyCycle(withOffset, parsed.resultType);
     // 获取扩展结果
     const expandedResults = getExpandedResults(cycledResult, leftExpand, rightExpand, parsed.resultType);
-    
-    // 确定要验证的期数数据
-    let verifyData = data;
-    if (targetPeriod && i === 0 && targetPeriodData) {
-      // 第一个结果：用前一期数据计算，验证目标期数
-      verifyData = targetPeriodData;
-    }
     
     // 获取特码的属性值
     const teNum = verifyData.numbers[6];
