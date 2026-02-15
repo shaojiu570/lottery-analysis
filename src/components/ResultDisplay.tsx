@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo } from 'react';
-import { VerifyResult } from '@/types';
+import { VerifyResult, LotteryData } from '@/types';
 import { formatFormula, ParseError } from '@/utils/formulaParser';
 import { countHitsPerPeriod, groupByResultType, aggregateAllNumbers } from '@/utils/calculator';
 
@@ -7,12 +7,13 @@ interface ResultDisplayProps {
   results: VerifyResult[];
   latestPeriod: number;
   targetPeriod: number | null;
+  historyData: LotteryData[];
   onClear: () => void;
   onCopy: (text: string) => void;
   parseErrors?: ParseError[];
 }
 
-export function ResultDisplay({ results, latestPeriod, targetPeriod, onClear, onCopy, parseErrors = [] }: ResultDisplayProps) {
+export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData, onClear, onCopy, parseErrors = [] }: ResultDisplayProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
@@ -34,12 +35,12 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, onClear, on
     }
     const { countsMap, formulaCountByType } = groupByResultType(results);
     return {
-      hitsPerPeriod: countHitsPerPeriod(results),
+      hitsPerPeriod: countHitsPerPeriod(results, historyData),
       groupedResults: countsMap,
       formulaCountByType,
       allNumberCounts: aggregateAllNumbers(results),
     };
-  }, [results]);
+  }, [results, historyData]);
 
   // 生成文本框内容
   const resultText = useMemo(() => {

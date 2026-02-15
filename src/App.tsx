@@ -214,6 +214,7 @@ function App() {
           results={isUsingFilter ? filteredResults : verifyResults}
           latestPeriod={latestPeriod}
           targetPeriod={settings.targetPeriod}
+          historyData={historyData}
           onClear={handleClearResults}
           onCopy={handleCopyResults}
           parseErrors={parseErrors}

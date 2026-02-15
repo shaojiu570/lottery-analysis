@@ -188,22 +188,27 @@ export function verifyFormulas(
 }
 
 // 统计每期命中公式数
-export function countHitsPerPeriod(results: VerifyResult[]): number[] {
-  if (results.length === 0) return [];
+export function countHitsPerPeriod(results: VerifyResult[], historyData: LotteryData[]): number[] {
+  if (results.length === 0 || historyData.length === 0) return [];
   
-  const periodsCount = results[0].totalPeriods;
-  const counts: number[] = [];
+  // 取最近10期开奖数据（固定范围）
+  const recentPeriods = historyData.slice(0, 10).map(d => d.period);
+  const counts: number[] = new Array(10).fill(0);
   
-  for (let i = 0; i < periodsCount; i++) {
-    let count = 0;
-    for (const result of results) {
-      if (result.hits[i]) count++;
+  // 对于每个公式，找到对应期数的命中情况
+  for (const result of results) {
+    // periodResults 包含了该公式验证的所有期数详情
+    for (const pr of result.periodResults) {
+      // 找到这个期数在固定范围中的位置
+      const index = recentPeriods.indexOf(pr.period);
+      if (index !== -1 && pr.hit) {
+        counts[index]++;
+      }
     }
-    counts.push(count);
   }
   
-  // 只返回最近10期，且最右边是最新一期
-  return counts.slice(-10);
+  // 反转数组，让最右边是最新的一期（索引0是最新期）
+  return counts.reverse();
 }
 
 // 按结果类型分组统计（只统计同类公式的最新一期结果）
