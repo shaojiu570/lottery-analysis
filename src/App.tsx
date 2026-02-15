@@ -94,7 +94,7 @@ function App() {
     } finally {
       setIsVerifying(false);
     }
-  }, [formulaInput, historyData, setIsVerifying, setVerifyResults, setParseErrors]);
+  }, [formulaInput, historyData, settings, setIsVerifying, setVerifyResults, setParseErrors]);
 
   // 清空结果和输入
   const handleClearResults = useCallback(() => {
@@ -173,7 +173,7 @@ function App() {
         setIsVerifying(false);
       }
     }, 200);
-  }, [formulaInput, setFormulaInput]);
+  }, [formulaInput, setFormulaInput, settings]);
 
   // 保存设置时更新原公式
   const handleSaveSettings = useCallback((newSettings: Partial<typeof settings>) => {
@@ -300,9 +300,15 @@ function App() {
         isOpen={showFilter}
         onClose={() => setShowFilter(false)}
         results={verifyResults}
+        formulaInput={formulaInput}
         onFilter={(filtered) => {
           setFilteredResults(filtered);
           setIsUsingFilter(true);
+        }}
+        onUpdateFormulas={(newFormulaInput) => {
+          setFormulaInput(newFormulaInput);
+          setIsUsingFilter(false);
+          setFilteredResults([]);
         }}
       />
 

@@ -29,6 +29,7 @@ export interface VerifyResult {
   hitRate: number;         // 命中率
   results: string[];       // 结果集合
   periodResults: PeriodResult[]; // 每期详细结果
+  originalLineIndex: number; // 原始公式在输入中的行索引
 }
 
 // 每期详细结果

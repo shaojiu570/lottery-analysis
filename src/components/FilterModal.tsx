@@ -5,13 +5,15 @@ interface FilterModalProps {
   isOpen: boolean;
   onClose: () => void;
   results: VerifyResult[];
+  formulaInput: string;
   onFilter: (filteredResults: VerifyResult[]) => void;
+  onUpdateFormulas: (newFormulaInput: string) => void;
 }
 
 type HitRateCondition = 'gt' | 'lt' | 'eq' | 'between' | 'none';
 type LastPeriodCondition = 'hit' | 'miss' | 'none';
 
-export function FilterModal({ isOpen, onClose, results, onFilter }: FilterModalProps) {
+export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, onUpdateFormulas }: FilterModalProps) {
   const [hitRateCondition, setHitRateCondition] = useState<HitRateCondition>('none');
   const [hitRateValue, setHitRateValue] = useState(80);
   const [hitRateMin, setHitRateMin] = useState(70);
@@ -20,7 +22,7 @@ export function FilterModal({ isOpen, onClose, results, onFilter }: FilterModalP
 
   if (!isOpen) return null;
 
-  const handleFilter = () => {
+  const getFilteredResults = () => {
     let filtered = [...results];
 
     if (hitRateCondition !== 'none') {
@@ -43,14 +45,19 @@ export function FilterModal({ isOpen, onClose, results, onFilter }: FilterModalP
 
     if (lastPeriodCondition !== 'none') {
       filtered = filtered.filter(r => {
-        // 最新一期是数组的最后一个元素
-        const lastHit = r.hits.length > 0 ? r.hits[r.hits.length - 1] : false;
+        // 最新一期是数组的第一个元素（historyData按降序排列）
+        const lastHit = r.hits.length > 0 ? r.hits[0] : false;
         if (lastPeriodCondition === 'hit') return lastHit;
         if (lastPeriodCondition === 'miss') return !lastHit;
         return true;
       });
     }
 
+    return filtered;
+  };
+
+  const handleFilter = () => {
+    const filtered = getFilteredResults();
     onFilter(filtered);
     onClose();
   };
@@ -58,6 +65,83 @@ export function FilterModal({ isOpen, onClose, results, onFilter }: FilterModalP
   const handleClear = () => {
     onFilter(results);
     onClose();
+  };
+
+  // 保留筛选出的公式，删除其他
+  const handleKeepFiltered = () => {
+    const filtered = getFilteredResults();
+    if (filtered.length === 0) {
+      alert('没有符合条件的公式');
+      return;
+    }
+    
+    // 获取筛选出的公式原始行索引
+    const filteredIndices = new Set(filtered.map(r => r.originalLineIndex));
+    
+    // 从原始输入中保留这些公式
+    const allLines = formulaInput.split('\n');
+    const keptLines: string[] = [];
+    
+    for (let i = 0; i < allLines.length; i++) {
+      const line = allLines[i];
+      if (!line.trim()) continue;
+      
+      // 检查行索引是否在筛选结果中
+      if (filteredIndices.has(i)) {
+        keptLines.push(line);
+      }
+    }
+    
+    if (keptLines.length === 0) {
+      alert('无法匹配公式，请重新验证后再试');
+      return;
+    }
+    
+    // 更新公式输入（重新编号）
+    const newInput = keptLines.map((line, index) => {
+      const cleanLine = line.replace(/^\[\d+\]\s*/, '').trim();
+      return `[${(index + 1).toString().padStart(3, '0')}] ${cleanLine}`;
+    }).join('\n');
+    
+    onUpdateFormulas(newInput);
+    onClose();
+    alert(`已保留 ${keptLines.length} 个公式，删除了 ${allLines.filter(l => l.trim()).length - keptLines.length} 个`);
+  };
+
+  // 删除筛选出的公式，保留其他
+  const handleDeleteFiltered = () => {
+    const filtered = getFilteredResults();
+    if (filtered.length === 0) {
+      alert('没有符合条件的公式');
+      return;
+    }
+    
+    // 获取筛选出的公式原始行索引
+    const filteredIndices = new Set(filtered.map(r => r.originalLineIndex));
+    
+    // 从原始输入中删除这些公式
+    const allLines = formulaInput.split('\n');
+    const keptLines: string[] = [];
+    
+    for (let i = 0; i < allLines.length; i++) {
+      const line = allLines[i];
+      if (!line.trim()) continue;
+      
+      // 检查行索引是否不在筛选结果中（即保留）
+      if (!filteredIndices.has(i)) {
+        keptLines.push(line);
+      }
+    }
+    
+    // 更新公式输入（重新编号）
+    const newInput = keptLines.map((line, index) => {
+      const cleanLine = line.replace(/^\[\d+\]\s*/, '').trim();
+      return `[${(index + 1).toString().padStart(3, '0')}] ${cleanLine}`;
+    }).join('\n');
+    
+    onUpdateFormulas(newInput);
+    onClose();
+    alert(`已删除 ${filtered.length} 个公式，保留了 ${keptLines.length} 个`);
   };
 
   return (
@@ -138,19 +222,40 @@ export function FilterModal({ isOpen, onClose, results, onFilter }: FilterModalP
           </div>
         </div>
 
-        <div className="border-t border-gray-200 px-4 py-3 flex justify-between gap-2">
-          <button
-            onClick={handleClear}
-            className="flex-1 px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 text-sm"
-          >
-            清除
-          </button>
-          <button
-            onClick={handleFilter}
-            className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-sm"
-          >
-            应用
-          </button>
+        <div className="border-t border-gray-200 px-4 py-3 space-y-2">
+          {/* 筛选显示按钮 */}
+          <div className="flex gap-2">
+            <button
+              onClick={handleClear}
+              className="flex-1 px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 text-sm border border-gray-300"
+            >
+              清除
+            </button>
+            <button
+              onClick={handleFilter}
+              className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-sm"
+            >
+              应用
+            </button>
+          </div>
+          
+          {/* 公式编辑按钮 */}
+          <div className="flex gap-2 pt-2 border-t border-gray-100">
+            <button
+              onClick={handleKeepFiltered}
+              className="flex-1 px-4 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-sm border border-blue-200"
+              title="只保留筛选出的公式，删除其他"
+            >
+              ✅ 保留筛选
+            </button>
+            <button
+              onClick={handleDeleteFiltered}
+              className="flex-1 px-4 py-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 text-sm border border-red-200"
+              title="删除筛选出的公式，保留其他"
+            >
+              🗑️ 删除筛选
+            </button>
+          </div>
         </div>
       </div>
     </div>

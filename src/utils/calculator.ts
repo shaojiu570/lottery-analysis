@@ -47,6 +47,10 @@ export function evaluateExpression(
     normalized = normalized.replace(new RegExp(elem, 'g'), value.toString());
   }
   
+  // 处理单独的"特"字（视为特号）
+  const teValue = calculateElementValue('特号', data, useSort);
+  normalized = normalized.replace(/特(?!合|头|尾|肖|号|波|段|行)/g, teValue.toString());
+  
   // 安全计算表达式
   try {
     // 只允许数字和基本运算符
@@ -153,6 +157,7 @@ export function verifyFormula(
     hitRate: dataToVerify.length > 0 ? hitCount / dataToVerify.length : 0,
     results,
     periodResults,
+    originalLineIndex: (parsed as { originalLineIndex?: number }).originalLineIndex ?? 0,
   };
 }
 

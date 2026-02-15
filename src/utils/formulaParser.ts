@@ -170,16 +170,32 @@ export interface ParseError {
   errorType: 'parse' | 'duplicate';
 }
 
+export interface ParsedFormulaWithIndex extends ParsedFormula {
+  originalLineIndex: number;
+}
+
 // 批量解析公式
-export function parseFormulas(input: string): { formulas: ParsedFormula[]; errors: ParseError[] } {
-  const lines = input.split('\n').filter(line => line.trim());
-  const results: ParsedFormula[] = [];
+export function parseFormulas(input: string): { formulas: ParsedFormulaWithIndex[]; errors: ParseError[] } {
+  const allLines = input.split('\n');
+  const nonEmptyLineIndices: number[] = [];
+  const lines: string[] = [];
+  
+  // 找出所有非空行的原始索引
+  for (let i = 0; i < allLines.length; i++) {
+    if (allLines[i].trim()) {
+      nonEmptyLineIndices.push(i);
+      lines.push(allLines[i]);
+    }
+  }
+  
+  const results: ParsedFormulaWithIndex[] = [];
   const errors: ParseError[] = [];
   const seen = new Set<string>();
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    console.log(`处理第 ${i + 1} 行:`, line);
+    const originalIndex = nonEmptyLineIndices[i];
+    console.log(`处理第 ${i + 1} 行(原始索引 ${originalIndex}):`, line);
     
     // 去掉行号前缀 [001], [002] 等，但保留公式的其他部分
     let cleanLine = line.replace(/^\[\d+\]\s*/, '').trim();
@@ -212,7 +228,10 @@ export function parseFormulas(input: string): { formulas: ParsedFormula[]; error
     
     if (!seen.has(formulaKey)) {
       seen.add(formulaKey);
-      results.push(parsed);
+      results.push({
+        ...parsed,
+        originalLineIndex: originalIndex
+      });
       console.log(`第 ${i + 1} 行解析成功`);
     } else {
       console.log(`第 ${i + 1} 行重复，已跳过`);
