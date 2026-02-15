@@ -131,8 +131,9 @@ function normalizeElementNamesInExpression(expression: string): string {
   normalized = normalized.replace(/__PING(\d)HEHEAD__/g, '平$1合头');
   
   // 处理特码相关别名
-  normalized = normalized.replace(/特码/g, '特');
-  normalized = normalized.replace(/特号/g, '特');
+  // 特码 -> 特号（完整的特码号码元素）
+  normalized = normalized.replace(/特码/g, '特号');
+  // 注意：不处理单独的"特"，必须使用完整格式如"特波"、"特头"等
   
   // 处理总分相关别名
   normalized = normalized.replace(/总分数/g, '总分');

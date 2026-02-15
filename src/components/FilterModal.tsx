@@ -43,7 +43,8 @@ export function FilterModal({ isOpen, onClose, results, onFilter }: FilterModalP
 
     if (lastPeriodCondition !== 'none') {
       filtered = filtered.filter(r => {
-        const lastHit = r.hits.length > 0 ? r.hits[0] : false;
+        // 最新一期是数组的最后一个元素
+        const lastHit = r.hits.length > 0 ? r.hits[r.hits.length - 1] : false;
         if (lastPeriodCondition === 'hit') return lastHit;
         if (lastPeriodCondition === 'miss') return !lastHit;
         return true;

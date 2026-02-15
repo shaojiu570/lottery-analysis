@@ -170,7 +170,8 @@ export function countHitsPerPeriod(results: VerifyResult[]): number[] {
     counts.push(count);
   }
   
-  return counts;
+  // 只返回最近10期，且最右边是最新一期
+  return counts.slice(-10);
 }
 
 // 按结果类型分组统计（只统计同类公式的最新一期结果）
