@@ -6,12 +6,13 @@ import { countHitsPerPeriod, groupByResultType, aggregateAllNumbers } from '@/ut
 interface ResultDisplayProps {
   results: VerifyResult[];
   latestPeriod: number;
+  targetPeriod: number | null;
   onClear: () => void;
   onCopy: (text: string) => void;
   parseErrors?: ParseError[];
 }
 
-export function ResultDisplay({ results, latestPeriod, onClear, onCopy, parseErrors = [] }: ResultDisplayProps) {
+export function ResultDisplay({ results, latestPeriod, targetPeriod, onClear, onCopy, parseErrors = [] }: ResultDisplayProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
@@ -48,6 +49,11 @@ export function ResultDisplay({ results, latestPeriod, onClear, onCopy, parseErr
 
     const { hitsPerPeriod, groupedResults, formulaCountByType, allNumberCounts } = stats;
     const lines: string[] = [];
+    
+    // 显示验证期数信息
+    const periodLabel = targetPeriod ? `目标期数: ${targetPeriod}` : `最新期数: ${latestPeriod}`;
+    lines.push(`【验证设置】${periodLabel}`);
+    lines.push('');
     
     // 第一层：公式列表
     results.forEach((result, index) => {

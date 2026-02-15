@@ -69,15 +69,30 @@ export function verifyFormula(
   overrideOffset?: number,
   overridePeriods?: number,
   overrideLeft?: number,
-  overrideRight?: number
+  overrideRight?: number,
+  targetPeriod?: number | null
 ): VerifyResult {
   const offset = overrideOffset ?? parsed.offset;
   const periods = overridePeriods ?? parsed.periods;
   const leftExpand = overrideLeft ?? parsed.leftExpand;
   const rightExpand = overrideRight ?? parsed.rightExpand;
   
-  // 取最近N期数据
-  const dataToVerify = historyData.slice(0, periods);
+  let dataToVerify: LotteryData[];
+  
+  if (targetPeriod) {
+    // 找到目标期数的索引
+    const targetIndex = historyData.findIndex(d => d.period === targetPeriod);
+    if (targetIndex === -1) {
+      // 未找到目标期数，使用最新期数
+      dataToVerify = historyData.slice(0, periods);
+    } else {
+      // 从目标期数开始，取之后N期（包括目标期数）
+      dataToVerify = historyData.slice(targetIndex, targetIndex + periods);
+    }
+  } else {
+    // 取最近N期数据
+    dataToVerify = historyData.slice(0, periods);
+  }
   const useSort = parsed.rule === 'D';
   
   const periodResults: PeriodResult[] = [];
@@ -148,10 +163,11 @@ export function verifyFormulas(
   overrideOffset?: number,
   overridePeriods?: number,
   overrideLeft?: number,
-  overrideRight?: number
+  overrideRight?: number,
+  targetPeriod?: number | null
 ): VerifyResult[] {
   return parsedFormulas.map(f => 
-    verifyFormula(f, historyData, overrideOffset, overridePeriods, overrideLeft, overrideRight)
+    verifyFormula(f, historyData, overrideOffset, overridePeriods, overrideLeft, overrideRight, targetPeriod)
   );
 }
 

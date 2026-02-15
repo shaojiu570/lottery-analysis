@@ -153,6 +153,7 @@ const DEFAULT_SETTINGS: Settings = {
   periods: 15,
   leftExpand: 0,
   rightExpand: 0,
+  targetPeriod: null,  // null表示验证最新一期
   searchOffset: 0,
   searchPeriods: 15,
   searchLeft: 0,

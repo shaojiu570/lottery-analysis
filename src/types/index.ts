@@ -54,6 +54,7 @@ export interface Settings {
   periods: number;         // 验证期数
   leftExpand: number;      // 左扩展
   rightExpand: number;     // 右扩展
+  targetPeriod: number | null;  // 目标验证期数（null表示最新一期）
   searchOffset: number;    // 搜索补偿
   searchPeriods: number;   // 搜索期数
   searchLeft: number;      // 搜索左扩

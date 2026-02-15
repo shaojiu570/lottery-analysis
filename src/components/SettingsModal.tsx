@@ -15,12 +15,16 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
   const [periodsInput, setPeriodsInput] = useState(settings.periods.toString());
   const [leftExpandInput, setLeftExpandInput] = useState(settings.leftExpand.toString());
   const [rightExpandInput, setRightExpandInput] = useState(settings.rightExpand.toString());
+  const [targetPeriodInput, setTargetPeriodInput] = useState(
+    settings.targetPeriod?.toString() || ''
+  );
 
   useEffect(() => {
     setOffsetInput(settings.offset.toString());
     setPeriodsInput(settings.periods.toString());
     setLeftExpandInput(settings.leftExpand.toString());
     setRightExpandInput(settings.rightExpand.toString());
+    setTargetPeriodInput(settings.targetPeriod?.toString() || '');
   }, [settings, isOpen]);
 
   if (!isOpen) return null;
@@ -30,8 +34,9 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
     const periods = periodsInput === '' ? 15 : parseInt(periodsInput) || 15;
     const leftExpand = leftExpandInput === '' ? 0 : parseInt(leftExpandInput) || 0;
     const rightExpand = rightExpandInput === '' ? 0 : parseInt(rightExpandInput) || 0;
+    const targetPeriod = targetPeriodInput === '' ? null : parseInt(targetPeriodInput) || null;
     
-    onSave({ offset, periods, leftExpand, rightExpand });
+    onSave({ offset, periods, leftExpand, rightExpand, targetPeriod });
     onClose();
   };
 
@@ -134,6 +139,25 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
                 )}
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              目标期数
+              <span className="text-xs text-gray-500 ml-1">(留空表示验证最新期)</span>
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={targetPeriodInput}
+              onChange={(e) => handleInputChange(e.target.value, setTargetPeriodInput, false)}
+              placeholder="例如: 2026042"
+              className={cn(
+                'w-full px-3 py-2 rounded-lg border border-gray-300',
+                'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200',
+                'text-sm'
+              )}
+            />
           </div>
         </div>
 
