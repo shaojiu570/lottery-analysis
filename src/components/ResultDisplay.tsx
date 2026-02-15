@@ -51,8 +51,15 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     const { hitsPerPeriod, groupedResults, formulaCountByType, allNumberCounts } = stats;
     const lines: string[] = [];
     
+    // 判断是否验证历史期（目标期数 < 最新期）
+    const isHistoryPeriod = targetPeriod && targetPeriod < latestPeriod;
+    // 计算显示期数：历史期显示目标期，最新期显示下一期
+    const displayPeriod = isHistoryPeriod ? targetPeriod : (targetPeriod || latestPeriod) + 1;
+    
     // 显示验证期数信息
-    const periodLabel = targetPeriod ? `目标期数: ${targetPeriod}` : `最新期数: ${latestPeriod}`;
+    const periodLabel = isHistoryPeriod 
+      ? `验证历史期: ${targetPeriod}` 
+      : `预测期: ${displayPeriod} (基于${targetPeriod || latestPeriod}期数据)`;
     lines.push(`【验证设置】${periodLabel}`);
     lines.push('');
     
@@ -84,9 +91,8 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     lines.push(`[近${Math.min(10, hitsPerPeriod.length)}期开出次数${periodCounts}]`);
     lines.push('');
     
-    // 计算预测期数：如果有目标期数，预测目标期数+1；否则预测最新期数+1
-    const basePeriod = targetPeriod || latestPeriod;
-    const predictPeriod = basePeriod > 0 ? basePeriod + 1 : basePeriod;
+    // 第三、四层显示的期数标签
+    const resultPeriodLabel = isHistoryPeriod ? displayPeriod : `预测${displayPeriod}`;
     
     // 第三层：按结果类型分组统计（同类公式的最新一期结果）
     groupedResults.forEach((counts, type) => {
@@ -102,7 +108,7 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
       const formulaCount = formulaCountByType.get(type) || 0;
       const totalResults = Array.from(counts.values() as number[]).reduce((sum, c) => sum + c, 0);
       
-      lines.push(`【${type}结果】${predictPeriod}期:`);
+      lines.push(`【${type}结果】${resultPeriodLabel}期:`);
       sortedCounts.forEach(([count, resultList]) => {
         lines.push(`〖${count}次〗：${resultList.join(',')}（共${resultList.length}码）`);
       });
@@ -124,7 +130,7 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
       const formulaCount = results.length;
       const totalNumbers = Array.from(allNumberCounts.values()).reduce((sum, c) => sum + c, 0);
       
-      lines.push(`【全码类结果】${predictPeriod}期:`);
+      lines.push(`【全码类结果】${resultPeriodLabel}期:`);
       sortedCounts.forEach(([count, numbers]) => {
         const numStr = numbers.sort((a, b) => a - b).map(n => n.toString().padStart(2, '0')).join(',');
         lines.push(`〖${count}次〗：${numStr}（共${numbers.length}码）`);
