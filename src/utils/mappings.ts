@@ -70,7 +70,6 @@ const ZODIAC_NAMES: Record<number, string> = {
 
 // 基准年份：2020年 = 鼠年 = 1
 const BASE_YEAR = 2020;
-const BASE_ZODIAC_INDEX = 1;
 
 /**
  * 根据年份计算当前生肖索引 (1-12)
@@ -95,6 +94,7 @@ export function getCurrentZodiacYearName(year?: number): string {
 
 /**
  * 获取当前年份的动态生肖映射表
+ * 逻辑：号码分组固定，生肖标签每年整体前进1位
  * @param year 年份，不传则使用当前年份
  * @returns 生肖名称到号码数组的映射
  */
@@ -102,13 +102,15 @@ export function getZodiacMap(year?: number): Record<string, number[]> {
   const currentZodiacIndex = getZodiacIndexByYear(year);
   const zodiacMap: Record<string, number[]> = {};
   
-  // 根据当前生肖年重新映射
-  for (let i = 0; i < 12; i++) {
-    const zodiacIndex = ((currentZodiacIndex - 1 + i) % 12) + 1;
+  // 号码分组固定（1-12号组），生肖标签每年前进1位
+  // 2026马年：马→1号组, 蛇→2号组, 龙→3号组...
+  for (let position = 1; position <= 12; position++) {
+    // 计算该位置对应的生肖
+    // 位置1的生肖 = 当前年份生肖
+    // 位置2的生肖 = 当前年份生肖 - 1（循环）
+    const zodiacIndex = ((currentZodiacIndex - position) % 12 + 12) % 12 + 1;
     const zodiacName = ZODIAC_NAMES[zodiacIndex];
-    // 基础号码表按顺序循环
-    const baseIndex = ((i) % 12) + 1;
-    zodiacMap[zodiacName] = BASE_ZODIAC_NUMBERS[baseIndex];
+    zodiacMap[zodiacName] = BASE_ZODIAC_NUMBERS[position];
   }
   
   return zodiacMap;
