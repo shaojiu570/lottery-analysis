@@ -9,22 +9,6 @@ interface SettingsModalProps {
   onSave: (settings: Partial<Settings>) => void;
 }
 
-// 生肖列表
-const ZODIAC_OPTIONS = [
-  { value: 1, label: '鼠' },
-  { value: 2, label: '牛' },
-  { value: 3, label: '虎' },
-  { value: 4, label: '兔' },
-  { value: 5, label: '龙' },
-  { value: 6, label: '蛇' },
-  { value: 7, label: '马' },
-  { value: 8, label: '羊' },
-  { value: 9, label: '猴' },
-  { value: 10, label: '鸡' },
-  { value: 11, label: '狗' },
-  { value: 12, label: '猪' },
-];
-
 export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsModalProps) {
   // 使用字符串状态来管理输入，避免数字转换问题
   const [offsetInput, setOffsetInput] = useState(settings.offset.toString());
@@ -34,7 +18,6 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
   const [targetPeriodInput, setTargetPeriodInput] = useState(
     settings.targetPeriod?.toString() || ''
   );
-  const [zodiacYear, setZodiacYear] = useState(settings.zodiacYear);
 
   useEffect(() => {
     setOffsetInput(settings.offset.toString());
@@ -42,7 +25,6 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
     setLeftExpandInput(settings.leftExpand.toString());
     setRightExpandInput(settings.rightExpand.toString());
     setTargetPeriodInput(settings.targetPeriod?.toString() || '');
-    setZodiacYear(settings.zodiacYear);
   }, [settings, isOpen]);
 
   if (!isOpen) return null;
@@ -54,7 +36,7 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
     const rightExpand = rightExpandInput === '' ? 0 : parseInt(rightExpandInput) || 0;
     const targetPeriod = targetPeriodInput === '' ? null : parseInt(targetPeriodInput) || null;
     
-    onSave({ offset, periods, leftExpand, rightExpand, targetPeriod, zodiacYear });
+    onSave({ offset, periods, leftExpand, rightExpand, targetPeriod });
     onClose();
   };
 
@@ -176,31 +158,6 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
                 'text-sm'
               )}
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              生肖年份
-              <span className="text-xs text-gray-500 ml-1">(手动设置当前生肖年)</span>
-            </label>
-            <select
-              value={zodiacYear}
-              onChange={(e) => setZodiacYear(parseInt(e.target.value))}
-              className={cn(
-                'w-full px-3 py-2 rounded-lg border border-gray-300',
-                'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200',
-                'text-sm bg-white'
-              )}
-            >
-              {ZODIAC_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}年
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              每年需手动更新一次，当前设置为：{ZODIAC_OPTIONS.find(z => z.value === zodiacYear)?.label}年
-            </p>
           </div>
         </div>
 
