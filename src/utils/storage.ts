@@ -172,6 +172,12 @@ export function saveSettings(settings: Partial<Settings>): void {
 }
 
 // 解析导入的历史数据
+// 支持多种格式：
+// 格式1: 期数,号码1,号码2,号码3,号码4,号码5,号码6,号码7
+// 格式2: 期数 号码1 号码2 号码3 号码4 号码5 号码6 号码7
+// 格式3: 期数:号码1,号码2,号码3,号码4,号码5,号码6,号码7
+// 格式4: 期数;号码1;号码2;号码3;号码4;号码5;号码6;号码7
+// 格式5: 期数|号码1|号码2|号码3|号码4|号码5|号码6|号码7
 export function parseHistoryInput(input: string): LotteryData[] {
   const lines = input.trim().split('\n');
   const data: LotteryData[] = [];
@@ -181,9 +187,26 @@ export function parseHistoryInput(input: string): LotteryData[] {
     const trimmed = line.trim();
     if (!trimmed) continue;
     
-    // 格式: 期数,号码1,号码2,号码3,号码4,号码5,号码6,号码7
-    // 或: 期数 号码1 号码2 号码3 号码4 号码5 号码6 号码7
-    const parts = trimmed.split(/[,\s]+/);
+    // 先尝试匹配格式3/4/5（冒号/分号/竖线分隔）
+    let parts: string[] = [];
+    
+    if (trimmed.includes(':')) {
+      // 格式3: 期数:号码1,号码2...
+      const [periodPart, numbersPart] = trimmed.split(':', 2);
+      if (periodPart && numbersPart) {
+        const numbers = numbersPart.split(/[,;|]/).map(n => n.trim()).filter(n => n);
+        parts = [periodPart.trim(), ...numbers];
+      }
+    } else if (trimmed.includes(';')) {
+      // 格式4: 期数;号码1;号码2...
+      parts = trimmed.split(';').map(n => n.trim()).filter(n => n);
+    } else if (trimmed.includes('|')) {
+      // 格式5: 期数|号码1|号码2...
+      parts = trimmed.split('|').map(n => n.trim()).filter(n => n);
+    } else {
+      // 格式1和2: 逗号或空格分隔
+      parts = trimmed.split(/[,\s]+/).filter(n => n);
+    }
     
     if (parts.length >= 8) {
       const period = parseInt(parts[0]);

@@ -61,24 +61,40 @@ function App() {
     loadFavorites();
   }, []);
 
-  // 验证时自动添加编号
+  // 验证时自动添加编号（分批处理避免卡顿）
   const handleVerify = useCallback(async () => {
     if (!formulaInput.trim() || historyData.length === 0) return;
 
-    setIsVerifying(true);
+    const { formulas: parsed, errors } = parseFormulas(formulaInput);
+    setParseErrors(errors);
     
-    try {
-      const { formulas: parsed, errors } = parseFormulas(formulaInput);
-      setParseErrors(errors);
+    if (parsed.length === 0) {
+      alert('未找到有效公式，请检查格式');
+      return;
+    }
+
+    setIsVerifying(true);
+    setVerifyResults([]); // 清空之前的结果
+    
+    // 分批验证参数
+    const BATCH_SIZE = 50;
+    const BATCH_DELAY = 10;
+    const allResults: typeof verifyResults = [];
+    let currentIndex = 0;
+    
+    const processBatch = () => {
+      const batch = parsed.slice(currentIndex, currentIndex + BATCH_SIZE);
       
-      if (parsed.length === 0) {
-        alert('未找到有效公式，请检查格式');
+      if (batch.length === 0) {
+        // 完成
+        setVerifyResults(allResults);
+        setIsVerifying(false);
         return;
       }
 
-      // 使用公式里写的参数进行验证，传入目标期数设置
-      const results = verifyFormulas(
-        parsed,
+      // 验证当前批次
+      const batchResults = verifyFormulas(
+        batch,
         historyData,
         undefined,
         undefined,
@@ -86,14 +102,27 @@ function App() {
         undefined,
         settings.targetPeriod
       );
-      
-      setVerifyResults(results);
-    } catch (error) {
-      console.error('验证错误:', error);
-      alert('验证失败，请检查公式格式');
-    } finally {
-      setIsVerifying(false);
-    }
+
+      allResults.push(...batchResults);
+      currentIndex += batch.length;
+
+      // 每5批更新一次结果（避免频繁渲染）
+      if (currentIndex % (BATCH_SIZE * 5) === 0 || currentIndex >= parsed.length) {
+        setVerifyResults([...allResults]);
+      }
+
+      // 继续下一批
+      if (currentIndex < parsed.length) {
+        setTimeout(processBatch, BATCH_DELAY);
+      } else {
+        // 完成
+        setVerifyResults(allResults);
+        setIsVerifying(false);
+      }
+    };
+
+    // 开始处理
+    processBatch();
   }, [formulaInput, historyData, settings, setIsVerifying, setVerifyResults, setParseErrors]);
 
   // 清空结果和输入

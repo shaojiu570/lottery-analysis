@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { cn } from '@/utils/cn';
 import { LotteryData } from '@/types';
 import { parseHistoryInput } from '@/utils/storage';
-import { getWaveColor } from '@/utils/mappings';
+import { getWaveColor, getZodiacPosition, getZodiacName } from '@/utils/mappings';
 
 interface HistoryModalProps {
   isOpen: boolean;
@@ -85,7 +85,12 @@ export function HistoryModal({
               <textarea
                 value={importText}
                 onChange={(e) => setImportText(e.target.value)}
-                placeholder="期数,号码1,号码2,...号码7"
+                placeholder="支持格式：
+期数,号码1,号码2,...号码7
+期数 号码1 号码2...号码7
+期数:号码1,号码2...号码7
+期数;号码1;号码2...号码7
+期数|号码1|号码2...号码7"
                 className="w-full h-20 sm:h-24 p-2 text-xs sm:text-sm border border-gray-300 rounded-lg resize-none"
               />
               <div className="mt-2 flex justify-end">
@@ -137,11 +142,11 @@ function HistoryItem({ data, onDelete }: HistoryItemProps) {
         <span className="text-xs sm:text-sm font-mono text-gray-600 shrink-0">
           {data.period}
         </span>
-        <div className="flex gap-0.5 sm:gap-1 overflow-x-auto">
+        <div className="flex gap-1 sm:gap-1.5 overflow-x-auto pb-1">
           {data.numbers.slice(0, 6).map((num, i) => (
             <NumberBall key={i} number={num} />
           ))}
-          <span className="text-gray-400 px-0.5">+</span>
+          <span className="text-gray-400 px-0.5 self-center">+</span>
           <NumberBall number={data.numbers[6]} isSpecial />
         </div>
       </div>
@@ -158,10 +163,12 @@ function HistoryItem({ data, onDelete }: HistoryItemProps) {
 interface NumberBallProps {
   number: number;
   isSpecial?: boolean;
+  showZodiac?: boolean;
 }
 
-function NumberBall({ number, isSpecial }: NumberBallProps) {
+function NumberBall({ number, isSpecial, showZodiac = true }: NumberBallProps) {
   const color = getWaveColor(number);
+  const zodiac = getZodiacName(getZodiacPosition(number));
   const colorClasses = {
     0: 'bg-red-500 text-white',
     1: 'bg-blue-500 text-white',
@@ -169,14 +176,21 @@ function NumberBall({ number, isSpecial }: NumberBallProps) {
   };
 
   return (
-    <span
-      className={cn(
-        'inline-flex items-center justify-center w-5 h-5 sm:w-7 sm:h-7 rounded-full text-[10px] sm:text-xs font-bold shrink-0',
-        colorClasses[color as keyof typeof colorClasses],
-        isSpecial && 'ring-2 ring-yellow-400 ring-offset-0.5'
+    <div className="flex flex-col items-center gap-0.5 shrink-0">
+      <span
+        className={cn(
+          'inline-flex items-center justify-center w-5 h-5 sm:w-7 sm:h-7 rounded-full text-[10px] sm:text-xs font-bold',
+          colorClasses[color as keyof typeof colorClasses],
+          isSpecial && 'ring-2 ring-yellow-400 ring-offset-0.5'
+        )}
+      >
+        {number.toString().padStart(2, '0')}
+      </span>
+      {showZodiac && (
+        <span className="text-[8px] sm:text-[10px] text-gray-500 leading-none">
+          {zodiac}
+        </span>
       )}
-    >
-      {number.toString().padStart(2, '0')}
-    </span>
+    </div>
   );
 }
