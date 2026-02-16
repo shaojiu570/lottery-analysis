@@ -11,6 +11,7 @@ import { FilterModal } from '@/components/FilterModal';
 import { AddToFavoritesModal } from '@/components/AddToFavoritesModal';
 import { parseFormulas, addFormulaNumbers, removeFormulaNumbers, ParseError } from '@/utils/formulaParser';
 import { verifyFormulas } from '@/utils/calculator';
+import { useWorkerVerify } from '@/hooks/useWorkerVerify';
 
 function App() {
   const {
@@ -55,13 +56,24 @@ function App() {
 
   // 解析错误状态
   const [parseErrors, setParseErrors] = useState<ParseError[]>([]);
+  
+  // 使用 Worker 进行验证
+  const workerVerify = useWorkerVerify();
 
   useEffect(() => {
     loadHistoryData();
     loadFavorites();
   }, []);
 
-  // 验证时自动添加编号（分批处理避免卡顿）
+  // 当 Worker 完成时更新结果
+  useEffect(() => {
+    if (!workerVerify.isVerifying && workerVerify.results.length > 0) {
+      setVerifyResults(workerVerify.results);
+      setIsVerifying(false);
+    }
+  }, [workerVerify.isVerifying, workerVerify.results, setVerifyResults, setIsVerifying]);
+
+  // 验证时自动添加编号（使用 Web Worker 避免卡顿）
   const handleVerify = useCallback(async () => {
     if (!formulaInput.trim() || historyData.length === 0) return;
 
@@ -74,56 +86,11 @@ function App() {
     }
 
     setIsVerifying(true);
-    setVerifyResults([]); // 清空之前的结果
+    setVerifyResults([]);
     
-    // 分批验证参数
-    const BATCH_SIZE = 50;
-    const BATCH_DELAY = 10;
-    const allResults: typeof verifyResults = [];
-    let currentIndex = 0;
-    
-    const processBatch = () => {
-      const batch = parsed.slice(currentIndex, currentIndex + BATCH_SIZE);
-      
-      if (batch.length === 0) {
-        // 完成
-        setVerifyResults(allResults);
-        setIsVerifying(false);
-        return;
-      }
-
-      // 验证当前批次
-      const batchResults = verifyFormulas(
-        batch,
-        historyData,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        settings.targetPeriod
-      );
-
-      allResults.push(...batchResults);
-      currentIndex += batch.length;
-
-      // 每5批更新一次结果（避免频繁渲染）
-      if (currentIndex % (BATCH_SIZE * 5) === 0 || currentIndex >= parsed.length) {
-        setVerifyResults([...allResults]);
-      }
-
-      // 继续下一批
-      if (currentIndex < parsed.length) {
-        setTimeout(processBatch, BATCH_DELAY);
-      } else {
-        // 完成
-        setVerifyResults(allResults);
-        setIsVerifying(false);
-      }
-    };
-
-    // 开始处理
-    processBatch();
-  }, [formulaInput, historyData, settings, setIsVerifying, setVerifyResults, setParseErrors]);
+    // 使用 Web Worker 进行验证
+    workerVerify.verify(parsed, historyData, settings.targetPeriod);
+  }, [formulaInput, historyData, settings.targetPeriod, workerVerify, setIsVerifying, setVerifyResults, setParseErrors]);
 
   // 清空结果和输入
   const handleClearResults = useCallback(() => {
