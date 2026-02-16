@@ -24,12 +24,10 @@ function generateRandomFormula(
   const shuffled = [...elements].sort(() => Math.random() - 0.5);
   const selected = shuffled.slice(0, Math.min(elementCount, elements.length));
   
-  // 随机生成表达式
+  // 随机生成表达式 - 只使用加号
   let expression = selected[0];
   for (let i = 1; i < selected.length; i++) {
-    const ops = ['+', '-', '+', '+'];  // 加法权重更高
-    const op = ops[Math.floor(Math.random() * ops.length)];
-    expression += op + selected[i];
+    expression += '+' + selected[i];
   }
   
   // 构建公式，包含所有参数
