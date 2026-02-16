@@ -28,7 +28,7 @@ function calculateElementValue(element: string, data: LotteryData): number {
   return 0;
 }
 
-// 评估表达式
+// 评估表达式 - 只允许加号
 function evaluateExpression(expression: string, data: LotteryData): number {
   let normalized = expression;
   
@@ -39,9 +39,12 @@ function evaluateExpression(expression: string, data: LotteryData): number {
     normalized = normalized.replace(new RegExp(elem, 'g'), value.toString());
   }
   
-  // 安全计算
+  // 将其他运算符替换为空或移除（只允许加号）
+  normalized = normalized.replace(/[×\*÷\/%\-]/g, '');
+  
+  // 安全计算 - 只允许加号
   try {
-    if (!/^[\d+\-*/()\s]+$/.test(normalized)) {
+    if (!/^[\d+()\s]+$/.test(normalized)) {
       return 0;
     }
     // @ts-ignore

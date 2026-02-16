@@ -11,8 +11,8 @@ export function evaluateExpression(
 ): number {
   let normalized = normalizeElementName(expression);
   
-  // 替换运算符
-  normalized = normalized.replace(/×/g, '*').replace(/÷/g, '%');
+  // 将其他运算符替换为空或移除（只允许加号）
+  normalized = normalized.replace(/[×\*÷\/%\-]/g, '');
   
   // 替换元素为数值
   // 期数系列（按长度优先）
@@ -51,11 +51,11 @@ export function evaluateExpression(
   const teValue = calculateElementValue('特号', data, useSort);
   normalized = normalized.replace(/特(?!合|头|尾|肖|号|波|段|行)/g, teValue.toString());
   
-  // 安全计算表达式
+  // 安全计算表达式 - 只允许加号
   try {
-    // 只允许数字和基本运算符
-    if (!/^[\d+\-*%().\s]+$/.test(normalized)) {
-      console.error('Invalid expression:', normalized);
+    // 只允许数字、加号和括号
+    if (!/^[\d+().\s]+$/.test(normalized)) {
+      console.error('Invalid expression (only + allowed):', normalized);
       return 0;
     }
     // eslint-disable-next-line no-eval
