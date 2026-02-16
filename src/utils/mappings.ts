@@ -44,37 +44,92 @@ export function getFiveElementName(value: number): string {
   return names[value % 5];
 }
 
-// 生肖映射表（2025蛇年）
-export const ZODIAC: Record<string, number[]> = {
-  蛇: [1, 13, 25, 37, 49],
-  龙: [2, 14, 26, 38],
-  兔: [3, 15, 27, 39],
-  虎: [4, 16, 28, 40],
-  牛: [5, 17, 29, 41],
-  鼠: [6, 18, 30, 42],
-  猪: [7, 19, 31, 43],
-  狗: [8, 20, 32, 44],
-  鸡: [9, 21, 33, 45],
-  猴: [10, 22, 34, 46],
-  羊: [11, 23, 35, 47],
-  马: [12, 24, 36, 48],
+// 基础生肖号码表（固定不变）
+// 鼠=1, 牛=2, 虎=3, 兔=4, 龙=5, 蛇=6, 马=7, 羊=8, 猴=9, 鸡=10, 狗=11, 猪=12
+const BASE_ZODIAC_NUMBERS: Record<number, number[]> = {
+  1: [1, 13, 25, 37, 49],   // 鼠
+  2: [2, 14, 26, 38],       // 牛
+  3: [3, 15, 27, 39],       // 虎
+  4: [4, 16, 28, 40],       // 兔
+  5: [5, 17, 29, 41],       // 龙
+  6: [6, 18, 30, 42],       // 蛇
+  7: [7, 19, 31, 43],       // 马
+  8: [8, 20, 32, 44],       // 羊
+  9: [9, 21, 33, 45],       // 猴
+  10: [10, 22, 34, 46],     // 鸡
+  11: [11, 23, 35, 47],     // 狗
+  12: [12, 24, 36, 48],     // 猪
 };
 
+// 生肖名称
+const ZODIAC_NAMES: Record<number, string> = {
+  1: '鼠', 2: '牛', 3: '虎', 4: '兔',
+  5: '龙', 6: '蛇', 7: '马', 8: '羊',
+  9: '猴', 10: '鸡', 11: '狗', 12: '猪'
+};
+
+// 基准年份：2020年 = 鼠年 = 1
+const BASE_YEAR = 2020;
+const BASE_ZODIAC_INDEX = 1;
+
+/**
+ * 根据年份计算当前生肖索引 (1-12)
+ * @param year 年份，不传则使用当前年份
+ * @returns 生肖索引 1=鼠, 2=牛, ..., 12=猪
+ */
+export function getZodiacIndexByYear(year?: number): number {
+  const targetYear = year || new Date().getFullYear();
+  const diff = targetYear - BASE_YEAR;
+  return ((diff % 12) + 12) % 12 + 1;
+}
+
+/**
+ * 获取当前生肖年份名称
+ * @param year 年份，不传则使用当前年份
+ * @returns 生肖名称
+ */
+export function getCurrentZodiacYearName(year?: number): string {
+  const index = getZodiacIndexByYear(year);
+  return ZODIAC_NAMES[index];
+}
+
+/**
+ * 获取当前年份的动态生肖映射表
+ * @param year 年份，不传则使用当前年份
+ * @returns 生肖名称到号码数组的映射
+ */
+export function getZodiacMap(year?: number): Record<string, number[]> {
+  const currentZodiacIndex = getZodiacIndexByYear(year);
+  const zodiacMap: Record<string, number[]> = {};
+  
+  // 根据当前生肖年重新映射
+  for (let i = 0; i < 12; i++) {
+    const zodiacIndex = ((currentZodiacIndex - 1 + i) % 12) + 1;
+    const zodiacName = ZODIAC_NAMES[zodiacIndex];
+    // 基础号码表按顺序循环
+    const baseIndex = ((i) % 12) + 1;
+    zodiacMap[zodiacName] = BASE_ZODIAC_NUMBERS[baseIndex];
+  }
+  
+  return zodiacMap;
+}
+
+// 生肖映射表（动态计算，默认当前年份）
+export function getZodiac(year?: number): Record<string, number[]> {
+  return getZodiacMap(year);
+}
+
 // 生肖位置映射：号码 -> 肖位 (1-12)
-// 鼠=1, 牛=2, 虎=3, 兔=4, 龙=5, 蛇=6, 马=7, 羊=8, 猴=9, 鸡=10, 狗=11, 猪=12
-export function getZodiacPosition(num: number): number {
-  if (ZODIAC.鼠.includes(num)) return 1;
-  if (ZODIAC.牛.includes(num)) return 2;
-  if (ZODIAC.虎.includes(num)) return 3;
-  if (ZODIAC.兔.includes(num)) return 4;
-  if (ZODIAC.龙.includes(num)) return 5;
-  if (ZODIAC.蛇.includes(num)) return 6;
-  if (ZODIAC.马.includes(num)) return 7;
-  if (ZODIAC.羊.includes(num)) return 8;
-  if (ZODIAC.猴.includes(num)) return 9;
-  if (ZODIAC.鸡.includes(num)) return 10;
-  if (ZODIAC.狗.includes(num)) return 11;
-  if (ZODIAC.猪.includes(num)) return 12;
+// 根据当前年份动态计算
+export function getZodiacPosition(num: number, year?: number): number {
+  const zodiacMap = getZodiacMap(year);
+  
+  for (let i = 1; i <= 12; i++) {
+    const zodiacName = ZODIAC_NAMES[i];
+    if (zodiacMap[zodiacName]?.includes(num)) {
+      return i;
+    }
+  }
   return 1;
 }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/utils/cn';
 import { Settings } from '@/types';
+import { getCurrentZodiacYearName } from '@/utils/mappings';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -158,6 +159,20 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
                 'text-sm'
               )}
             />
+          </div>
+
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-emerald-800">
+                当前生肖年
+              </span>
+              <span className="text-lg font-bold text-emerald-600">
+                {getCurrentZodiacYearName()}年
+              </span>
+            </div>
+            <p className="text-xs text-emerald-600 mt-1">
+              号码生肖属性已自动更新
+            </p>
           </div>
         </div>
 
