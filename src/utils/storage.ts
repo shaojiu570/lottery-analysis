@@ -154,6 +154,7 @@ const DEFAULT_SETTINGS: Settings = {
   leftExpand: 0,
   rightExpand: 0,
   targetPeriod: null,  // null表示验证最新一期
+  zodiacYear: 7,      // 默认马年（7=马），用户可手动更改
   searchOffset: 0,
   searchPeriods: 15,
   searchLeft: 0,
