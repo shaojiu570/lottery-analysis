@@ -100,6 +100,11 @@ function App() {
     setFilteredResults([]);
   }, [setVerifyResults, setFormulaInput]);
 
+  // 处理生肖年份变更
+  const handleZodiacChange = useCallback((zodiac: number) => {
+    updateSettings({ zodiacYear: zodiac });
+  }, [updateSettings]);
+
   const handleCopyResults = useCallback((text?: string) => {
     // 如果传入了完整文本，直接使用；否则只复制第一层
     if (text) {
@@ -203,6 +208,8 @@ function App() {
         onOpenFavorites={() => setShowFavorites(true)}
         onOpenSearch={() => setShowSearch(true)}
         onOpenHistory={() => setShowHistory(true)}
+        currentZodiac={settings.zodiacYear}
+        onZodiacChange={handleZodiacChange}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden">
@@ -235,6 +242,7 @@ function App() {
         onImport={importHistoryData}
         onClear={clearAllHistory}
         onDelete={deleteHistoryItem}
+        zodiacYear={settings.zodiacYear}
       />
 
       <FavoritesModal

@@ -11,6 +11,7 @@ interface HistoryModalProps {
   onImport: (data: LotteryData[]) => void;
   onClear: () => void;
   onDelete: (period: number) => void;
+  zodiacYear: number;
 }
 
 export function HistoryModal({
@@ -20,6 +21,7 @@ export function HistoryModal({
   onImport,
   onClear,
   onDelete,
+  zodiacYear,
 }: HistoryModalProps) {
   const [importText, setImportText] = useState('');
   const [showImport, setShowImport] = useState(false);
@@ -119,6 +121,7 @@ export function HistoryModal({
                     key={item.period}
                     data={item}
                     onDelete={() => onDelete(item.period)}
+                    zodiacYear={zodiacYear}
                   />
                 ))}
               </div>
@@ -133,9 +136,10 @@ export function HistoryModal({
 interface HistoryItemProps {
   data: LotteryData;
   onDelete: () => void;
+  zodiacYear: number;
 }
 
-function HistoryItem({ data, onDelete }: HistoryItemProps) {
+function HistoryItem({ data, onDelete, zodiacYear }: HistoryItemProps) {
   return (
     <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-2 sm:p-3">
       <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
@@ -144,10 +148,10 @@ function HistoryItem({ data, onDelete }: HistoryItemProps) {
         </span>
         <div className="flex gap-1 sm:gap-1.5 overflow-x-auto pb-1">
           {data.numbers.slice(0, 6).map((num, i) => (
-            <NumberBall key={i} number={num} />
+            <NumberBall key={i} number={num} zodiacYear={zodiacYear} />
           ))}
           <span className="text-gray-400 px-0.5 self-center">+</span>
-          <NumberBall number={data.numbers[6]} isSpecial />
+          <NumberBall number={data.numbers[6]} isSpecial zodiacYear={zodiacYear} />
         </div>
       </div>
       <button
@@ -164,11 +168,12 @@ interface NumberBallProps {
   number: number;
   isSpecial?: boolean;
   showZodiac?: boolean;
+  zodiacYear: number;
 }
 
-function NumberBall({ number, isSpecial, showZodiac = true }: NumberBallProps) {
+function NumberBall({ number, isSpecial, showZodiac = true, zodiacYear }: NumberBallProps) {
   const color = getWaveColor(number);
-  const zodiac = getZodiacName(getZodiacPosition(number));
+  const zodiac = getZodiacName(getZodiacPosition(number, zodiacYear));
   const colorClasses = {
     0: 'bg-red-500 text-white',
     1: 'bg-blue-500 text-white',
