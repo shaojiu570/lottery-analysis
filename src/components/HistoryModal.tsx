@@ -4,6 +4,22 @@ import { LotteryData } from '@/types';
 import { parseHistoryInput } from '@/utils/storage';
 import { getWaveColor, getZodiacPosition, getZodiacName } from '@/utils/mappings';
 
+// 生肖选项
+const ZODIAC_OPTIONS = [
+  { value: 1, label: '鼠', emoji: '🐭' },
+  { value: 2, label: '牛', emoji: '🐮' },
+  { value: 3, label: '虎', emoji: '🐯' },
+  { value: 4, label: '兔', emoji: '🐰' },
+  { value: 5, label: '龙', emoji: '🐲' },
+  { value: 6, label: '蛇', emoji: '🐍' },
+  { value: 7, label: '马', emoji: '🐴' },
+  { value: 8, label: '羊', emoji: '🐑' },
+  { value: 9, label: '猴', emoji: '🐵' },
+  { value: 10, label: '鸡', emoji: '🐔' },
+  { value: 11, label: '狗', emoji: '🐕' },
+  { value: 12, label: '猪', emoji: '🐷' },
+];
+
 interface HistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -11,7 +27,6 @@ interface HistoryModalProps {
   onImport: (data: LotteryData[]) => void;
   onClear: () => void;
   onDelete: (period: number) => void;
-  zodiacYear: number;
 }
 
 export function HistoryModal({
@@ -21,15 +36,16 @@ export function HistoryModal({
   onImport,
   onClear,
   onDelete,
-  zodiacYear,
 }: HistoryModalProps) {
   const [importText, setImportText] = useState('');
   const [showImport, setShowImport] = useState(false);
+  // 导入时使用的生肖年份，独立于顶部栏设置，默认马年（7）
+  const [importZodiacYear, setImportZodiacYear] = useState(7);
 
   if (!isOpen) return null;
 
   const handleImport = () => {
-    const data = parseHistoryInput(importText, zodiacYear);
+    const data = parseHistoryInput(importText, importZodiacYear);
     if (data.length > 0) {
       onImport(data);
       setImportText('');
@@ -83,7 +99,22 @@ export function HistoryModal({
 
           {/* 导入区域 */}
           {showImport && (
-            <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-200 bg-gray-50 shrink-0">
+            <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-200 bg-gray-50 shrink-0 space-y-2">
+              {/* 生肖年份选择 */}
+              <div className="flex items-center gap-2">
+                <label className="text-xs sm:text-sm text-gray-600">这批记录生肖：</label>
+                <select
+                  value={importZodiacYear}
+                  onChange={(e) => setImportZodiacYear(parseInt(e.target.value))}
+                  className="px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded bg-white"
+                >
+                  {ZODIAC_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.emoji} {option.label}年
+                    </option>
+                  ))}
+                </select>
+              </div>
               <textarea
                 value={importText}
                 onChange={(e) => setImportText(e.target.value)}
@@ -95,7 +126,7 @@ export function HistoryModal({
 期数|号码1|号码2...号码7"
                 className="w-full h-20 sm:h-24 p-2 text-xs sm:text-sm border border-gray-300 rounded-lg resize-none"
               />
-              <div className="mt-2 flex justify-end">
+              <div className="flex justify-end">
                 <button
                   onClick={handleImport}
                   className="px-4 py-1.5 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700"
@@ -121,7 +152,6 @@ export function HistoryModal({
                     key={item.period}
                     data={item}
                     onDelete={() => onDelete(item.period)}
-                    zodiacYear={zodiacYear}
                   />
                 ))}
               </div>
@@ -136,12 +166,11 @@ export function HistoryModal({
 interface HistoryItemProps {
   data: LotteryData;
   onDelete: () => void;
-  zodiacYear: number;
 }
 
-function HistoryItem({ data, onDelete, zodiacYear }: HistoryItemProps) {
-  // 使用记录中保存的生肖年份，如果没有则使用传入的
-  const recordZodiacYear = data.zodiacYear || zodiacYear;
+function HistoryItem({ data, onDelete }: HistoryItemProps) {
+  // 使用记录中保存的生肖年份（必须是记录时确定的）
+  const recordZodiacYear = data.zodiacYear || 7; // 默认马年
   
   return (
     <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-2 sm:p-3">

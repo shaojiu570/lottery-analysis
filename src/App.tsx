@@ -302,7 +302,6 @@ function App() {
         onImport={importHistoryData}
         onClear={clearAllHistory}
         onDelete={deleteHistoryItem}
-        zodiacYear={settings.zodiacYear}
       />
 
       <FavoritesModal
