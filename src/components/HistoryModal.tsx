@@ -140,6 +140,9 @@ interface HistoryItemProps {
 }
 
 function HistoryItem({ data, onDelete, zodiacYear }: HistoryItemProps) {
+  // 使用记录中保存的生肖年份，如果没有则使用传入的
+  const recordZodiacYear = data.zodiacYear || zodiacYear;
+  
   return (
     <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-2 sm:p-3">
       <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
@@ -148,10 +151,10 @@ function HistoryItem({ data, onDelete, zodiacYear }: HistoryItemProps) {
         </span>
         <div className="flex gap-1 sm:gap-1.5 overflow-x-auto pb-1">
           {data.numbers.slice(0, 6).map((num, i) => (
-            <NumberBall key={i} number={num} zodiacYear={zodiacYear} />
+            <NumberBall key={i} number={num} zodiacYear={recordZodiacYear} />
           ))}
           <span className="text-gray-400 px-0.5 self-center">+</span>
-          <NumberBall number={data.numbers[6]} isSpecial zodiacYear={zodiacYear} />
+          <NumberBall number={data.numbers[6]} isSpecial zodiacYear={recordZodiacYear} />
         </div>
       </div>
       <button
