@@ -3,6 +3,7 @@ export interface LotteryData {
   period: number;          // 期数（主键）
   numbers: number[];       // 7个号码（落球顺序）
   timestamp: number;       // 时间戳
+  zodiacYear: number;      // 该期使用的生肖年份（1-12）
 }
 
 // 公式结构
@@ -48,6 +49,17 @@ export interface FavoriteGroup {
   name: string;
   formulas: string[];      // 公式表达式列表
   createdAt: number;
+}
+
+// 保存的验证记录
+export interface SavedVerification {
+  id: string;
+  name: string;            // 记录名称
+  formulaInput: string;    // 公式输入内容
+  results: VerifyResult[]; // 验证结果
+  targetPeriod: number | null; // 验证时使用的目标期数
+  zodiacYear: number;      // 验证时使用的生肖年份
+  createdAt: number;       // 保存时间
 }
 
 // 设置

@@ -29,7 +29,7 @@ export function HistoryModal({
   if (!isOpen) return null;
 
   const handleImport = () => {
-    const data = parseHistoryInput(importText);
+    const data = parseHistoryInput(importText, zodiacYear);
     if (data.length > 0) {
       onImport(data);
       setImportText('');

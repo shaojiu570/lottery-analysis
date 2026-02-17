@@ -7,6 +7,9 @@ interface HeaderProps {
   onOpenHistory: () => void;
   currentZodiac: number;
   onZodiacChange: (zodiac: number) => void;
+  onSaveVerification?: () => void;
+  hasVerificationResults?: boolean;
+  onOpenSavedVerifications?: () => void;
 }
 
 const ZODIAC_LIST = [
@@ -29,7 +32,10 @@ export function Header({
   onOpenSearch, 
   onOpenHistory, 
   currentZodiac,
-  onZodiacChange 
+  onZodiacChange,
+  onSaveVerification,
+  hasVerificationResults = false,
+  onOpenSavedVerifications
 }: HeaderProps) {
   const [showZodiacSelect, setShowZodiacSelect] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
@@ -93,6 +99,16 @@ export function Header({
               )}
             </div>
 
+            {hasVerificationResults && onSaveVerification && (
+              <HeaderButton onClick={onSaveVerification} icon="💾">
+                <span className="hidden xs:inline">保存</span>
+              </HeaderButton>
+            )}
+            {onOpenSavedVerifications && (
+              <HeaderButton onClick={onOpenSavedVerifications} icon="📂">
+                <span className="hidden xs:inline">记录</span>
+              </HeaderButton>
+            )}
             <HeaderButton onClick={onOpenFavorites} icon="📚">
               <span className="hidden xs:inline">收藏</span>
             </HeaderButton>

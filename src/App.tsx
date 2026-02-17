@@ -9,9 +9,12 @@ import { SmartSearchModal } from '@/components/SmartSearchModal';
 import { SettingsModal } from '@/components/SettingsModal';
 import { FilterModal } from '@/components/FilterModal';
 import { AddToFavoritesModal } from '@/components/AddToFavoritesModal';
+import { SavedVerificationsModal } from '@/components/SavedVerificationsModal';
 import { parseFormulas, addFormulaNumbers, removeFormulaNumbers, ParseError } from '@/utils/formulaParser';
 import { verifyFormulas } from '@/utils/calculator';
 import { useWorkerVerify } from '@/hooks/useWorkerVerify';
+import { getSavedVerifications, saveVerification, deleteVerification, clearAllSavedVerifications } from '@/utils/storage';
+import { SavedVerification } from '@/types';
 
 function App() {
   const {
@@ -60,6 +63,15 @@ function App() {
   // 使用 Worker 进行验证
   const workerVerify = useWorkerVerify();
 
+  // 保存的验证记录
+  const [savedVerifications, setSavedVerifications] = useState<SavedVerification[]>([]);
+  const [showSavedVerifications, setShowSavedVerifications] = useState(false);
+
+  // 加载保存的验证记录
+  useEffect(() => {
+    setSavedVerifications(getSavedVerifications());
+  }, []);
+
   useEffect(() => {
     loadHistoryData();
     loadFavorites();
@@ -104,6 +116,51 @@ function App() {
   const handleZodiacChange = useCallback((zodiac: number) => {
     updateSettings({ zodiacYear: zodiac });
   }, [updateSettings]);
+
+  // 保存当前验证记录
+  const handleSaveVerification = useCallback(() => {
+    if (verifyResults.length === 0) return;
+    
+    const name = prompt('请输入验证记录名称:', `验证记录 ${new Date().toLocaleDateString()}`);
+    if (!name) return;
+
+    const newVerification: SavedVerification = {
+      id: `v_${Date.now()}`,
+      name,
+      formulaInput,
+      results: verifyResults,
+      targetPeriod: settings.targetPeriod,
+      zodiacYear: settings.zodiacYear,
+      createdAt: Date.now(),
+    };
+
+    saveVerification(newVerification);
+    setSavedVerifications(getSavedVerifications());
+    alert('验证记录已保存！');
+  }, [verifyResults, formulaInput, settings.targetPeriod, settings.zodiacYear]);
+
+  // 加载保存的验证记录
+  const handleLoadVerification = useCallback((verification: SavedVerification) => {
+    setFormulaInput(verification.formulaInput);
+    setVerifyResults(verification.results);
+    updateSettings({ 
+      targetPeriod: verification.targetPeriod,
+      zodiacYear: verification.zodiacYear 
+    });
+    alert(`已加载验证记录：${verification.name}`);
+  }, [setFormulaInput, setVerifyResults, updateSettings]);
+
+  // 删除保存的验证记录
+  const handleDeleteVerification = useCallback((id: string) => {
+    deleteVerification(id);
+    setSavedVerifications(getSavedVerifications());
+  }, []);
+
+  // 清空所有保存的验证记录
+  const handleClearAllVerifications = useCallback(() => {
+    clearAllSavedVerifications();
+    setSavedVerifications([]);
+  }, []);
 
   const handleCopyResults = useCallback((text?: string) => {
     // 如果传入了完整文本，直接使用；否则只复制第一层
@@ -210,6 +267,9 @@ function App() {
         onOpenHistory={() => setShowHistory(true)}
         currentZodiac={settings.zodiacYear}
         onZodiacChange={handleZodiacChange}
+        onSaveVerification={handleSaveVerification}
+        hasVerificationResults={verifyResults.length > 0}
+        onOpenSavedVerifications={() => setShowSavedVerifications(true)}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden">
@@ -331,6 +391,15 @@ function App() {
             alert(`已添加 ${formulas.length} 个公式到"${group.name}"分组`);
           }
         }}
+      />
+
+      <SavedVerificationsModal
+        isOpen={showSavedVerifications}
+        onClose={() => setShowSavedVerifications(false)}
+        savedVerifications={savedVerifications}
+        onLoadVerification={handleLoadVerification}
+        onDeleteVerification={handleDeleteVerification}
+        onClearAll={handleClearAllVerifications}
       />
     </div>
   );

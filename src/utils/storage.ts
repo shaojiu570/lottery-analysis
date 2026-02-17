@@ -1,4 +1,4 @@
-import { LotteryData, FavoriteGroup, Settings } from '@/types';
+import { LotteryData, FavoriteGroup, Settings, SavedVerification } from '@/types';
 
 const DB_NAME = 'LotteryAnalyzer';
 const DB_VERSION = 1;
@@ -179,7 +179,7 @@ export function saveSettings(settings: Partial<Settings>): void {
 // 格式3: 期数:号码1,号码2,号码3,号码4,号码5,号码6,号码7
 // 格式4: 期数;号码1;号码2;号码3;号码4;号码5;号码6;号码7
 // 格式5: 期数|号码1|号码2|号码3|号码4|号码5|号码6|号码7
-export function parseHistoryInput(input: string): LotteryData[] {
+export function parseHistoryInput(input: string, currentZodiacYear?: number): LotteryData[] {
   const lines = input.trim().split('\n');
   const data: LotteryData[] = [];
   const seen = new Set<number>();
@@ -226,6 +226,7 @@ export function parseHistoryInput(input: string): LotteryData[] {
           period,
           numbers,
           timestamp: Date.now(),
+          zodiacYear: currentZodiacYear || getSettings().zodiacYear, // 使用传入的或当前设置的生肖年份
         });
       }
     }
@@ -234,4 +235,28 @@ export function parseHistoryInput(input: string): LotteryData[] {
   // 按期数降序排列
   data.sort((a, b) => b.period - a.period);
   return data;
+}
+
+// 保存的验证记录管理
+const SAVED_VERIFICATIONS_KEY = 'lottery_saved_verifications';
+
+export function getSavedVerifications(): SavedVerification[] {
+  const data = localStorage.getItem(SAVED_VERIFICATIONS_KEY);
+  return data ? JSON.parse(data) : [];
+}
+
+export function saveVerification(verification: SavedVerification): void {
+  const current = getSavedVerifications();
+  current.unshift(verification); // 新记录放前面
+  localStorage.setItem(SAVED_VERIFICATIONS_KEY, JSON.stringify(current.slice(0, 50))); // 最多保存50条
+}
+
+export function deleteVerification(id: string): void {
+  const current = getSavedVerifications();
+  const filtered = current.filter(v => v.id !== id);
+  localStorage.setItem(SAVED_VERIFICATIONS_KEY, JSON.stringify(filtered));
+}
+
+export function clearAllSavedVerifications(): void {
+  localStorage.removeItem(SAVED_VERIFICATIONS_KEY);
 }
