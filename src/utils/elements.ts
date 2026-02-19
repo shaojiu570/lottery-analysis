@@ -146,11 +146,12 @@ export function calculateElementValue(
   const normalized = normalizeElementName(elementName);
   const numbers = useSort ? [...data.numbers].sort((a, b) => a - b) : data.numbers;
   
-  // 期数系列
-  if (normalized === '期数') return data.period;
-  if (normalized === '期数尾') return data.period % 10;
-  if (normalized === '期数合') return digitSum(data.period);
-  if (normalized === '期数合尾') return digitSum(data.period) % 10;
+  // 期数系列 - 只取后3位计算
+  const periodNum = data.period % 1000;
+  if (normalized === '期数') return periodNum;
+  if (normalized === '期数尾') return periodNum % 10;
+  if (normalized === '期数合') return digitSum(periodNum);
+  if (normalized === '期数合尾') return digitSum(periodNum) % 10;
   
   // 总分系列
   const totalSum = numbers.reduce((sum, n) => sum + n, 0);
