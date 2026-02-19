@@ -57,6 +57,50 @@ function getZodiacMap(zodiacYear: number): Record<string, number[]> {
   return zodiacMap;
 }
 
+// 结果值转文字函数
+function getWaveColorName(value: number): string {
+  const names = ['红波', '蓝波', '绿波'];
+  return names[value % 3];
+}
+
+function getFiveElementName(value: number): string {
+  const names = ['金', '木', '水', '火', '土'];
+  return names[value % 5];
+}
+
+function getZodiacName(position: number): string {
+  const pos = ((position - 1) % 12) + 1;
+  return ZODIAC_NAMES[pos] || '鼠';
+}
+
+function getBigSmallOddEvenName(value: number): string {
+  const names = ['小单', '小双', '大单', '大双'];
+  return names[value % 4];
+}
+
+function resultToText(value: number, resultType: string): string {
+  switch (resultType) {
+    case '尾数类':
+      return `${value}尾`;
+    case '头数类':
+      return `${value}头`;
+    case '合数类':
+      return `${value}合`;
+    case '波色类':
+      return getWaveColorName(value);
+    case '五行类':
+      return getFiveElementName(value);
+    case '肖位类':
+      return getZodiacName(value);
+    case '单特类':
+      return value.toString().padStart(2, '0');
+    case '大小单双类':
+      return getBigSmallOddEvenName(value);
+    default:
+      return value.toString();
+  }
+}
+
 // 获取号码属性值
 function getNumberAttribute(num: number, resultType: string, zodiacYear: number): number {
   switch (resultType) {
@@ -387,7 +431,9 @@ self.onmessage = (event) => {
         hitCount,
         totalPeriods: dataToVerify.length,
         hitRate: dataToVerify.length > 0 ? hitCount / dataToVerify.length : 0,
-        results: periodResults.length > 0 ? periodResults[0].expandedResults.map((r: number) => String(r)) : [],
+        results: periodResults.length > 0 
+          ? periodResults[0].expandedResults.sort((a: number, b: number) => a - b).map((r: number) => resultToText(r, formula.resultType)) 
+          : [],
         periodResults,
         originalLineIndex: (formula as any).originalLineIndex || 0,
         targetPeriod

@@ -20,28 +20,12 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
   const [hitRateMax, setHitRateMax] = useState(90);
   const [lastPeriodCondition, setLastPeriodCondition] = useState<LastPeriodCondition>('none');
   
-  const [recentMissEnabled, setRecentMissEnabled] = useState(false);
-  const [recentMissPeriods, setRecentMissPeriods] = useState(5);
-  const [maxMissEnabled, setMaxMissEnabled] = useState(false);
-  const [maxMissPeriods, setMaxMissPeriods] = useState(5);
+  const [consecutiveMissEnabled, setConsecutiveMissEnabled] = useState(false);
+  const [consecutiveMissPeriods, setConsecutiveMissPeriods] = useState(5);
 
   if (!isOpen) return null;
 
-  const calculateMaxConsecutiveMiss = (hits: boolean[]): number => {
-    let maxMiss = 0;
-    let currentMiss = 0;
-    for (const hit of hits) {
-      if (!hit) {
-        currentMiss++;
-        maxMiss = Math.max(maxMiss, currentMiss);
-      } else {
-        currentMiss = 0;
-      }
-    }
-    return maxMiss;
-  };
-
-  const calculateRecentConsecutiveMiss = (hits: boolean[]): number => {
+  const calculateConsecutiveMiss = (hits: boolean[]): number => {
     let count = 0;
     for (const hit of hits) {
       if (!hit) {
@@ -83,17 +67,10 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
       });
     }
 
-    if (recentMissEnabled) {
+    if (consecutiveMissEnabled) {
       filtered = filtered.filter(r => {
-        const recentMiss = calculateRecentConsecutiveMiss(r.hits);
-        return recentMiss >= recentMissPeriods;
-      });
-    }
-
-    if (maxMissEnabled) {
-      filtered = filtered.filter(r => {
-        const maxMiss = calculateMaxConsecutiveMiss(r.hits);
-        return maxMiss >= maxMissPeriods;
+        const missCount = calculateConsecutiveMiss(r.hits);
+        return missCount >= consecutiveMissPeriods;
       });
     }
 
@@ -309,46 +286,24 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
               连错筛选
             </label>
             
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={recentMissEnabled}
-                  onChange={(e) => setRecentMissEnabled(e.target.checked)}
-                  className="w-4 h-4 text-emerald-600 rounded"
-                />
-                <span className="text-sm text-gray-600">最近连续</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={recentMissPeriods}
-                  onChange={(e) => setRecentMissPeriods(parseInt(e.target.value) || 1)}
-                  disabled={!recentMissEnabled}
-                  className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
-                  min={1}
-                />
-                <span className="text-sm text-gray-600">期未命中</span>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={maxMissEnabled}
-                  onChange={(e) => setMaxMissEnabled(e.target.checked)}
-                  className="w-4 h-4 text-emerald-600 rounded"
-                />
-                <span className="text-sm text-gray-600">历史最大连错≥</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={maxMissPeriods}
-                  onChange={(e) => setMaxMissPeriods(parseInt(e.target.value) || 1)}
-                  disabled={!maxMissEnabled}
-                  className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
-                  min={1}
-                />
-                <span className="text-sm text-gray-600">期</span>
-              </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={consecutiveMissEnabled}
+                onChange={(e) => setConsecutiveMissEnabled(e.target.checked)}
+                className="w-4 h-4 text-emerald-600 rounded"
+              />
+              <span className="text-sm text-gray-600">连错≥</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={consecutiveMissPeriods}
+                onChange={(e) => setConsecutiveMissPeriods(parseInt(e.target.value) || 1)}
+                disabled={!consecutiveMissEnabled}
+                className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
+                min={1}
+              />
+              <span className="text-sm text-gray-600">期未命中</span>
             </div>
           </div>
 
