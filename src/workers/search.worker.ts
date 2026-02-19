@@ -1,5 +1,5 @@
-// 验证 Worker - 将计算移到后台线程
-import type { LotteryData, VerifyResult } from '../types';
+// 智能搜索 Worker - 将计算移到后台线程
+import type { LotteryData, ResultType } from '../types';
 
 // 波色映射
 const WAVE_COLORS: Record<string, number[]> = {
@@ -25,7 +25,7 @@ const BIG_SMALL_ODD_EVEN: Record<string, number[]> = {
   大双: [26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48],
 };
 
-// 基础生肖号码表
+// 基础生肖号码表（固定不变）
 const BASE_ZODIAC_NUMBERS: Record<number, number[]> = {
   1: [1, 13, 25, 37, 49],
   2: [2, 14, 26, 38],
@@ -47,6 +47,7 @@ const ZODIAC_NAMES: Record<number, string> = {
   9: '猴', 10: '鸡', 11: '狗', 12: '猪'
 };
 
+// 根据生肖年份获取生肖映射
 function getZodiacMap(zodiacYear: number): Record<string, number[]> {
   const zodiacMap: Record<string, number[]> = {};
   for (let position = 1; position <= 12; position++) {
@@ -57,40 +58,22 @@ function getZodiacMap(zodiacYear: number): Record<string, number[]> {
   return zodiacMap;
 }
 
-// 获取号码属性值
-function getNumberAttribute(num: number, resultType: string, zodiacYear: number): number {
-  switch (resultType) {
-    case '尾数类': return num % 10;
-    case '头数类': return Math.floor(num / 10);
-    case '合数类': return String(num).split('').reduce((a, b) => a + parseInt(b), 0);
-    case '波色类':
-      if (WAVE_COLORS.红.includes(num)) return 0;
-      if (WAVE_COLORS.蓝.includes(num)) return 1;
-      if (WAVE_COLORS.绿.includes(num)) return 2;
-      return 0;
-    case '五行类':
-      if (FIVE_ELEMENTS.金.includes(num)) return 0;
-      if (FIVE_ELEMENTS.木.includes(num)) return 1;
-      if (FIVE_ELEMENTS.水.includes(num)) return 2;
-      if (FIVE_ELEMENTS.火.includes(num)) return 3;
-      if (FIVE_ELEMENTS.土.includes(num)) return 4;
-      return 0;
-    case '肖位类': {
-      const zodiacMap = getZodiacMap(zodiacYear);
-      for (let i = 1; i <= 12; i++) {
-        const zodiacName = ZODIAC_NAMES[i];
-        if (zodiacMap[zodiacName]?.includes(num)) return i;
-      }
-      return 1;
-    }
-    case '大小单双类':
-      if (BIG_SMALL_ODD_EVEN.小单.includes(num)) return 0;
-      if (BIG_SMALL_ODD_EVEN.小双.includes(num)) return 1;
-      if (BIG_SMALL_ODD_EVEN.大单.includes(num)) return 2;
-      if (BIG_SMALL_ODD_EVEN.大双.includes(num)) return 3;
-      return 0;
-    default: return num;
-  }
+// 获取所有元素
+function getAllElements(): string[] {
+  return [
+    // 期数系列 (4个)
+    '期数', '期数尾', '期数合', '期数合尾',
+    // 总分系列 (4个)
+    '总分', '总分尾', '总分合', '总分合尾',
+    // 平码系列 (60个)
+    ...Array.from({ length: 6 }, (_, i) => [
+      `平${i + 1}号`, `平${i + 1}头`, `平${i + 1}尾`, `平${i + 1}合`,
+      `平${i + 1}合头`, `平${i + 1}合尾`, `平${i + 1}波`, `平${i + 1}段`,
+      `平${i + 1}行`, `平${i + 1}肖位`
+    ]).flat(),
+    // 特码系列 (10个)
+    '特号', '特头', '特尾', '特合', '特合头', '特合尾', '特波', '特段', '特行', '特肖位'
+  ];
 }
 
 // 数字各位之和
@@ -164,7 +147,6 @@ function chineseToNumber(str: string): string {
 function normalizeElementName(name: string): string {
   let normalized = chineseToNumber(name);
   
-  // 处理别名
   const aliases: Record<string, string> = {
     '特码': '特', '特号': '特',
     '平一': '平1', '平二': '平2', '平三': '平3',
@@ -212,7 +194,7 @@ function calculateElementValue(element: string, data: LotteryData): number {
   if (normalized === '总分合') return digitSum(totalSum);
   if (normalized === '总分合尾') return digitSum(totalSum) % 10;
   
-  // 平码系列 (平1号 - 平6肖位)
+  // 平码系列
   const pingMatch = normalized.match(/^平(\d)(.+)$/);
   if (pingMatch) {
     const index = parseInt(pingMatch[1]) - 1;
@@ -222,7 +204,7 @@ function calculateElementValue(element: string, data: LotteryData): number {
     }
   }
   
-  // 特码系列 (特号 - 特肖位)
+  // 特码系列
   const teMatch = normalized.match(/^特(.+)$/);
   if (teMatch) {
     const attr = teMatch[1];
@@ -232,23 +214,53 @@ function calculateElementValue(element: string, data: LotteryData): number {
   return 0;
 }
 
-// 评估表达式 - 只允许加号
+// 解析公式
+function parseFormula(formulaStr: string): { expression: string; rule: 'D' | 'L'; resultType: ResultType; periods: number; offset: number; leftExpand: number; rightExpand: number; rawExpression: string } | null {
+  try {
+    const match = formulaStr.match(/^\[([DL])([^=]+)\]([^=]+)=(-?\d+)(?:左(\d+))?(?:右(\d+))?$/);
+    if (!match) return null;
+    
+    const rule = match[1] as 'D' | 'L';
+    const resultType = match[2] as ResultType;
+    const expression = match[3];
+    const periods = parseInt(match[4]) || 15;
+    const leftExpand = match[5] ? parseInt(match[5]) : 0;
+    const rightExpand = match[6] ? parseInt(match[6]) : 0;
+    
+    let offset = 0;
+    const offsetMatch = expression.match(/[+-]?\d+$/);
+    if (offsetMatch) {
+      offset = parseInt(offsetMatch[0]);
+    }
+    
+    return {
+      expression: expression.replace(/[+-]?\d+$/, ''),
+      rule,
+      resultType,
+      periods,
+      offset,
+      leftExpand,
+      rightExpand,
+      rawExpression: expression,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// 评估表达式
 function evaluateExpression(expression: string, data: LotteryData): number {
   let normalized = normalizeElementName(expression);
   
-  // 替换元素为数值（按长度优先，避免短元素名被先替换）
+  // 替换元素为数值（按长度优先）
   const allElements = [
-    // 期数系列
     '期数合尾', '期数合', '期数尾', '期数',
-    // 总分系列
     '总分合尾', '总分合', '总分尾', '总分',
-    // 平码系列 (每个号码的各属性，按长度优先)
     ...Array.from({ length: 6 }, (_, i) => [
       `平${i + 1}合头`, `平${i + 1}合尾`, `平${i + 1}肖位`,
       `平${i + 1}号`, `平${i + 1}头`, `平${i + 1}尾`, `平${i + 1}合`,
       `平${i + 1}波`, `平${i + 1}段`, `平${i + 1}行`
     ]).flat(),
-    // 特码系列
     '特合头', '特合尾', '特肖位',
     '特号', '特头', '特尾', '特合', '特波', '特段', '特行', '特',
   ];
@@ -258,23 +270,21 @@ function evaluateExpression(expression: string, data: LotteryData): number {
     normalized = normalized.replace(new RegExp(elem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value.toString());
   }
   
-  // 将其他运算符替换为空或移除（只允许加号）
+  // 只允许加号
   normalized = normalized.replace(/[×\*÷\/%\-]/g, '');
   
-  // 安全计算 - 只允许加号
+  // 计算结果
   try {
-    if (!/^[\d+()\s]+$/.test(normalized)) {
-      return 0;
-    }
+    if (!/^[\d+()\s]+$/.test(normalized)) return 0;
     // @ts-ignore
     return Math.floor(eval(normalized));
-  } catch (e) {
+  } catch {
     return 0;
   }
 }
 
 // 应用循环规则
-function applyCycle(value: number, resultType: string): number {
+function applyCycle(value: number, resultType: ResultType): number {
   switch (resultType) {
     case '尾数类': return ((value % 10) + 10) % 10;
     case '头数类': return Math.min(Math.max(value, 0), 4);
@@ -287,12 +297,11 @@ function applyCycle(value: number, resultType: string): number {
   }
 }
 
-// 扩展结果
-function getExpandedResults(result: number, leftExpand: number, rightExpand: number, resultType: string): number[] {
+// 获取扩展结果
+function getExpandedResults(result: number, leftExpand: number, rightExpand: number, resultType: ResultType): number[] {
   const results: number[] = [];
   
   if (resultType === '单特类') {
-    // 单特类：直接扩展号码
     for (let i = -leftExpand; i <= rightExpand; i++) {
       const expanded = result + i;
       if (expanded >= 1 && expanded <= 49) {
@@ -300,7 +309,6 @@ function getExpandedResults(result: number, leftExpand: number, rightExpand: num
       }
     }
   } else {
-    // 其他类型：扩展属性值
     for (let i = -leftExpand; i <= rightExpand; i++) {
       results.push(applyCycle(result + i, resultType));
     }
@@ -309,94 +317,196 @@ function getExpandedResults(result: number, leftExpand: number, rightExpand: num
   return [...new Set(results)];
 }
 
-// 批量验证公式
-self.onmessage = (event) => {
-  const { type, formulas, historyData, targetPeriod } = event.data;
+// 获取特码属性
+function getNumberAttribute(num: number, resultType: ResultType, zodiacYear: number): number {
+  switch (resultType) {
+    case '尾数类': return num % 10;
+    case '头数类': return Math.floor(num / 10);
+    case '合数类': return String(num).split('').reduce((a, b) => a + parseInt(b), 0);
+    case '波色类': {
+      if (WAVE_COLORS.红.includes(num)) return 0;
+      if (WAVE_COLORS.蓝.includes(num)) return 1;
+      if (WAVE_COLORS.绿.includes(num)) return 2;
+      return 0;
+    }
+    case '五行类': {
+      if (FIVE_ELEMENTS.金.includes(num)) return 0;
+      if (FIVE_ELEMENTS.木.includes(num)) return 1;
+      if (FIVE_ELEMENTS.水.includes(num)) return 2;
+      if (FIVE_ELEMENTS.火.includes(num)) return 3;
+      if (FIVE_ELEMENTS.土.includes(num)) return 4;
+      return 0;
+    }
+    case '肖位类': {
+      const zodiacMap = getZodiacMap(zodiacYear);
+      for (let i = 1; i <= 12; i++) {
+        const zodiacName = ZODIAC_NAMES[i];
+        if (zodiacMap[zodiacName]?.includes(num)) {
+          return i;
+        }
+      }
+      return 1;
+    }
+    case '大小单双类':
+      if (BIG_SMALL_ODD_EVEN.小单.includes(num)) return 0;
+      if (BIG_SMALL_ODD_EVEN.小双.includes(num)) return 1;
+      if (BIG_SMALL_ODD_EVEN.大单.includes(num)) return 2;
+      if (BIG_SMALL_ODD_EVEN.大双.includes(num)) return 3;
+      return 0;
+    default: return num;
+  }
+}
+
+// 验证单个公式
+function verifyFormula(
+  parsed: ReturnType<typeof parseFormula>,
+  historyData: LotteryData[],
+  offset: number,
+  periods: number,
+  leftExpand: number,
+  rightExpand: number
+): { hitRate: number; hitCount: number; totalPeriods: number } {
+  if (!parsed) return { hitRate: 0, hitCount: 0, totalPeriods: 0 };
   
-  if (type !== 'verify') return;
+  const dataToVerify = historyData.slice(0, periods);
+  let hitCount = 0;
+  
+  for (let i = 0; i < dataToVerify.length; i++) {
+    const verifyData = dataToVerify[i];
+    const calcData = i > 0 ? dataToVerify[i - 1] : verifyData;
+    
+    const rawResult = evaluateExpression(parsed.expression, calcData);
+    const withOffset = rawResult + parsed.offset + offset;
+    const cycledResult = applyCycle(withOffset, parsed.resultType);
+    const expandedResults = getExpandedResults(cycledResult, parsed.leftExpand + leftExpand, parsed.rightExpand + rightExpand, parsed.resultType);
+    
+    const targetValue = getNumberAttribute(verifyData.numbers[6], parsed.resultType, verifyData.zodiacYear);
+    const hit = expandedResults.includes(targetValue);
+    
+    if (hit) hitCount++;
+  }
+  
+  return {
+    hitRate: dataToVerify.length > 0 ? hitCount / dataToVerify.length : 0,
+    hitCount,
+    totalPeriods: dataToVerify.length,
+  };
+}
+
+// 生成随机公式
+function generateRandomFormula(
+  elements: string[],
+  elementCount: number,
+  resultType: ResultType,
+  rule: 'D' | 'L',
+  periods: number,
+  offset: number,
+  leftExpand: number,
+  rightExpand: number
+): string {
+  const shuffled = [...elements].sort(() => Math.random() - 0.5);
+  const selected = shuffled.slice(0, Math.min(elementCount, elements.length));
+  
+  let expression = selected[0];
+  for (let i = 1; i < selected.length; i++) {
+    expression += '+' + selected[i];
+  }
+  
+  const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
+  const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
+  const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
+  
+  return `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
+}
+
+// Worker 消息处理
+self.onmessage = (event) => {
+  const { type, historyData, targetHitRate, maxCount, strategy, resultTypes, offset, periods, leftExpand, rightExpand } = event.data;
+  
+  if (type !== 'search') return;
   
   try {
-    const results: VerifyResult[] = [];
-    const BATCH_SIZE = 50;
+    const elements = getAllElements();
+    const results: { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] = [];
+    const seenFormulas = new Set<string>();
     
-    for (let i = 0; i < formulas.length; i++) {
-      const formula = formulas[i];
+    // 根据策略确定迭代次数
+    let minElements: number, maxElements: number, iterations: number;
+    switch (strategy) {
+      case 'fast':
+        minElements = 1;
+        maxElements = 10;
+        iterations = Math.min(maxCount * 10, 5000);
+        break;
+      case 'standard':
+        minElements = 1;
+        maxElements = 15;
+        iterations = Math.min(maxCount * 20, 10000);
+        break;
+      case 'deep':
+        minElements = 1;
+        maxElements = 20;
+        iterations = Math.min(maxCount * 30, 20000);
+        break;
+      default:
+        minElements = 1;
+        maxElements = 10;
+        iterations = 5000;
+    }
+    
+    const rules: ('D' | 'L')[] = ['D', 'L'];
+    
+    for (let i = 0; i < iterations && results.length < maxCount; i++) {
+      const resultType = resultTypes[Math.floor(Math.random() * resultTypes.length)];
+      const rule = rules[Math.floor(Math.random() * rules.length)];
+      const elementCount = Math.floor(Math.random() * (maxElements - minElements + 1)) + minElements;
       
-      // 发送进度
-      if (i % BATCH_SIZE === 0) {
+      const formulaStr = generateRandomFormula(elements, elementCount, resultType, rule, periods, offset, leftExpand, rightExpand);
+      
+      if (seenFormulas.has(formulaStr)) continue;
+      seenFormulas.add(formulaStr);
+      
+      const parsed = parseFormula(formulaStr);
+      if (!parsed) continue;
+      
+      const result = verifyFormula(parsed, historyData, 0, periods, 0, 0);
+      
+      // 检查命中率
+      const hitRate = result.hitRate * 100;
+      const tolerance = 5;
+      
+      if (Math.abs(hitRate - targetHitRate) <= tolerance || 
+          (targetHitRate === 0 && hitRate === 0) ||
+          (targetHitRate === 100 && hitRate === 100)) {
+        results.push({
+          formula: formulaStr,
+          hitRate: result.hitRate,
+          hitCount: result.hitCount,
+          totalPeriods: result.totalPeriods,
+        });
+      }
+      
+      // 每100次发送进度
+      if (i % 100 === 0) {
         self.postMessage({
           type: 'progress',
           current: i,
-          total: formulas.length
+          total: iterations,
+          found: results.length
         });
       }
-      
-      // 确定验证范围
-      let dataToVerify: LotteryData[];
-      if (targetPeriod) {
-        const targetIdx = historyData.findIndex((d: LotteryData) => d.period === targetPeriod);
-        if (targetIdx !== -1) {
-          dataToVerify = historyData.slice(targetIdx, targetIdx + formula.periods);
-        } else {
-          dataToVerify = historyData.slice(0, formula.periods);
-        }
-      } else {
-        dataToVerify = historyData.slice(0, formula.periods);
-      }
-      
-      // 验证
-      const hits: boolean[] = [];
-      const periodResults: any[] = [];
-      
-      for (let j = 0; j < dataToVerify.length; j++) {
-        const verifyData = dataToVerify[j];
-        const calcData = j > 0 ? dataToVerify[j - 1] : verifyData;
-        
-        const rawResult = evaluateExpression(formula.expression, calcData);
-        const withOffset = rawResult + formula.offset;
-        const cycledResult = applyCycle(withOffset, formula.resultType);
-        const expandedResults = getExpandedResults(cycledResult, formula.leftExpand, formula.rightExpand, formula.resultType);
-        
-        const targetValue = getNumberAttribute(verifyData.numbers[6], formula.resultType, verifyData.zodiacYear);
-        const hit = expandedResults.includes(targetValue);
-        
-        hits.push(hit);
-        periodResults.push({
-          period: verifyData.period,
-          result: cycledResult,
-          expandedResults,
-          targetValue,
-          hit
-        });
-      }
-      
-      const hitCount = hits.filter(h => h).length;
-      
-      results.push({
-        formula: {
-          id: `f_${Date.now()}_${i}`,
-          expression: formula.rawExpression,
-          rule: formula.rule,
-          resultType: formula.resultType,
-          offset: formula.offset,
-          periods: formula.periods,
-          leftExpand: formula.leftExpand,
-          rightExpand: formula.rightExpand,
-        },
-        hits,
-        hitCount,
-        totalPeriods: dataToVerify.length,
-        hitRate: dataToVerify.length > 0 ? hitCount / dataToVerify.length : 0,
-        results: periodResults.length > 0 ? periodResults[0].expandedResults.map((r: number) => String(r)) : [],
-        periodResults,
-        originalLineIndex: (formula as any).originalLineIndex || 0,
-        targetPeriod
-      });
+    }
+    
+    // 按命中率排序
+    if (targetHitRate >= 50) {
+      results.sort((a, b) => b.hitRate - a.hitRate);
+    } else {
+      results.sort((a, b) => a.hitRate - b.hitRate);
     }
     
     self.postMessage({
       type: 'complete',
-      results
+      results: results.slice(0, maxCount)
     });
   } catch (error) {
     self.postMessage({

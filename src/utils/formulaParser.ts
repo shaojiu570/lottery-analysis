@@ -1,7 +1,7 @@
 import { Formula, ResultType } from '@/types';
 import { chineseToNumber, normalizeSimplifiedExpression } from './elements';
 
-const RESULT_TYPES: ResultType[] = ['尾数类', '头数类', '合数类', '波色类', '五行类', '肖位类', '单特类'];
+const RESULT_TYPES: ResultType[] = ['尾数类', '头数类', '合数类', '波色类', '五行类', '肖位类', '单特类', '大小单双类'];
 
 export interface ParsedFormula {
   rule: 'D' | 'L';

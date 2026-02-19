@@ -127,7 +127,7 @@ export function verifyFormula(
     
     // 获取特码的属性值
     const teNum = verifyData.numbers[6];
-    const targetValue = getNumberAttribute(teNum, parsed.resultType);
+    const targetValue = getNumberAttribute(teNum, parsed.resultType, verifyData.zodiacYear);
     
     // 判断是否命中
     const hit = expandedResults.includes(targetValue);
@@ -304,6 +304,10 @@ export function groupByResultType(
       }
     } else if (type === '尾数类') {
       for (let i = 0; i < 10; i++) {
+        allPossibleValues.push(resultToText(i, type));
+      }
+    } else if (type === '大小单双类') {
+      for (let i = 0; i < 4; i++) {
         allPossibleValues.push(resultToText(i, type));
       }
     }

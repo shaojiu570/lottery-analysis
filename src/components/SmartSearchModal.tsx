@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/utils/cn';
 import { LotteryData, ResultType, SearchStrategy, Settings } from '@/types';
-import { smartSearch, SearchResult } from '@/utils/search';
+import { useSearchWorker } from '@/hooks/useSearchWorker';
 
 interface SmartSearchModalProps {
   isOpen: boolean;
@@ -9,9 +9,10 @@ interface SmartSearchModalProps {
   historyData: LotteryData[];
   settings: Settings;
   onAddFormulas: (formulas: string[]) => void;
+  searchWorker: ReturnType<typeof useSearchWorker>;
 }
 
-const RESULT_TYPES: ResultType[] = ['尾数类', '头数类', '合数类', '波色类', '五行类', '肖位类', '单特类'];
+const RESULT_TYPES: ResultType[] = ['尾数类', '头数类', '合数类', '波色类', '五行类', '肖位类', '单特类', '大小单双类'];
 const STRATEGIES: { value: SearchStrategy; label: string }[] = [
   { value: 'fast', label: '快速' },
   { value: 'standard', label: '标准' },
@@ -24,21 +25,19 @@ export function SmartSearchModal({
   historyData,
   settings,
   onAddFormulas,
+  searchWorker,
 }: SmartSearchModalProps) {
-  // 初始值从 settings 读取
+  const { results, isSearching, progress, search, clearResults } = searchWorker;
+  
   const [hitRate, setHitRate] = useState(60);
   const [count, setCount] = useState(500);
   const [strategy, setStrategy] = useState<SearchStrategy>('fast');
   const [selectedTypes, setSelectedTypes] = useState<ResultType[]>(['尾数类']);
-  // 使用字符串状态管理数字输入
   const [offsetInput, setOffsetInput] = useState(settings.searchOffset.toString());
   const [periodsInput, setPeriodsInput] = useState(settings.searchPeriods.toString());
   const [leftExpandInput, setLeftExpandInput] = useState(settings.searchLeft.toString());
   const [rightExpandInput, setRightExpandInput] = useState(settings.searchRight.toString());
   
-  const [searching, setSearching] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
-  const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedResults, setSelectedResults] = useState<Set<number>>(new Set());
 
   // 弹窗打开时初始化参数和清空结果
@@ -52,10 +51,10 @@ export function SmartSearchModal({
       setPeriodsInput(settings.searchPeriods.toString());
       setLeftExpandInput(settings.searchLeft.toString());
       setRightExpandInput(settings.searchRight.toString());
-      setResults([]);
+      clearResults();
       setSelectedResults(new Set());
     }
-  }, [isOpen, settings]);
+  }, [isOpen, settings, clearResults]);
 
   if (!isOpen) return null;
 
@@ -87,7 +86,7 @@ export function SmartSearchModal({
     }
   };
 
-  const handleSearch = async () => {
+  const handleSearch = () => {
     if (historyData.length === 0) {
       alert('请先导入开奖记录');
       return;
@@ -97,35 +96,24 @@ export function SmartSearchModal({
       return;
     }
 
-    // 转换字符串为数字
     const offset = offsetInput === '' ? 0 : parseInt(offsetInput) || 0;
     const periods = periodsInput === '' ? 15 : parseInt(periodsInput) || 15;
     const leftExpand = leftExpandInput === '' ? 0 : parseInt(leftExpandInput) || 0;
     const rightExpand = rightExpandInput === '' ? 0 : parseInt(rightExpandInput) || 0;
 
-    setSearching(true);
-    setResults([]);
     setSelectedResults(new Set());
 
-    try {
-      const searchResults = await smartSearch(
-        historyData,
-        hitRate,
-        count,
-        strategy,
-        selectedTypes,
-        offset,
-        periods,
-        leftExpand,
-        rightExpand,
-        (current, total) => setProgress({ current, total })
-      );
-      setResults(searchResults);
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setSearching(false);
-    }
+    search(
+      historyData,
+      hitRate,
+      count,
+      strategy,
+      selectedTypes,
+      offset,
+      periods,
+      leftExpand,
+      rightExpand
+    );
   };
 
   const handleSelectAll = () => {
@@ -182,14 +170,14 @@ export function SmartSearchModal({
               <span className="truncate">补偿:{offsetInput || '0'} 期:{periodsInput || '15'} 左:{leftExpandInput || '0'} 右:{rightExpandInput || '0'}</span>
               <button
                 onClick={handleSearch}
-                disabled={searching}
+                disabled={isSearching}
                 className={cn(
                   'px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold shrink-0',
                   'bg-emerald-600 hover:bg-emerald-700 text-white',
                   'disabled:opacity-50'
                 )}
               >
-                {searching ? '搜索中...' : '🚀 搜索'}
+                {isSearching ? '搜索中...' : '🚀 搜索'}
               </button>
             </div>
 
@@ -309,10 +297,10 @@ export function SmartSearchModal({
           </div>
 
           {/* 搜索进度 */}
-          {searching && (
+          {isSearching && progress && (
             <div className="p-3 sm:p-4 bg-gray-50 border-b border-gray-200">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs sm:text-sm text-gray-600">搜索中...</span>
+                <span className="text-xs sm:text-sm text-gray-600">搜索中... (已找到 {progress.found} 个)</span>
                 <span className="text-xs sm:text-sm text-gray-500">
                   {progress.current} / {progress.total}
                 </span>

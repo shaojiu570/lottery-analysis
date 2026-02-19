@@ -19,7 +19,7 @@ export interface Formula {
 }
 
 // 结果类型
-export type ResultType = '尾数类' | '头数类' | '合数类' | '波色类' | '五行类' | '肖位类' | '单特类';
+export type ResultType = '尾数类' | '头数类' | '合数类' | '波色类' | '五行类' | '肖位类' | '单特类' | '大小单双类';
 
 // 验证结果
 export interface VerifyResult {

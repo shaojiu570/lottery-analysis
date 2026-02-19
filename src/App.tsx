@@ -13,6 +13,7 @@ import { SavedVerificationsModal } from '@/components/SavedVerificationsModal';
 import { parseFormulas, addFormulaNumbers, removeFormulaNumbers, ParseError } from '@/utils/formulaParser';
 import { verifyFormulas } from '@/utils/calculator';
 import { useWorkerVerify } from '@/hooks/useWorkerVerify';
+import { useSearchWorker } from '@/hooks/useSearchWorker';
 import { getSavedVerifications, saveVerification, deleteVerification, clearAllSavedVerifications } from '@/utils/storage';
 import { SavedVerification } from '@/types';
 
@@ -62,6 +63,9 @@ function App() {
   
   // 使用 Worker 进行验证
   const workerVerify = useWorkerVerify();
+  
+  // 使用 Worker 进行智能搜索
+  const searchWorker = useSearchWorker();
 
   // 保存的验证记录
   const [savedVerifications, setSavedVerifications] = useState<SavedVerification[]>([]);
@@ -351,6 +355,7 @@ function App() {
         historyData={historyData}
         settings={settings}
         onAddFormulas={handleAddFormulasFromSearch}
+        searchWorker={searchWorker}
       />
 
       <SettingsModal
