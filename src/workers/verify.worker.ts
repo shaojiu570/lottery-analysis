@@ -213,6 +213,7 @@ function normalizeElementName(name: string): string {
     '特码': '特', '特号': '特',
     '平一': '平1', '平二': '平2', '平三': '平3',
     '平四': '平4', '平五': '平5', '平六': '平6',
+    '期合尾': '期数合尾', '期合': '期数合',
   };
   for (const [alias, standard] of Object.entries(aliases)) {
     normalized = normalized.replace(new RegExp(alias, 'g'), standard);
