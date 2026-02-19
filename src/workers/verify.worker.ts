@@ -415,11 +415,19 @@ self.onmessage = (event) => {
         // 找到验证期在完整历史数据中的索引
         const verifyIndex = historyData.findIndex((d: LotteryData) => d.period === verifyData.period);
         
-        // 用上一期（索引更大，因为historyData是倒序）的数据计算
-        // 例如：验证2026049期，用2026048期数据计算
-        const calcData = (verifyIndex >= 0 && verifyIndex < historyData.length - 1) 
-          ? historyData[verifyIndex + 1] 
-          : verifyData;
+        // 判断是否为最新期（预测下一期场景）
+        const isLatestPeriod = verifyIndex === 0;
+        
+        let calcData: LotteryData;
+        if (isLatestPeriod) {
+          // 预测下一期：用最新期数据计算
+          calcData = verifyData;
+        } else {
+          // 验证历史期：用上一期数据计算
+          calcData = (verifyIndex >= 0 && verifyIndex < historyData.length - 1) 
+            ? historyData[verifyIndex + 1] 
+            : verifyData;
+        }
         
         const rawResult = evaluateExpression(formula.expression, calcData);
         const withOffset = rawResult + formula.offset;

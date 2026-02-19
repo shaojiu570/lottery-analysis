@@ -104,17 +104,25 @@ export function verifyFormula(
   const hits: boolean[] = [];
   const allResults = new Set<number>();
   
-  for (let i = 0; i < dataToVerify.length; i++) {
-    const verifyData = dataToVerify[i];
-    
-    // 找到验证期数在历史数据中的索引
-    const verifyIndex = historyData.findIndex(d => d.period === verifyData.period);
-    
-    // 用上一期数据计算（索引更大，因为historyData是倒序）
-    // 例如：验证2026049期，用2026048期数据计算
-    const calcData = (verifyIndex >= 0 && verifyIndex < historyData.length - 1) 
-      ? historyData[verifyIndex + 1] 
-      : verifyData;
+    for (let i = 0; i < dataToVerify.length; i++) {
+      const verifyData = dataToVerify[i];
+      
+      // 找到验证期数在历史数据中的索引
+      const verifyIndex = historyData.findIndex(d => d.period === verifyData.period);
+      
+      // 判断是否为最新期（预测下一期场景）
+      const isLatestPeriod = verifyIndex === 0;
+      
+      let calcData: LotteryData;
+      if (isLatestPeriod) {
+        // 预测下一期：用最新期数据计算
+        calcData = verifyData;
+      } else {
+        // 验证历史期：用上一期数据计算
+        calcData = (verifyIndex >= 0 && verifyIndex < historyData.length - 1) 
+          ? historyData[verifyIndex + 1] 
+          : verifyData;
+      }
     
     // 计算表达式值
     const rawResult = evaluateExpression(parsed.expression, calcData, useSort);
