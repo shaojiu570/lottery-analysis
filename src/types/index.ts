@@ -4,6 +4,7 @@ export interface LotteryData {
   numbers: number[];       // 7个号码（落球顺序）
   timestamp: number;       // 时间戳
   zodiacYear: number;      // 该期使用的生肖年份（1-12）
+  fiveElementYear?: number; // 该期使用的五行年份（用于动态五行映射）
 }
 
 // 公式结构

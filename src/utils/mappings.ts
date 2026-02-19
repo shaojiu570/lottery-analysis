@@ -19,7 +19,7 @@ export function getWaveColorName(value: number): string {
   return names[value % 3];
 }
 
-// 五行映射表
+// 五行映射表 - 默认（马年）
 export const FIVE_ELEMENTS: Record<string, number[]> = {
   金: [4, 5, 12, 13, 26, 27, 34, 35, 42, 43],
   木: [8, 9, 16, 17, 24, 25, 38, 39, 46, 47],
@@ -28,13 +28,43 @@ export const FIVE_ELEMENTS: Record<string, number[]> = {
   土: [6, 7, 20, 21, 28, 29, 36, 37],
 };
 
+// 各生肖年的五行映射（只保留蛇年和马年）
+// key: zodiacYear (6=蛇, 7=马)
+const FIVE_ELEMENTS_BY_YEAR: Record<number, Record<string, number[]>> = {
+  // 蛇年(6)
+  6: {
+    金: [3, 4, 11, 12, 25, 26, 33, 34, 41, 42],
+    木: [7, 8, 15, 16, 23, 24, 37, 38, 45, 46],
+    水: [13, 14, 21, 22, 29, 30, 43, 44],
+    火: [1, 2, 9, 10, 17, 18, 31, 32, 39, 40, 47, 48],
+    土: [5, 6, 19, 20, 27, 28, 35, 36, 49],
+  },
+  // 马年(7) - 默认
+  7: {
+    金: [4, 5, 12, 13, 26, 27, 34, 35, 42, 43],
+    木: [8, 9, 16, 17, 24, 25, 38, 39, 46, 47],
+    水: [1, 14, 15, 22, 23, 30, 31, 44, 45],
+    火: [2, 3, 10, 11, 18, 19, 32, 33, 40, 41, 48, 49],
+    土: [6, 7, 20, 21, 28, 29, 36, 37],
+  },
+};
+
+// 获取指定年份的五行映射
+function getFiveElementsByYear(zodiacYear?: number): Record<string, number[]> {
+  if (zodiacYear && FIVE_ELEMENTS_BY_YEAR[zodiacYear]) {
+    return FIVE_ELEMENTS_BY_YEAR[zodiacYear];
+  }
+  return FIVE_ELEMENTS; // 默认返回马年映射
+}
+
 // 五行映射：号码 -> 五行值 (0=金, 1=木, 2=水, 3=火, 4=土)
-export function getFiveElement(num: number): number {
-  if (FIVE_ELEMENTS.金.includes(num)) return 0;
-  if (FIVE_ELEMENTS.木.includes(num)) return 1;
-  if (FIVE_ELEMENTS.水.includes(num)) return 2;
-  if (FIVE_ELEMENTS.火.includes(num)) return 3;
-  if (FIVE_ELEMENTS.土.includes(num)) return 4;
+export function getFiveElement(num: number, zodiacYear?: number): number {
+  const elements = getFiveElementsByYear(zodiacYear);
+  if (elements.金.includes(num)) return 0;
+  if (elements.木.includes(num)) return 1;
+  if (elements.水.includes(num)) return 2;
+  if (elements.火.includes(num)) return 3;
+  if (elements.土.includes(num)) return 4;
   return 0;
 }
 
@@ -262,7 +292,7 @@ export function getNumberAttribute(num: number, resultType: keyof typeof RESULT_
     case '波色类':
       return getWaveColor(num);
     case '五行类':
-      return getFiveElement(num);
+      return getFiveElement(num, zodiacYear);
     case '肖位类':
       return getZodiacPosition(num, zodiacYear);
     case '单特类':

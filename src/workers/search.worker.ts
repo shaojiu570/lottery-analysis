@@ -8,13 +8,31 @@ const WAVE_COLORS: Record<string, number[]> = {
   绿: [5, 6, 11, 16, 17, 21, 22, 27, 28, 32, 33, 38, 39, 43, 44, 49],
 };
 
-// 五行映射
+// 五行映射 - 默认（马年）
 const FIVE_ELEMENTS: Record<string, number[]> = {
   金: [4, 5, 12, 13, 26, 27, 34, 35, 42, 43],
   木: [8, 9, 16, 17, 24, 25, 38, 39, 46, 47],
   水: [1, 14, 15, 22, 23, 30, 31, 44, 45],
   火: [2, 3, 10, 11, 18, 19, 32, 33, 40, 41, 48, 49],
   土: [6, 7, 20, 21, 28, 29, 36, 37],
+};
+
+// 各生肖年的五行映射（蛇年和马年）
+const FIVE_ELEMENTS_BY_YEAR: Record<number, Record<string, number[]>> = {
+  6: { // 蛇年
+    金: [3, 4, 11, 12, 25, 26, 33, 34, 41, 42],
+    木: [7, 8, 15, 16, 23, 24, 37, 38, 45, 46],
+    水: [13, 14, 21, 22, 29, 30, 43, 44],
+    火: [1, 2, 9, 10, 17, 18, 31, 32, 39, 40, 47, 48],
+    土: [5, 6, 19, 20, 27, 28, 35, 36, 49],
+  },
+  7: { // 马年（默认）
+    金: [4, 5, 12, 13, 26, 27, 34, 35, 42, 43],
+    木: [8, 9, 16, 17, 24, 25, 38, 39, 46, 47],
+    水: [1, 14, 15, 22, 23, 30, 31, 44, 45],
+    火: [2, 3, 10, 11, 18, 19, 32, 33, 40, 41, 48, 49],
+    土: [6, 7, 20, 21, 28, 29, 36, 37],
+  },
 };
 
 // 大小单双映射
@@ -90,12 +108,13 @@ function getWaveColor(num: number): number {
 }
 
 // 获取五行值
-function getFiveElement(num: number): number {
-  if (FIVE_ELEMENTS.金.includes(num)) return 0;
-  if (FIVE_ELEMENTS.木.includes(num)) return 1;
-  if (FIVE_ELEMENTS.水.includes(num)) return 2;
-  if (FIVE_ELEMENTS.火.includes(num)) return 3;
-  if (FIVE_ELEMENTS.土.includes(num)) return 4;
+function getFiveElement(num: number, zodiacYear?: number): number {
+  const elements = (zodiacYear && FIVE_ELEMENTS_BY_YEAR[zodiacYear]) ? FIVE_ELEMENTS_BY_YEAR[zodiacYear] : FIVE_ELEMENTS;
+  if (elements.金.includes(num)) return 0;
+  if (elements.木.includes(num)) return 1;
+  if (elements.水.includes(num)) return 2;
+  if (elements.火.includes(num)) return 3;
+  if (elements.土.includes(num)) return 4;
   return 0;
 }
 
@@ -185,7 +204,7 @@ function getNumberAttributeValue(num: number, attr: string, zodiacYear: number):
     case '合尾': return digitSum(num) % 10;
     case '波': return getWaveColor(num);
     case '段': return getSegment(num);
-    case '行': return getFiveElement(num);
+    case '行': return getFiveElement(num, zodiacYear);
     case '肖位': return getZodiacPosition(num, zodiacYear);
     default: return num;
   }

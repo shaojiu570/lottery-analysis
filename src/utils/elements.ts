@@ -48,12 +48,14 @@ const ELEMENT_ALIASES: Record<string, string> = {
   '总分数': '总分',
   '总分合': '总分合',
   '总分尾': '总分尾',
+  '总': '总分',
   // 期数相关
   '期数合': '期数合',
   '期数尾': '期数尾',
   '期数合尾': '期数合尾',
   '期合尾': '期数合尾',
   '期合': '期数合',
+  '期': '期数',
 };
 
 // 标准化元素名称
@@ -207,7 +209,7 @@ function getNumberAttributeValue(num: number, attr: string, zodiacYear?: number)
     case '段':
       return getSegment(num);
     case '行':
-      return getFiveElement(num);
+      return getFiveElement(num, zodiacYear);
     case '肖位':
       return getZodiacPosition(num, zodiacYear);
     default:
