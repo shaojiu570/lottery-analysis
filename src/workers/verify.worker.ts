@@ -469,6 +469,10 @@ self.onmessage = (event) => {
       
       const hitCount = hits.filter(h => h).length;
       
+      // 反转数组，使顺序变为从旧到新（最旧期在前，最新期在后）
+      hits.reverse();
+      periodResults.reverse();
+      
       results.push({
         formula: {
           id: `f_${Date.now()}_${i}`,
@@ -485,7 +489,7 @@ self.onmessage = (event) => {
         totalPeriods: dataToVerify.length,
         hitRate: dataToVerify.length > 0 ? hitCount / dataToVerify.length : 0,
         results: periodResults.length > 0 
-          ? periodResults[0].expandedResults.sort((a: number, b: number) => a - b).map((r: number) => resultToText(r, formula.resultType)) 
+          ? periodResults[periodResults.length - 1].expandedResults.sort((a: number, b: number) => a - b).map((r: number) => resultToText(r, formula.resultType)) 
           : [],
         periodResults,
         originalLineIndex: (formula as any).originalLineIndex || 0,

@@ -153,11 +153,15 @@ export function verifyFormula(
     expandedResults.forEach(r => allResults.add(r));
   }
   
-  const hitCount = hits.filter(h => h).length;
+    const hitCount = hits.filter(h => h).length;
+  
+  // 反转数组，使顺序变为从旧到新（最旧期在前，最新期在后）
+  hits.reverse();
+  periodResults.reverse();
   
   // 只取最新一期的结果
   const latestResults = periodResults.length > 0 
-    ? periodResults[0].expandedResults 
+    ? periodResults[periodResults.length - 1].expandedResults 
     : [];
   const results = Array.from(latestResults).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType));
   

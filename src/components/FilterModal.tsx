@@ -62,7 +62,8 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
 
     if (lastPeriodCondition !== 'none') {
       filtered = filtered.filter(r => {
-        const lastHit = r.hits.length > 0 ? r.hits[0] : false;
+        // hits 数组顺序：最旧期在前，最新期在后
+        const lastHit = r.hits.length > 0 ? r.hits[r.hits.length - 1] : false;
         if (lastPeriodCondition === 'hit') return lastHit;
         if (lastPeriodCondition === 'miss') return !lastHit;
         return true;

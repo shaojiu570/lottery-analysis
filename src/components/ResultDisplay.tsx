@@ -95,8 +95,8 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
       lines.push('');
     }
     
-    // 第二层：近N期开出次数统计
-    const periodCounts = hitsPerPeriod.slice(0, 10).map(count => count.toString().padStart(2, '0')).join(',');
+    // 第二层：近N期开出次数统计（取最新的10期）
+    const periodCounts = hitsPerPeriod.slice(-10).map(count => count.toString().padStart(2, '0')).join(',');
     lines.push(`[近${Math.min(10, hitsPerPeriod.length)}期开出次数${periodCounts}]`);
     lines.push('');
     
