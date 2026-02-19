@@ -57,10 +57,10 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     // 计算显示期数：历史期显示目标期，最新期显示下一期
     const displayPeriod = isHistoryPeriod ? targetPeriod : (targetPeriod || latestPeriod) + 1;
     
-    // 获取验证期的数据（用于特码标记）
+    // 只有验证历史期时才显示特码星号（预测期还没开奖，没有特码）
     const verifyPeriodData = isHistoryPeriod 
       ? historyData.find(d => d.period === targetPeriod)
-      : historyData.find(d => d.period === latestPeriod);
+      : null;
     const teNum = verifyPeriodData?.numbers[6];
     const zodiacYear = verifyPeriodData?.zodiacYear;
     
