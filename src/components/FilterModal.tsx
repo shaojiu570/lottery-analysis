@@ -19,8 +19,39 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
   const [hitRateMin, setHitRateMin] = useState(70);
   const [hitRateMax, setHitRateMax] = useState(90);
   const [lastPeriodCondition, setLastPeriodCondition] = useState<LastPeriodCondition>('none');
+  
+  const [recentMissEnabled, setRecentMissEnabled] = useState(false);
+  const [recentMissPeriods, setRecentMissPeriods] = useState(5);
+  const [maxMissEnabled, setMaxMissEnabled] = useState(false);
+  const [maxMissPeriods, setMaxMissPeriods] = useState(5);
 
   if (!isOpen) return null;
+
+  const calculateMaxConsecutiveMiss = (hits: boolean[]): number => {
+    let maxMiss = 0;
+    let currentMiss = 0;
+    for (const hit of hits) {
+      if (!hit) {
+        currentMiss++;
+        maxMiss = Math.max(maxMiss, currentMiss);
+      } else {
+        currentMiss = 0;
+      }
+    }
+    return maxMiss;
+  };
+
+  const calculateRecentConsecutiveMiss = (hits: boolean[]): number => {
+    let count = 0;
+    for (const hit of hits) {
+      if (!hit) {
+        count++;
+      } else {
+        break;
+      }
+    }
+    return count;
+  };
 
   const getFilteredResults = () => {
     let filtered = [...results];
@@ -45,11 +76,24 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
 
     if (lastPeriodCondition !== 'none') {
       filtered = filtered.filter(r => {
-        // 最新一期是数组的第一个元素（historyData按降序排列）
         const lastHit = r.hits.length > 0 ? r.hits[0] : false;
         if (lastPeriodCondition === 'hit') return lastHit;
         if (lastPeriodCondition === 'miss') return !lastHit;
         return true;
+      });
+    }
+
+    if (recentMissEnabled) {
+      filtered = filtered.filter(r => {
+        const recentMiss = calculateRecentConsecutiveMiss(r.hits);
+        return recentMiss >= recentMissPeriods;
+      });
+    }
+
+    if (maxMissEnabled) {
+      filtered = filtered.filter(r => {
+        const maxMiss = calculateMaxConsecutiveMiss(r.hits);
+        return maxMiss >= maxMissPeriods;
       });
     }
 
@@ -260,8 +304,56 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
             </select>
           </div>
 
+          <div className="border-t border-gray-200 pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              连错筛选
+            </label>
+            
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={recentMissEnabled}
+                  onChange={(e) => setRecentMissEnabled(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 rounded"
+                />
+                <span className="text-sm text-gray-600">最近连续</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={recentMissPeriods}
+                  onChange={(e) => setRecentMissPeriods(parseInt(e.target.value) || 1)}
+                  disabled={!recentMissEnabled}
+                  className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
+                  min={1}
+                />
+                <span className="text-sm text-gray-600">期未命中</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={maxMissEnabled}
+                  onChange={(e) => setMaxMissEnabled(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 rounded"
+                />
+                <span className="text-sm text-gray-600">历史最大连错≥</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={maxMissPeriods}
+                  onChange={(e) => setMaxMissPeriods(parseInt(e.target.value) || 1)}
+                  disabled={!maxMissEnabled}
+                  className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
+                  min={1}
+                />
+                <span className="text-sm text-gray-600">期</span>
+              </div>
+            </div>
+          </div>
+
           <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-            当前公式数: {results.length}
+            当前: {results.length} 个 | 筛选后: {getFilteredResults().length} 个
           </div>
         </div>
 

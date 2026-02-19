@@ -19,7 +19,7 @@ export interface Formula {
 }
 
 // 结果类型
-export type ResultType = '尾数类' | '头数类' | '合数类' | '波色类' | '五行类' | '肖位类' | '单特类';
+export type ResultType = '尾数类' | '头数类' | '合数类' | '波色类' | '五行类' | '肖位类' | '单特类' | '大小单双类';
 
 // 验证结果
 export interface VerifyResult {
@@ -93,10 +93,12 @@ export interface SearchParams {
 
 // 筛选条件
 export interface FilterCondition {
-  type: 'hitRate' | 'lastHit';
+  type: 'hitRate' | 'lastHit' | 'recentMiss' | 'maxMiss';
   operator?: '>' | '<' | '=' | 'range';
   value?: number;
   minValue?: number;
   maxValue?: number;
-  lastHit?: boolean;       // true=上期命中, false=上期未命中
+  lastHit?: boolean;
+  recentMissPeriods?: number;
+  maxMissPeriods?: number;
 }

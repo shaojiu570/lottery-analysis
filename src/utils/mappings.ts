@@ -160,6 +160,29 @@ export function getSegmentName(value: number): string {
   return `${value}段`;
 }
 
+// 大小单双映射
+export const BIG_SMALL_ODD_EVEN: Record<string, number[]> = {
+  小单: [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23],
+  小双: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24],
+  大单: [25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49],
+  大双: [26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48],
+};
+
+// 大小单双映射：号码 -> 值 (0=小单, 1=小双, 2=大单, 3=大双)
+export function getBigSmallOddEven(num: number): number {
+  if (BIG_SMALL_ODD_EVEN.小单.includes(num)) return 0;
+  if (BIG_SMALL_ODD_EVEN.小双.includes(num)) return 1;
+  if (BIG_SMALL_ODD_EVEN.大单.includes(num)) return 2;
+  if (BIG_SMALL_ODD_EVEN.大双.includes(num)) return 3;
+  return 0;
+}
+
+// 大小单双名称
+export function getBigSmallOddEvenName(value: number): string {
+  const names = ['小单', '小双', '大单', '大双'];
+  return names[value % 4];
+}
+
 // 结果类型的范围和循环规则
 export const RESULT_TYPE_CONFIG = {
   尾数类: { min: 0, max: 9, cycle: 10 },
@@ -169,6 +192,7 @@ export const RESULT_TYPE_CONFIG = {
   五行类: { min: 0, max: 4, cycle: 5 },
   肖位类: { min: 1, max: 12, cycle: 12 },
   单特类: { min: 1, max: 49, cycle: 49 },
+  大小单双类: { min: 0, max: 3, cycle: 4 },
 };
 
 // 应用循环规则
@@ -219,13 +243,15 @@ export function resultToText(value: number, resultType: keyof typeof RESULT_TYPE
       return getZodiacName(value);
     case '单特类':
       return value.toString().padStart(2, '0');
+    case '大小单双类':
+      return getBigSmallOddEvenName(value);
     default:
       return value.toString();
   }
 }
 
 // 根据结果类型获取号码属性值
-export function getNumberAttribute(num: number, resultType: keyof typeof RESULT_TYPE_CONFIG): number {
+export function getNumberAttribute(num: number, resultType: keyof typeof RESULT_TYPE_CONFIG, zodiacYear?: number): number {
   switch (resultType) {
     case '尾数类':
       return num % 10;
@@ -238,9 +264,11 @@ export function getNumberAttribute(num: number, resultType: keyof typeof RESULT_
     case '五行类':
       return getFiveElement(num);
     case '肖位类':
-      return getZodiacPosition(num);
+      return getZodiacPosition(num, zodiacYear);
     case '单特类':
       return num;
+    case '大小单双类':
+      return getBigSmallOddEven(num);
     default:
       return num;
   }

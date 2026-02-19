@@ -1,0 +1,764 @@
+// 智能搜索 Worker - 将计算移到后台线程
+import type { LotteryData, ResultType } from '../types';
+
+// 波色映射
+const WAVE_COLORS: Record<string, number[]> = {
+  红: [1, 2, 7, 8, 12, 13, 18, 19, 23, 24, 29, 30, 34, 35, 40, 45, 46],
+  蓝: [3, 4, 9, 10, 14, 15, 20, 25, 26, 31, 36, 37, 41, 42, 47, 48],
+  绿: [5, 6, 11, 16, 17, 21, 22, 27, 28, 32, 33, 38, 39, 43, 44, 49],
+};
+
+// 五行映射
+const FIVE_ELEMENTS: Record<string, number[]> = {
+  金: [4, 5, 12, 13, 26, 27, 34, 35, 42, 43],
+  木: [8, 9, 16, 17, 24, 25, 38, 39, 46, 47],
+  水: [1, 14, 15, 22, 23, 30, 31, 44, 45],
+  火: [2, 3, 10, 11, 18, 19, 32, 33, 40, 41, 48, 49],
+  土: [6, 7, 20, 21, 28, 29, 36, 37],
+};
+
+// 大小单双映射
+const BIG_SMALL_ODD_EVEN: Record<string, number[]> = {
+  小单: [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23],
+  小双: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24],
+  大单: [25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49],
+  大双: [26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48],
+};
+
+// 基础生肖号码表（固定不变）
+const BASE_ZODIAC_NUMBERS: Record<number, number[]> = {
+  1: [1, 13, 25, 37, 49],
+  2: [2, 14, 26, 38],
+  3: [3, 15, 27, 39],
+  4: [4, 16, 28, 40],
+  5: [5, 17, 29, 41],
+  6: [6, 18, 30, 42],
+  7: [7, 19, 31, 43],
+  8: [8, 20, 32, 44],
+  9: [9, 21, 33, 45],
+  10: [10, 22, 34, 46],
+  11: [11, 23, 35, 47],
+  12: [12, 24, 36, 48],
+};
+
+const ZODIAC_NAMES: Record<number, string> = {
+  1: '鼠', 2: '牛', 3: '虎', 4: '兔',
+  5: '龙', 6: '蛇', 7: '马', 8: '羊',
+  9: '猴', 10: '鸡', 11: '狗', 12: '猪'
+};
+
+// 根据生肖年份获取生肖映射
+function getZodiacMap(zodiacYear: number): Record<string, number[]> {
+  const zodiacMap: Record<string, number[]> = {};
+  for (let position = 1; position <= 12; position++) {
+    const zodiacIndex = ((zodiacYear - position) % 12 + 12) % 12 + 1;
+    const zodiacName = ZODIAC_NAMES[zodiacIndex];
+    zodiacMap[zodiacName] = BASE_ZODIAC_NUMBERS[position];
+  }
+  return zodiacMap;
+}
+
+// 获取所有元素
+function getAllElements(): string[] {
+  return [
+    // 期数系列 (4个)
+    '期数', '期数尾', '期数合', '期数合尾',
+    // 总分系列 (4个)
+    '总分', '总分尾', '总分合', '总分合尾',
+    // 平码系列 (60个)
+    ...Array.from({ length: 6 }, (_, i) => [
+      `平${i + 1}号`, `平${i + 1}头`, `平${i + 1}尾`, `平${i + 1}合`,
+      `平${i + 1}合头`, `平${i + 1}合尾`, `平${i + 1}波`, `平${i + 1}段`,
+      `平${i + 1}行`, `平${i + 1}肖位`
+    ]).flat(),
+    // 特码系列 (10个)
+    '特号', '特头', '特尾', '特合', '特合头', '特合尾', '特波', '特段', '特行', '特肖位'
+  ];
+}
+
+// 数字各位之和
+function digitSum(num: number): number {
+  return Math.abs(num).toString().split('').reduce((sum, d) => sum + parseInt(d), 0);
+}
+
+// 获取波色值
+function getWaveColor(num: number): number {
+  if (WAVE_COLORS.红.includes(num)) return 0;
+  if (WAVE_COLORS.蓝.includes(num)) return 1;
+  if (WAVE_COLORS.绿.includes(num)) return 2;
+  return 0;
+}
+
+// 获取五行值
+function getFiveElement(num: number): number {
+  if (FIVE_ELEMENTS.金.includes(num)) return 0;
+  if (FIVE_ELEMENTS.木.includes(num)) return 1;
+  if (FIVE_ELEMENTS.水.includes(num)) return 2;
+  if (FIVE_ELEMENTS.火.includes(num)) return 3;
+  if (FIVE_ELEMENTS.土.includes(num)) return 4;
+  return 0;
+}
+
+// 获取段位值
+function getSegment(num: number): number {
+  if (num >= 1 && num <= 7) return 1;
+  if (num >= 8 && num <= 14) return 2;
+  if (num >= 15 && num <= 21) return 3;
+  if (num >= 22 && num <= 28) return 4;
+  if (num >= 29 && num <= 35) return 5;
+  if (num >= 36 && num <= 42) return 6;
+  if (num >= 43 && num <= 49) return 7;
+  return 1;
+}
+
+// 获取生肖位置
+function getZodiacPosition(num: number, zodiacYear: number): number {
+  const zodiacMap = getZodiacMap(zodiacYear);
+  for (let i = 1; i <= 12; i++) {
+    const zodiacName = ZODIAC_NAMES[i];
+    if (zodiacMap[zodiacName]?.includes(num)) return i;
+  }
+  return 1;
+}
+
+// 汉字数字转阿拉伯数字
+const CHINESE_NUMBERS: Record<string, number> = {
+  '一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+  '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
+};
+
+function chineseToNumber(str: string): string {
+  let result = str;
+  result = result.replace(/十([一二三四五六七八九])/g, (_, d) => `1${CHINESE_NUMBERS[d]}`);
+  result = result.replace(/([一二三四五六七八九])十([一二三四五六七八九]?)/g, (_, tens, ones) => {
+    const tenVal = CHINESE_NUMBERS[tens];
+    const oneVal = ones ? CHINESE_NUMBERS[ones] : 0;
+    return (tenVal * 10 + oneVal).toString();
+  });
+  result = result.replace(/^十/g, '10');
+  result = result.replace(/([^\d])十/g, '$110');
+  for (const [cn, num] of Object.entries(CHINESE_NUMBERS)) {
+    result = result.replace(new RegExp(cn, 'g'), num.toString());
+  }
+  return result;
+}
+
+// 标准化元素名称
+function normalizeElementName(name: string): string {
+  let normalized = chineseToNumber(name);
+  
+  const aliases: Record<string, string> = {
+    '特码': '特', '特号': '特',
+    '平一': '平1', '平二': '平2', '平三': '平3',
+    '平四': '平4', '平五': '平5', '平六': '平6',
+  };
+  for (const [alias, standard] of Object.entries(aliases)) {
+    normalized = normalized.replace(new RegExp(alias, 'g'), standard);
+  }
+  
+  return normalized;
+}
+
+// 获取号码属性值
+function getNumberAttributeValue(num: number, attr: string, zodiacYear: number): number {
+  switch (attr) {
+    case '号': return num;
+    case '头': return Math.floor(num / 10);
+    case '尾': return num % 10;
+    case '合': return digitSum(num);
+    case '合头': return Math.floor(digitSum(num) / 10);
+    case '合尾': return digitSum(num) % 10;
+    case '波': return getWaveColor(num);
+    case '段': return getSegment(num);
+    case '行': return getFiveElement(num);
+    case '肖位': return getZodiacPosition(num, zodiacYear);
+    default: return num;
+  }
+}
+
+// 计算元素值
+function calculateElementValue(element: string, data: LotteryData): number {
+  const normalized = normalizeElementName(element);
+  const numbers = data.numbers;
+  
+  // 期数系列
+  if (normalized === '期数') return data.period;
+  if (normalized === '期数尾') return data.period % 10;
+  if (normalized === '期数合') return digitSum(data.period);
+  if (normalized === '期数合尾') return digitSum(data.period) % 10;
+  
+  // 总分系列
+  const totalSum = numbers.reduce((sum, n) => sum + n, 0);
+  if (normalized === '总分') return totalSum;
+  if (normalized === '总分尾') return totalSum % 10;
+  if (normalized === '总分合') return digitSum(totalSum);
+  if (normalized === '总分合尾') return digitSum(totalSum) % 10;
+  
+  // 平码系列
+  const pingMatch = normalized.match(/^平(\d)(.+)$/);
+  if (pingMatch) {
+    const index = parseInt(pingMatch[1]) - 1;
+    const attr = pingMatch[2];
+    if (index >= 0 && index < 6) {
+      return getNumberAttributeValue(numbers[index], attr, data.zodiacYear);
+    }
+  }
+  
+  // 特码系列
+  const teMatch = normalized.match(/^特(.+)$/);
+  if (teMatch) {
+    const attr = teMatch[1];
+    return getNumberAttributeValue(numbers[6], attr, data.zodiacYear);
+  }
+  
+  return 0;
+}
+
+// 解析公式
+function parseFormula(formulaStr: string): { expression: string; rule: 'D' | 'L'; resultType: ResultType; periods: number; offset: number; leftExpand: number; rightExpand: number; rawExpression: string } | null {
+  try {
+    const match = formulaStr.match(/^\[([DL])([^=]+)\]([^=]+)=(-?\d+)(?:左(\d+))?(?:右(\d+))?$/);
+    if (!match) return null;
+    
+    const rule = match[1] as 'D' | 'L';
+    const resultType = match[2] as ResultType;
+    const expression = match[3];
+    const periods = parseInt(match[4]) || 15;
+    const leftExpand = match[5] ? parseInt(match[5]) : 0;
+    const rightExpand = match[6] ? parseInt(match[6]) : 0;
+    
+    let offset = 0;
+    const offsetMatch = expression.match(/[+-]?\d+$/);
+    if (offsetMatch) {
+      offset = parseInt(offsetMatch[0]);
+    }
+    
+    return {
+      expression: expression.replace(/[+-]?\d+$/, ''),
+      rule,
+      resultType,
+      periods,
+      offset,
+      leftExpand,
+      rightExpand,
+      rawExpression: expression,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// 评估表达式
+function evaluateExpression(expression: string, data: LotteryData): number {
+  let normalized = normalizeElementName(expression);
+  
+  // 替换元素为数值（按长度优先）
+  const allElements = [
+    '期数合尾', '期数合', '期数尾', '期数',
+    '总分合尾', '总分合', '总分尾', '总分',
+    ...Array.from({ length: 6 }, (_, i) => [
+      `平${i + 1}合头`, `平${i + 1}合尾`, `平${i + 1}肖位`,
+      `平${i + 1}号`, `平${i + 1}头`, `平${i + 1}尾`, `平${i + 1}合`,
+      `平${i + 1}波`, `平${i + 1}段`, `平${i + 1}行`
+    ]).flat(),
+    '特合头', '特合尾', '特肖位',
+    '特号', '特头', '特尾', '特合', '特波', '特段', '特行', '特',
+  ];
+  
+  for (const elem of allElements) {
+    const value = calculateElementValue(elem, data);
+    normalized = normalized.replace(new RegExp(elem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value.toString());
+  }
+  
+  // 只允许加号
+  normalized = normalized.replace(/[×\*÷\/%\-]/g, '');
+  
+  // 计算结果
+  try {
+    if (!/^[\d+()\s]+$/.test(normalized)) return 0;
+    // @ts-ignore
+    return Math.floor(eval(normalized));
+  } catch {
+    return 0;
+  }
+}
+
+// 应用循环规则
+function applyCycle(value: number, resultType: ResultType): number {
+  switch (resultType) {
+    case '尾数类': return ((value % 10) + 10) % 10;
+    case '头数类': return Math.min(Math.max(value, 0), 4);
+    case '合数类': return Math.min(Math.max(value, 0), 13);
+    case '波色类': return ((value % 3) + 3) % 3;
+    case '五行类': return ((value % 5) + 5) % 5;
+    case '肖位类': return ((value % 12) + 12) % 12 || 12;
+    case '大小单双类': return ((value % 4) + 4) % 4;
+    default: return value;
+  }
+}
+
+// 获取扩展结果
+function getExpandedResults(result: number, leftExpand: number, rightExpand: number, resultType: ResultType): number[] {
+  const results: number[] = [];
+  
+  if (resultType === '单特类') {
+    for (let i = -leftExpand; i <= rightExpand; i++) {
+      const expanded = result + i;
+      if (expanded >= 1 && expanded <= 49) {
+        results.push(expanded);
+      }
+    }
+  } else {
+    for (let i = -leftExpand; i <= rightExpand; i++) {
+      results.push(applyCycle(result + i, resultType));
+    }
+  }
+  
+  return [...new Set(results)];
+}
+
+// 获取特码属性
+function getNumberAttribute(num: number, resultType: ResultType, zodiacYear: number): number {
+  switch (resultType) {
+    case '尾数类': return num % 10;
+    case '头数类': return Math.floor(num / 10);
+    case '合数类': return String(num).split('').reduce((a, b) => a + parseInt(b), 0);
+    case '波色类': {
+      if (WAVE_COLORS.红.includes(num)) return 0;
+      if (WAVE_COLORS.蓝.includes(num)) return 1;
+      if (WAVE_COLORS.绿.includes(num)) return 2;
+      return 0;
+    }
+    case '五行类': {
+      if (FIVE_ELEMENTS.金.includes(num)) return 0;
+      if (FIVE_ELEMENTS.木.includes(num)) return 1;
+      if (FIVE_ELEMENTS.水.includes(num)) return 2;
+      if (FIVE_ELEMENTS.火.includes(num)) return 3;
+      if (FIVE_ELEMENTS.土.includes(num)) return 4;
+      return 0;
+    }
+    case '肖位类': {
+      const zodiacMap = getZodiacMap(zodiacYear);
+      for (let i = 1; i <= 12; i++) {
+        const zodiacName = ZODIAC_NAMES[i];
+        if (zodiacMap[zodiacName]?.includes(num)) {
+          return i;
+        }
+      }
+      return 1;
+    }
+    case '大小单双类':
+      if (BIG_SMALL_ODD_EVEN.小单.includes(num)) return 0;
+      if (BIG_SMALL_ODD_EVEN.小双.includes(num)) return 1;
+      if (BIG_SMALL_ODD_EVEN.大单.includes(num)) return 2;
+      if (BIG_SMALL_ODD_EVEN.大双.includes(num)) return 3;
+      return 0;
+    default: return num;
+  }
+}
+
+// 验证单个公式
+function verifyFormula(
+  parsed: ReturnType<typeof parseFormula>,
+  historyData: LotteryData[],
+  offset: number,
+  periods: number,
+  leftExpand: number,
+  rightExpand: number
+): { hitRate: number; hitCount: number; totalPeriods: number } {
+  if (!parsed) return { hitRate: 0, hitCount: 0, totalPeriods: 0 };
+  
+  const dataToVerify = historyData.slice(0, periods);
+  let hitCount = 0;
+  
+  for (let i = 0; i < dataToVerify.length; i++) {
+    const verifyData = dataToVerify[i];
+    const calcData = i > 0 ? dataToVerify[i - 1] : verifyData;
+    
+    const rawResult = evaluateExpression(parsed.expression, calcData);
+    const withOffset = rawResult + parsed.offset + offset;
+    const cycledResult = applyCycle(withOffset, parsed.resultType);
+    const expandedResults = getExpandedResults(cycledResult, parsed.leftExpand + leftExpand, parsed.rightExpand + rightExpand, parsed.resultType);
+    
+    const targetValue = getNumberAttribute(verifyData.numbers[6], parsed.resultType, verifyData.zodiacYear);
+    const hit = expandedResults.includes(targetValue);
+    
+    if (hit) hitCount++;
+  }
+  
+  return {
+    hitRate: dataToVerify.length > 0 ? hitCount / dataToVerify.length : 0,
+    hitCount,
+    totalPeriods: dataToVerify.length,
+  };
+}
+
+// 元素分组定义 - 根据属性类型分组
+const ELEMENT_GROUPS = {
+  期数组: ['期数', '期数尾', '期数合', '期数合尾'],
+  总分组: ['总分', '总分尾', '总分合', '总分合尾'],
+  尾数组: ['平1尾', '平2尾', '平3尾', '平4尾', '平5尾', '平6尾', '特尾'],
+  头数组: ['平1头', '平2头', '平3头', '平4头', '平5头', '平6头', '特头'],
+  合数组: ['平1合', '平2合', '平3合', '平4合', '平5合', '平6合', '特合', '期数合', '总分合'],
+  波数组: ['平1波', '平2波', '平3波', '平4波', '平5波', '平6波', '特波'],
+  行数组: ['平1行', '平2行', '平3行', '平4行', '平5行', '平6行', '特行'],
+  肖位数组: ['平1肖位', '平2肖位', '平3肖位', '平4肖位', '平5肖位', '平6肖位', '特肖位'],
+  号数组: ['平1号', '平2号', '平3号', '平4号', '平5号', '平6号', '特号'],
+};
+
+// 结果类型与元素组的映射关系
+const RESULT_TYPE_ELEMENT_MAP: Record<ResultType, string[]> = {
+  '尾数类': ['尾数组', '期数组', '合数组'],
+  '头数类': ['头数组'],
+  '合数类': ['合数组', '期数组', '总分组'],
+  '波色类': ['波数组'],
+  '五行类': ['行数组'],
+  '肖位类': ['肖位数组'],
+  '单特类': ['号数组', '期数组'],
+  '大小单双类': ['尾数组', '合数组'],
+};
+
+// 公式模板库 - 预定义的高效模式
+const FORMULA_TEMPLATES: Record<ResultType, string[][]> = {
+  '尾数类': [
+    ['特尾', '平1尾'],
+    ['特尾', '期数尾'],
+    ['平1尾', '平2尾', '平3尾'],
+    ['期数合尾', '特尾'],
+  ],
+  '头数类': [
+    ['特头', '平1头'],
+    ['平1头', '平2头'],
+  ],
+  '合数类': [
+    ['特合', '期数合'],
+    ['特合', '平1合'],
+    ['期数合', '总分合'],
+    ['平1合', '平2合', '平3合'],
+  ],
+  '波色类': [
+    ['特波', '平1波'],
+    ['平1波', '平2波'],
+  ],
+  '五行类': [
+    ['特行', '平1行'],
+    ['平1行', '平2行', '平3行'],
+  ],
+  '肖位类': [
+    ['特肖位', '平1肖位'],
+    ['平1肖位', '平2肖位'],
+  ],
+  '单特类': [
+    ['特号', '期数'],
+    ['平1号', '平2号'],
+  ],
+  '大小单双类': [
+    ['特尾', '期数尾'],
+    ['特合', '平1合'],
+  ],
+};
+
+// 获取结果类型推荐的元素
+function getRecommendedElements(resultType: ResultType): string[] {
+  const groups = RESULT_TYPE_ELEMENT_MAP[resultType] || [];
+  const elements: string[] = [];
+  for (const group of groups) {
+    elements.push(...(ELEMENT_GROUPS[group as keyof typeof ELEMENT_GROUPS] || []));
+  }
+  return elements;
+}
+
+// 从模板生成公式
+function generateFromTemplate(
+  resultType: ResultType,
+  rule: 'D' | 'L',
+  periods: number,
+  offset: number,
+  leftExpand: number,
+  rightExpand: number
+): string | null {
+  const templates = FORMULA_TEMPLATES[resultType];
+  if (!templates || templates.length === 0) return null;
+  
+  const template = templates[Math.floor(Math.random() * templates.length)];
+  const expression = template.join('+');
+  const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
+  const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
+  const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
+  
+  return `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
+}
+
+// 变异公式 - 在现有公式基础上修改
+function mutateFormula(
+  formulaStr: string,
+  allElements: string[],
+  mutationRate: number = 0.3
+): string | null {
+  const parsed = parseFormula(formulaStr);
+  if (!parsed) return null;
+  
+  const elements = parsed.expression.split('+').filter(e => e.trim());
+  if (elements.length === 0) return null;
+  
+  const newElements: string[] = [];
+  
+  for (const elem of elements) {
+    if (Math.random() < mutationRate) {
+      // 变异：替换为新元素
+      const recommended = getRecommendedElements(parsed.resultType);
+      if (recommended.length > 0) {
+        newElements.push(recommended[Math.floor(Math.random() * recommended.length)]);
+      } else {
+        newElements.push(allElements[Math.floor(Math.random() * allElements.length)]);
+      }
+    } else {
+      newElements.push(elem);
+    }
+  }
+  
+  // 有一定概率增加或删除元素
+  if (Math.random() < 0.2 && newElements.length < 10) {
+    const recommended = getRecommendedElements(parsed.resultType);
+    const newElem = recommended.length > 0
+      ? recommended[Math.floor(Math.random() * recommended.length)]
+      : allElements[Math.floor(Math.random() * allElements.length)];
+    newElements.push(newElem);
+  }
+  
+  if (Math.random() < 0.1 && newElements.length > 1) {
+    newElements.splice(Math.floor(Math.random() * newElements.length), 1);
+  }
+  
+  if (newElements.length === 0) return null;
+  
+  const expression = newElements.join('+');
+  const offsetStr = parsed.offset >= 0 ? `+${parsed.offset}` : `${parsed.offset}`;
+  const leftStr = parsed.leftExpand > 0 ? `左${parsed.leftExpand}` : '';
+  const rightStr = parsed.rightExpand > 0 ? `右${parsed.rightExpand}` : '';
+  
+  return `[${parsed.rule}${parsed.resultType}]${expression}${offsetStr}=${parsed.periods}${leftStr}${rightStr}`;
+}
+
+// 进化搜索算法
+function evolutionarySearch(
+  historyData: LotteryData[],
+  targetHitRate: number,
+  maxCount: number,
+  strategy: 'fast' | 'standard' | 'deep',
+  resultTypes: ResultType[],
+  offset: number,
+  periods: number,
+  leftExpand: number,
+  rightExpand: number,
+  onProgress: (current: number, total: number, found: number) => void
+): { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] {
+  
+  const allElements = getAllElements();
+  const results: { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] = [];
+  const seenFormulas = new Set<string>();
+  
+  // 根据策略确定参数
+  let populationSize: number, generations: number;
+  switch (strategy) {
+    case 'fast':
+      populationSize = 100;
+      generations = 10;
+      break;
+    case 'standard':
+      populationSize = 200;
+      generations = 20;
+      break;
+    case 'deep':
+      populationSize = 300;
+      generations = 30;
+      break;
+    default:
+      populationSize = 100;
+      generations = 10;
+  }
+  
+  const totalIterations = populationSize * generations;
+  let currentIteration = 0;
+  const tolerance = 5;
+  
+  // 第一阶段：基于模板生成
+  for (const resultType of resultTypes) {
+    for (const rule of ['D', 'L'] as const) {
+      const formula = generateFromTemplate(resultType, rule, periods, offset, leftExpand, rightExpand);
+      if (formula && !seenFormulas.has(formula)) {
+        seenFormulas.add(formula);
+        const parsed = parseFormula(formula);
+        if (parsed) {
+          const result = verifyFormula(parsed, historyData, 0, periods, 0, 0);
+          const hitRate = result.hitRate * 100;
+          if (Math.abs(hitRate - targetHitRate) <= tolerance) {
+            results.push({
+              formula,
+              hitRate: result.hitRate,
+              hitCount: result.hitCount,
+              totalPeriods: result.totalPeriods,
+            });
+          }
+        }
+      }
+      currentIteration++;
+    }
+  }
+  
+  // 第二阶段：基于推荐元素的智能生成
+  let bestFormulas = [...results].sort((a, b) => b.hitRate - a.hitRate).slice(0, 20);
+  
+  for (let gen = 0; gen < generations; gen++) {
+    const newPopulation: typeof results = [];
+    
+    // 从优秀公式变异
+    for (const best of bestFormulas) {
+      for (let i = 0; i < 3; i++) {
+        const mutated = mutateFormula(best.formula, allElements, 0.3);
+        if (mutated && !seenFormulas.has(mutated)) {
+          seenFormulas.add(mutated);
+          const parsed = parseFormula(mutated);
+          if (parsed) {
+            const result = verifyFormula(parsed, historyData, 0, periods, 0, 0);
+            const hitRate = result.hitRate * 100;
+            if (Math.abs(hitRate - targetHitRate) <= tolerance) {
+              newPopulation.push({
+                formula: mutated,
+                hitRate: result.hitRate,
+                hitCount: result.hitCount,
+                totalPeriods: result.totalPeriods,
+              });
+            }
+          }
+        }
+        currentIteration++;
+        if (currentIteration % 50 === 0) {
+          onProgress(currentIteration, totalIterations, results.length);
+        }
+      }
+    }
+    
+    // 随机生成补充
+    for (let i = 0; i < populationSize / 2; i++) {
+      const resultType = resultTypes[Math.floor(Math.random() * resultTypes.length)];
+      const rule = Math.random() < 0.5 ? 'D' : 'L' as const;
+      const recommended = getRecommendedElements(resultType);
+      
+      const elementCount = Math.floor(Math.random() * 5) + 1;
+      const shuffled = [...recommended].sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, elementCount);
+      
+      if (selected.length === 0) continue;
+      
+      const expression = selected.join('+');
+      const randomOffset = Math.floor(Math.random() * 10) - 5;
+      const offsetStr = randomOffset >= 0 ? `+${randomOffset}` : `${randomOffset}`;
+      
+      const formulaStr = `[${rule}${resultType}]${expression}${offsetStr}=${periods}`;
+      
+      if (seenFormulas.has(formulaStr)) continue;
+      seenFormulas.add(formulaStr);
+      
+      const parsed = parseFormula(formulaStr);
+      if (parsed) {
+        const result = verifyFormula(parsed, historyData, 0, periods, 0, 0);
+        const hitRate = result.hitRate * 100;
+        if (Math.abs(hitRate - targetHitRate) <= tolerance) {
+          newPopulation.push({
+            formula: formulaStr,
+            hitRate: result.hitRate,
+            hitCount: result.hitCount,
+            totalPeriods: result.totalPeriods,
+          });
+        }
+      }
+      currentIteration++;
+    }
+    
+    // 合并结果并更新最佳公式
+    results.push(...newPopulation);
+    bestFormulas = [...results].sort((a, b) => b.hitRate - a.hitRate).slice(0, 20);
+    
+    onProgress(currentIteration, totalIterations, results.length);
+    
+    if (results.length >= maxCount * 2) break;
+  }
+  
+  return results;
+}
+
+// 保留随机生成函数作为备用
+function generateRandomFormula(
+  elements: string[],
+  elementCount: number,
+  resultType: ResultType,
+  rule: 'D' | 'L',
+  periods: number,
+  offset: number,
+  leftExpand: number,
+  rightExpand: number
+): string {
+  const shuffled = [...elements].sort(() => Math.random() - 0.5);
+  const selected = shuffled.slice(0, Math.min(elementCount, elements.length));
+  
+  let expression = selected[0];
+  for (let i = 1; i < selected.length; i++) {
+    expression += '+' + selected[i];
+  }
+  
+  const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
+  const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
+  const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
+  
+  return `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
+}
+
+// Worker 消息处理
+self.onmessage = (event) => {
+  const { type, historyData, targetHitRate, maxCount, strategy, resultTypes, offset, periods, leftExpand, rightExpand } = event.data;
+  
+  if (type !== 'search') return;
+  
+  try {
+    // 使用进化搜索算法
+    const results = evolutionarySearch(
+      historyData,
+      targetHitRate,
+      maxCount,
+      strategy,
+      resultTypes,
+      offset,
+      periods,
+      leftExpand,
+      rightExpand,
+      (current, total, found) => {
+        self.postMessage({
+          type: 'progress',
+          current,
+          total,
+          found
+        });
+      }
+    );
+    
+    // 按命中率排序
+    if (targetHitRate >= 50) {
+      results.sort((a, b) => b.hitRate - a.hitRate);
+    } else {
+      results.sort((a, b) => a.hitRate - b.hitRate);
+    }
+    
+    self.postMessage({
+      type: 'complete',
+      results: results.slice(0, maxCount)
+    });
+  } catch (error) {
+    self.postMessage({
+      type: 'error',
+      error: String(error)
+    });
+  }
+};
+
+export {};
