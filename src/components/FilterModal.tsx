@@ -24,16 +24,19 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
 
   if (!isOpen) return null;
 
-  const calculateConsecutiveMiss = (hits: boolean[]): number => {
-    let count = 0;
+  // 计算最大连续未命中期数（任意位置）
+  const calculateMaxConsecutiveMiss = (hits: boolean[]): number => {
+    let maxMiss = 0;
+    let currentMiss = 0;
     for (const hit of hits) {
       if (!hit) {
-        count++;
+        currentMiss++;
+        maxMiss = Math.max(maxMiss, currentMiss);
       } else {
-        break;
+        currentMiss = 0;
       }
     }
-    return count;
+    return maxMiss;
   };
 
   const getFilteredResults = () => {
@@ -68,8 +71,8 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
 
     if (consecutiveMissPeriods > 0) {
       filtered = filtered.filter(r => {
-        const missCount = calculateConsecutiveMiss(r.hits);
-        return missCount >= consecutiveMissPeriods;
+        const maxMiss = calculateMaxConsecutiveMiss(r.hits);
+        return maxMiss >= consecutiveMissPeriods;
       });
     }
 
