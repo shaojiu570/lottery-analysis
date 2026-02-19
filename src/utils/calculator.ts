@@ -110,15 +110,16 @@ export function verifyFormula(
       // 找到验证期数在历史数据中的索引
       const verifyIndex = historyData.findIndex(d => d.period === verifyData.period);
       
-      // 判断是否为最新期（预测下一期场景）
+      // 判断是否为预测模式（没有指定targetPeriod）
+      const isPredictMode = targetPeriod === null || targetPeriod === undefined;
       const isLatestPeriod = verifyIndex === 0;
       
       let calcData: LotteryData;
-      if (isLatestPeriod) {
+      if (isPredictMode && isLatestPeriod) {
         // 预测下一期：用最新期数据计算
         calcData = verifyData;
       } else {
-        // 验证历史期：用上一期数据计算
+        // 验证历史期（包括指定的最新期）：用上一期数据计算
         calcData = (verifyIndex >= 0 && verifyIndex < historyData.length - 1) 
           ? historyData[verifyIndex + 1] 
           : verifyData;
