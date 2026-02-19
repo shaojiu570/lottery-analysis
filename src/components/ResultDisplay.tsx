@@ -54,10 +54,9 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     
     // 判断是否为验证模式（指定了目标期数）vs 预测模式（未指定）
     const isVerifyMode = targetPeriod !== null && targetPeriod !== undefined;
-    const isHistoryPeriod = targetPeriod && targetPeriod < latestPeriod;
     
-    // 计算显示期数
-    const displayPeriod = isHistoryPeriod ? targetPeriod : (targetPeriod || latestPeriod) + 1;
+    // 计算显示期数：验证模式显示目标期，预测模式显示下一期
+    const displayPeriod = isVerifyMode ? targetPeriod : latestPeriod + 1;
     
     // 验证模式时显示特码星号（预测模式不显示，因为还没开奖）
     const verifyPeriodData = isVerifyMode 
@@ -102,7 +101,7 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     lines.push('');
     
     // 第三、四层显示的期数标签
-    const resultPeriodLabel = isHistoryPeriod ? displayPeriod : `预测${displayPeriod}`;
+    const resultPeriodLabel = isVerifyMode ? displayPeriod : `预测${displayPeriod}`;
     
     // 第三层：按结果类型分组统计（同类公式的最新一期结果）
     groupedResults.forEach((counts, type) => {
