@@ -52,22 +52,24 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     const { hitsPerPeriod, groupedResults, formulaCountByType, allNumberCounts } = stats;
     const lines: string[] = [];
     
-    // 判断是否验证历史期（目标期数 < 最新期）
+    // 判断是否为验证模式（指定了目标期数）vs 预测模式（未指定）
+    const isVerifyMode = targetPeriod !== null && targetPeriod !== undefined;
     const isHistoryPeriod = targetPeriod && targetPeriod < latestPeriod;
-    // 计算显示期数：历史期显示目标期，最新期显示下一期
+    
+    // 计算显示期数
     const displayPeriod = isHistoryPeriod ? targetPeriod : (targetPeriod || latestPeriod) + 1;
     
-    // 只有验证历史期时才显示特码星号（预测期还没开奖，没有特码）
-    const verifyPeriodData = isHistoryPeriod 
+    // 验证模式时显示特码星号（预测模式不显示，因为还没开奖）
+    const verifyPeriodData = isVerifyMode 
       ? historyData.find(d => d.period === targetPeriod)
       : null;
     const teNum = verifyPeriodData?.numbers[6];
     const zodiacYear = verifyPeriodData?.zodiacYear;
     
     // 显示验证期数信息
-    const periodLabel = isHistoryPeriod 
-      ? `验证历史期: ${targetPeriod}` 
-      : `预测期: ${displayPeriod} (基于${targetPeriod || latestPeriod}期数据)`;
+    const periodLabel = isVerifyMode 
+      ? `验证期: ${targetPeriod}` 
+      : `预测期: ${displayPeriod} (基于${latestPeriod}期数据)`;
     lines.push(`【验证设置】${periodLabel}`);
     lines.push('');
     
