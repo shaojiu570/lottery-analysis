@@ -395,7 +395,15 @@ self.onmessage = (event) => {
       
       for (let j = 0; j < dataToVerify.length; j++) {
         const verifyData = dataToVerify[j];
-        const calcData = j > 0 ? dataToVerify[j - 1] : verifyData;
+        
+        // 找到验证期在完整历史数据中的索引
+        const verifyIndex = historyData.findIndex((d: LotteryData) => d.period === verifyData.period);
+        
+        // 用上一期（索引更大，因为historyData是倒序）的数据计算
+        // 例如：验证2026049期，用2026048期数据计算
+        const calcData = (verifyIndex >= 0 && verifyIndex < historyData.length - 1) 
+          ? historyData[verifyIndex + 1] 
+          : verifyData;
         
         const rawResult = evaluateExpression(formula.expression, calcData);
         const withOffset = rawResult + formula.offset;

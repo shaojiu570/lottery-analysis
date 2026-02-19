@@ -1,7 +1,8 @@
 import { useRef, useEffect, useMemo } from 'react';
-import { VerifyResult, LotteryData } from '@/types';
+import { VerifyResult, LotteryData, ResultType } from '@/types';
 import { formatFormula, ParseError } from '@/utils/formulaParser';
 import { countHitsPerPeriod, groupByResultType, aggregateAllNumbers } from '@/utils/calculator';
+import { resultToText, getNumberAttribute } from '@/utils/mappings';
 
 interface ResultDisplayProps {
   results: VerifyResult[];
@@ -56,6 +57,13 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     // 计算显示期数：历史期显示目标期，最新期显示下一期
     const displayPeriod = isHistoryPeriod ? targetPeriod : (targetPeriod || latestPeriod) + 1;
     
+    // 获取验证期的数据（用于特码标记）
+    const verifyPeriodData = isHistoryPeriod 
+      ? historyData.find(d => d.period === targetPeriod)
+      : historyData.find(d => d.period === latestPeriod);
+    const teNum = verifyPeriodData?.numbers[6];
+    const zodiacYear = verifyPeriodData?.zodiacYear;
+    
     // 显示验证期数信息
     const periodLabel = isHistoryPeriod 
       ? `验证历史期: ${targetPeriod}` 
@@ -96,6 +104,13 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     
     // 第三层：按结果类型分组统计（同类公式的最新一期结果）
     groupedResults.forEach((counts, type) => {
+      // 计算特码在该类型下的属性值（用于标记星号）
+      let teAttrText = '';
+      if (teNum !== undefined && zodiacYear !== undefined) {
+        const teAttrValue = getNumberAttribute(teNum, type as ResultType, zodiacYear);
+        teAttrText = resultToText(teAttrValue, type as ResultType);
+      }
+      
       const byCount = new Map<number, string[]>();
       counts.forEach((count: number, result: string) => {
         if (!byCount.has(count)) {
@@ -110,7 +125,9 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
       
       lines.push(`【${type}结果】${resultPeriodLabel}期:`);
       sortedCounts.forEach(([count, resultList]) => {
-        lines.push(`〖${count}次〗：${resultList.join(',')}（共${resultList.length}码）`);
+        // 给特码对应的属性值加星号
+        const markedResults = resultList.map(r => r === teAttrText ? `${r}★` : r);
+        lines.push(`〖${count}次〗：${markedResults.join(',')}（共${resultList.length}码）`);
       });
       lines.push(`本次运算共${formulaCount}行, 总计${totalResults}码`);
       lines.push('');
@@ -118,6 +135,9 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     
     // 第四层：全码类结果汇总（所有公式的最新一期结果转换为号码统计）
     if (allNumberCounts.size > 0) {
+      // 特码字符串（用于标记星号）
+      const teNumStr = teNum !== undefined ? teNum.toString().padStart(2, '0') : '';
+      
       const byCount = new Map<number, number[]>();
       allNumberCounts.forEach((count, num) => {
         if (!byCount.has(count)) {
@@ -132,14 +152,18 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
       
       lines.push(`【全码类结果】${resultPeriodLabel}期:`);
       sortedCounts.forEach(([count, numbers]) => {
-        const numStr = numbers.sort((a, b) => a - b).map(n => n.toString().padStart(2, '0')).join(',');
+        // 给特码加星号
+        const numStr = numbers.sort((a, b) => a - b).map(n => {
+          const str = n.toString().padStart(2, '0');
+          return str === teNumStr ? `${str}★` : str;
+        }).join(',');
         lines.push(`〖${count}次〗：${numStr}（共${numbers.length}码）`);
       });
       lines.push(`本次运算共${formulaCount}行, 总计${totalNumbers}码`);
     }
     
     return lines.join('\n');
-  }, [results, stats, latestPeriod, targetPeriod, parseErrors]);
+  }, [results, stats, latestPeriod, targetPeriod, parseErrors, historyData]);
 
   useEffect(() => {
     scrollToTop();
