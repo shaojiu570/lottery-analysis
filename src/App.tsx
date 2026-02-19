@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { useAppStore } from '@/stores/appStore';
 import { Header } from '@/components/Header';
 import { FormulaInput } from '@/components/FormulaInput';
@@ -66,6 +66,15 @@ function App() {
   
   // 使用 Worker 进行智能搜索
   const searchWorker = useSearchWorker();
+  const wasSearchingRef = useRef(false);
+
+  // 搜索完成自动弹出结果界面
+  useEffect(() => {
+    if (wasSearchingRef.current && !searchWorker.isSearching && searchWorker.results.length > 0) {
+      setShowSearch(true);
+    }
+    wasSearchingRef.current = searchWorker.isSearching;
+  }, [searchWorker.isSearching, searchWorker.results.length, setShowSearch]);
 
   // 保存的验证记录
   const [savedVerifications, setSavedVerifications] = useState<SavedVerification[]>([]);
