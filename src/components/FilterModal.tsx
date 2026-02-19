@@ -20,8 +20,7 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
   const [hitRateMax, setHitRateMax] = useState(90);
   const [lastPeriodCondition, setLastPeriodCondition] = useState<LastPeriodCondition>('none');
   
-  const [consecutiveMissEnabled, setConsecutiveMissEnabled] = useState(false);
-  const [consecutiveMissPeriods, setConsecutiveMissPeriods] = useState(5);
+  const [consecutiveMissPeriods, setConsecutiveMissPeriods] = useState(0);
 
   if (!isOpen) return null;
 
@@ -67,7 +66,7 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
       });
     }
 
-    if (consecutiveMissEnabled) {
+    if (consecutiveMissPeriods > 0) {
       filtered = filtered.filter(r => {
         const missCount = calculateConsecutiveMiss(r.hits);
         return missCount >= consecutiveMissPeriods;
@@ -287,23 +286,16 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
             </label>
             
             <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={consecutiveMissEnabled}
-                onChange={(e) => setConsecutiveMissEnabled(e.target.checked)}
-                className="w-4 h-4 text-emerald-600 rounded"
-              />
               <span className="text-sm text-gray-600">连错≥</span>
               <input
                 type="number"
                 inputMode="numeric"
                 value={consecutiveMissPeriods}
-                onChange={(e) => setConsecutiveMissPeriods(parseInt(e.target.value) || 1)}
-                disabled={!consecutiveMissEnabled}
+                onChange={(e) => setConsecutiveMissPeriods(parseInt(e.target.value) || 0)}
                 className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
-                min={1}
+                min={0}
               />
-              <span className="text-sm text-gray-600">期未命中</span>
+              <span className="text-sm text-gray-600">期未命中（0=不限）</span>
             </div>
           </div>
 
