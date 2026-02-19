@@ -141,7 +141,7 @@ export const ELEMENT_DEFINITIONS = [
 export function calculateElementValue(
   elementName: string,
   data: LotteryData,
-  useSort: boolean // D规则=true, L规则=false
+  useSort: boolean
 ): number {
   const normalized = normalizeElementName(elementName);
   const numbers = useSort ? [...data.numbers].sort((a, b) => a - b) : data.numbers;
@@ -162,10 +162,10 @@ export function calculateElementValue(
   // 平码系列
   const pingMatch = normalized.match(/^平(\d)(.+)$/);
   if (pingMatch) {
-    const index = parseInt(pingMatch[1]) - 1; // 0-5
+    const index = parseInt(pingMatch[1]) - 1;
     const attr = pingMatch[2];
     if (index >= 0 && index < 6) {
-      return getNumberAttributeValue(numbers[index], attr);
+      return getNumberAttributeValue(numbers[index], attr, data.zodiacYear);
     }
   }
   
@@ -173,14 +173,14 @@ export function calculateElementValue(
   const teMatch = normalized.match(/^特(.+)$/);
   if (teMatch) {
     const attr = teMatch[1];
-    return getNumberAttributeValue(numbers[6], attr);
+    return getNumberAttributeValue(numbers[6], attr, data.zodiacYear);
   }
   
   return 0;
 }
 
 // 获取号码的属性值
-function getNumberAttributeValue(num: number, attr: string): number {
+function getNumberAttributeValue(num: number, attr: string, zodiacYear?: number): number {
   switch (attr) {
     case '号':
       return num;
@@ -201,7 +201,7 @@ function getNumberAttributeValue(num: number, attr: string): number {
     case '行':
       return getFiveElement(num);
     case '肖位':
-      return getZodiacPosition(num);
+      return getZodiacPosition(num, zodiacYear);
     default:
       return num;
   }

@@ -393,7 +393,6 @@ function verifyFormula(
   };
 }
 
-<<<<<<< HEAD
 // 元素分组定义 - 根据属性类型分组
 const ELEMENT_GROUPS = {
   期数组: ['期数', '期数尾', '期数合', '期数合尾'],
@@ -690,9 +689,6 @@ function evolutionarySearch(
 }
 
 // 保留随机生成函数作为备用
-=======
-// 生成随机公式
->>>>>>> 901e3f778ac337fee687f2d268cd8091eeba987c
 function generateRandomFormula(
   elements: string[],
   elementCount: number,
@@ -725,7 +721,6 @@ self.onmessage = (event) => {
   if (type !== 'search') return;
   
   try {
-<<<<<<< HEAD
     // 使用进化搜索算法
     const results = evolutionarySearch(
       historyData,
@@ -746,78 +741,6 @@ self.onmessage = (event) => {
         });
       }
     );
-=======
-    const elements = getAllElements();
-    const results: { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] = [];
-    const seenFormulas = new Set<string>();
-    
-    // 根据策略确定迭代次数
-    let minElements: number, maxElements: number, iterations: number;
-    switch (strategy) {
-      case 'fast':
-        minElements = 1;
-        maxElements = 10;
-        iterations = Math.min(maxCount * 10, 5000);
-        break;
-      case 'standard':
-        minElements = 1;
-        maxElements = 15;
-        iterations = Math.min(maxCount * 20, 10000);
-        break;
-      case 'deep':
-        minElements = 1;
-        maxElements = 20;
-        iterations = Math.min(maxCount * 30, 20000);
-        break;
-      default:
-        minElements = 1;
-        maxElements = 10;
-        iterations = 5000;
-    }
-    
-    const rules: ('D' | 'L')[] = ['D', 'L'];
-    
-    for (let i = 0; i < iterations && results.length < maxCount; i++) {
-      const resultType = resultTypes[Math.floor(Math.random() * resultTypes.length)];
-      const rule = rules[Math.floor(Math.random() * rules.length)];
-      const elementCount = Math.floor(Math.random() * (maxElements - minElements + 1)) + minElements;
-      
-      const formulaStr = generateRandomFormula(elements, elementCount, resultType, rule, periods, offset, leftExpand, rightExpand);
-      
-      if (seenFormulas.has(formulaStr)) continue;
-      seenFormulas.add(formulaStr);
-      
-      const parsed = parseFormula(formulaStr);
-      if (!parsed) continue;
-      
-      const result = verifyFormula(parsed, historyData, 0, periods, 0, 0);
-      
-      // 检查命中率
-      const hitRate = result.hitRate * 100;
-      const tolerance = 5;
-      
-      if (Math.abs(hitRate - targetHitRate) <= tolerance || 
-          (targetHitRate === 0 && hitRate === 0) ||
-          (targetHitRate === 100 && hitRate === 100)) {
-        results.push({
-          formula: formulaStr,
-          hitRate: result.hitRate,
-          hitCount: result.hitCount,
-          totalPeriods: result.totalPeriods,
-        });
-      }
-      
-      // 每100次发送进度
-      if (i % 100 === 0) {
-        self.postMessage({
-          type: 'progress',
-          current: i,
-          total: iterations,
-          found: results.length
-        });
-      }
-    }
->>>>>>> 901e3f778ac337fee687f2d268cd8091eeba987c
     
     // 按命中率排序
     if (targetHitRate >= 50) {
