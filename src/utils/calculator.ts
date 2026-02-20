@@ -120,8 +120,9 @@ export function verifyFormula(
         calcData = verifyData;
       } else {
         // 验证历史期（包括指定的最新期）：用上一期数据计算
-        calcData = (verifyIndex >= 0 && verifyIndex < historyData.length - 1) 
-          ? historyData[verifyIndex + 1] 
+        // 历史数据是降序排列（最新在前），所以用 verifyIndex - 1 获取上一期
+        calcData = (verifyIndex > 0 && verifyIndex < historyData.length) 
+          ? historyData[verifyIndex - 1] 
           : verifyData;
       }
     
