@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { cn } from '@/utils/cn';
 import { Settings } from '@/types';
 
 interface SettingsModalProps {
@@ -22,7 +21,7 @@ export function SettingsModal({ isOpen, onClose, settings, onSave, onBatchReplac
     settings.targetPeriod?.toString() || ''
   );
   
-  const [replaceRule, setReplaceRule] = useState<'D' | 'L'>('L');
+  const [replaceRule, setReplaceRule] = useState<'D' | 'L' | ''>('L');
   const [replaceType, setReplaceType] = useState<string>('肖位类');
   const [replaceCount, setReplaceCount] = useState(0);
 
@@ -70,9 +69,19 @@ export function SettingsModal({ isOpen, onClose, settings, onSave, onBatchReplac
   const handleBatchReplace = () => {
     if (!onBatchReplace || !formulaInput) return;
     
-    const findPattern = /\[[DL][^\]]+\]/g;
+    let findPattern: RegExp;
+    let replaceStr: string;
+    
+    if (replaceRule === '') {
+      // 不限：只替换类型部分，保留原规则D或L
+      findPattern = /\[([DL]).+?\]/g;
+      replaceStr = `[${replaceType}]`;
+    } else {
+      findPattern = /\[[DL][^\]]+\]/g;
+      replaceStr = `[${replaceRule}${replaceType}]`;
+    }
+    
     const matches = formulaInput.match(findPattern) || [];
-    const replaceStr = `[${replaceRule}${replaceType}]`;
     
     if (matches.length > 0) {
       onBatchReplace(findPattern.source, replaceStr);
@@ -163,9 +172,10 @@ export function SettingsModal({ isOpen, onClose, settings, onSave, onBatchReplac
                 <span className="text-xs text-gray-500">替换为:</span>
                 <select
                   value={replaceRule}
-                  onChange={(e) => setReplaceRule(e.target.value as 'D' | 'L')}
+                  onChange={(e) => setReplaceRule(e.target.value as 'D' | 'L' | '')}
                   className="px-2 py-1 text-xs border border-gray-300 rounded"
                 >
+                  <option value="">不限</option>
                   <option value="D">D</option>
                   <option value="L">L</option>
                 </select>
