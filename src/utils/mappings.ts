@@ -176,7 +176,17 @@ export function getCurrentZodiacYearName(year?: number): string {
  */
 export function getZodiacMap(zodiacYear?: number): Record<string, number[]> {
   // 如果没有传入生肖年份，使用当前系统年份计算
-  const currentZodiacIndex = zodiacYear || getZodiacIndexByYear();
+  // 如果传入的是公历年份（如2026），先转换为生肖索引
+  let currentZodiacIndex: number;
+  if (zodiacYear === undefined || zodiacYear === null) {
+    currentZodiacIndex = getZodiacIndexByYear();
+  } else if (zodiacYear > 12) {
+    // 传入的是公历年份，转换为生肖索引
+    currentZodiacIndex = getZodiacIndexByYear(zodiacYear);
+  } else {
+    currentZodiacIndex = zodiacYear;
+  }
+  
   const zodiacMap: Record<string, number[]> = {};
   
   // 号码分组固定（1-12号组），生肖标签每年前进1位
