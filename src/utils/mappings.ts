@@ -338,8 +338,8 @@ export function resultToText(value: number, resultType: keyof typeof RESULT_TYPE
     case '五行类':
       return getFiveElementName(value);
     case '肖位类':
-      // value 当作号码，直接查该号码在当年对应的生肖
-      return getZodiacNameByNumber(value, zodiacYear);
+      // value 是肖位（1-12），直接用固定生肖名
+      return getZodiacName(value);
     case '单特类':
       return value.toString().padStart(2, '0');
     case '大小单双类':
