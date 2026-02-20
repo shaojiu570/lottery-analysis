@@ -12,10 +12,9 @@ interface ResultDisplayProps {
   onClear: () => void;
   onCopy: (text: string) => void;
   parseErrors?: ParseError[];
-  zodiacYear?: number;  // 用户选择的生肖年份
 }
 
-export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData, onClear, onCopy, parseErrors = [], zodiacYear }: ResultDisplayProps) {
+export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData, onClear, onCopy, parseErrors = [] }: ResultDisplayProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
@@ -36,20 +35,16 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
       return { hitsPerPeriod: [], groupedResults: new Map(), formulaCountByType: new Map(), allNumberCounts: new Map() };
     }
     
-    // 优先使用用户选择的生肖年份，否则根据期数自动计算
-    const isVerifyMode = targetPeriod !== null && targetPeriod !== undefined;
-    const displayPeriod = isVerifyMode ? targetPeriod : latestPeriod + 1;
-    const effectiveZodiacYear = zodiacYear !== undefined ? zodiacYear : getZodiacYearByPeriod(displayPeriod);
-    
-    const { countsMap, formulaCountByType } = groupByResultType(results, effectiveZodiacYear);
+    // 每条公式根据自己最新一期的期数计算对应的生肖年份
+    const { countsMap, formulaCountByType } = groupByResultType(results);
     
     return {
       hitsPerPeriod: countHitsPerPeriod(results, historyData),
       groupedResults: countsMap,
       formulaCountByType,
-      allNumberCounts: aggregateAllNumbers(results, effectiveZodiacYear),
+      allNumberCounts: aggregateAllNumbers(results),
     };
-  }, [results, historyData, targetPeriod, latestPeriod, zodiacYear]);
+  }, [results, historyData, targetPeriod, latestPeriod]);
 
   // 生成文本框内容
   const resultText = useMemo(() => {
@@ -71,8 +66,8 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
       ? historyData.find(d => d.period === targetPeriod)
       : null;
     const teNum = verifyPeriodData?.numbers[6];
-    // 优先使用用户选择的生肖年份，否则根据期数自动计算
-    const effectiveZodiacYear = zodiacYear !== undefined ? zodiacYear : getZodiacYearByPeriod(displayPeriod);
+    // 星号标记使用目标期数对应的生肖年份
+    const targetZodiacYear = isVerifyMode && targetPeriod ? getZodiacYearByPeriod(targetPeriod) : undefined;
     
     // 显示验证期数信息
     const periodLabel = isVerifyMode 
@@ -116,9 +111,9 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     groupedResults.forEach((counts, type) => {
       // 计算特码在该类型下的属性值（用于标记星号）
       let teAttrText = '';
-      if (teNum !== undefined && effectiveZodiacYear !== undefined) {
-        const teAttrValue = getNumberAttribute(teNum, type as ResultType, effectiveZodiacYear);
-        teAttrText = resultToText(teAttrValue, type as ResultType, effectiveZodiacYear);
+      if (teNum !== undefined && targetZodiacYear !== undefined) {
+        const teAttrValue = getNumberAttribute(teNum, type as ResultType, targetZodiacYear);
+        teAttrText = resultToText(teAttrValue, type as ResultType, targetZodiacYear);
       }
       
       const byCount = new Map<number, string[]>();

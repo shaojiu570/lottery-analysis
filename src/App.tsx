@@ -294,7 +294,6 @@ function App() {
           onClear={handleClearResults}
           onCopy={handleCopyResults}
           parseErrors={parseErrors}
-          zodiacYear={settings.zodiacYear}
         />
 
         <FormulaInput

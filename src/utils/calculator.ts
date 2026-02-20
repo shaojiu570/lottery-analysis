@@ -1,6 +1,6 @@
 import { LotteryData, ResultType, VerifyResult, PeriodResult } from '@/types';
 import { calculateElementValue, normalizeElementName } from './elements';
-import { applyCycle, getExpandedResults, getNumberAttribute, resultToText, getZodiacMap } from './mappings';
+import { applyCycle, getExpandedResults, getNumberAttribute, resultToText, getZodiacMap, getZodiacYearByPeriod } from './mappings';
 import { ParsedFormula } from './formulaParser';
 
 // 计算表达式
@@ -267,9 +267,9 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
 }
 
 // 按结果类型分组统计（只统计同类公式的最新一期结果）
+// 每条公式根据自己最新一期的期数计算对应的生肖年份
 export function groupByResultType(
-  results: VerifyResult[],
-  zodiacYear?: number
+  results: VerifyResult[]
 ): { countsMap: Map<ResultType, Map<string, number>>, formulaCountByType: Map<ResultType, number> } {
   const grouped = new Map<ResultType, Map<string, number>>();
   const formulaCountByType = new Map<ResultType, number>();
@@ -286,52 +286,64 @@ export function groupByResultType(
   
   // 对每个类型统计
   byType.forEach((typeResults, type) => {
-    // 记录该类型的公式数量
     formulaCountByType.set(type, typeResults.length);
     
     const typeMap = new Map<string, number>();
+    
+    // 生成该类型所有可能结果值时使用的生肖年份
+    // 使用第一条公式的期数作为代表（用于生成所有可能值）
+    const sampleResult = typeResults[0];
+    const samplePeriod = sampleResult.periodResults[0]?.period || 0;
+    const sampleZodiacYear = getZodiacYearByPeriod(samplePeriod);
     
     // 获取该类型的所有可能结果值
     const allPossibleValues: string[] = [];
     if (type === '肖位类') {
       for (let i = 1; i <= 12; i++) {
-        allPossibleValues.push(resultToText(i, type, zodiacYear));
+        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
       }
     } else if (type === '单特类') {
       for (let i = 1; i <= 49; i++) {
-        allPossibleValues.push(resultToText(i, type, zodiacYear));
+        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
       }
     } else if (type === '波色类') {
       for (let i = 0; i < 3; i++) {
-        allPossibleValues.push(resultToText(i, type, zodiacYear));
+        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
       }
     } else if (type === '五行类') {
       for (let i = 0; i < 5; i++) {
-        allPossibleValues.push(resultToText(i, type, zodiacYear));
+        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
       }
     } else if (type === '头数类') {
       for (let i = 0; i < 5; i++) {
-        allPossibleValues.push(resultToText(i, type, zodiacYear));
+        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
       }
     } else if (type === '合数类') {
       for (let i = 0; i < 14; i++) {
-        allPossibleValues.push(resultToText(i, type, zodiacYear));
+        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
       }
     } else if (type === '尾数类') {
       for (let i = 0; i < 10; i++) {
-        allPossibleValues.push(resultToText(i, type, zodiacYear));
+        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
       }
     } else if (type === '大小单双类') {
       for (let i = 0; i < 4; i++) {
-        allPossibleValues.push(resultToText(i, type, zodiacYear));
+        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
       }
     }
     
     // 统计每个结果在同类公式中出现的次数
+    // 每条公式根据自己最新一期的期数计算生肖年份
     for (const val of allPossibleValues) {
       let count = 0;
       for (const r of typeResults) {
-        if (r.results.includes(val)) {
+        // 获取该公式最新一期的期数，计算对应的生肖年份
+        const period = r.periodResults[0]?.period || 0;
+        const zodiacYear = getZodiacYearByPeriod(period);
+        
+        // 将结果值转换回原始数值，再根据该公式的生肖年份重新转换
+        const convertedVal = convertTextToValue(val, type, zodiacYear);
+        if (r.results.includes(convertedVal)) {
           count++;
         }
       }
@@ -344,8 +356,22 @@ export function groupByResultType(
   return { countsMap: grouped, formulaCountByType };
 }
 
+// 将结果文字转换回数值
+function convertTextToValue(text: string, resultType: ResultType, zodiacYear: number): string {
+  // 肖位类：生肖名 -> 号码 -> 号码当结果值
+  if (resultType === '肖位类') {
+    const zodiacMap = getZodiacMap(zodiacYear);
+    const numbers = zodiacMap[text];
+    if (numbers && numbers.length > 0) {
+      return numbers[0].toString().padStart(2, '0');
+    }
+  }
+  return text;
+}
+
 // 全码类结果汇总（直接使用第三层结果转换号码）
-export function aggregateAllNumbers(results: VerifyResult[], zodiacYear?: number): Map<number, number> {
+// 每条公式根据自己最新一期的期数计算对应的生肖年份
+export function aggregateAllNumbers(results: VerifyResult[]): Map<number, number> {
   const numberCounts = new Map<number, number>();
   
   // 获取所有49个号码的初始计数
@@ -356,9 +382,13 @@ export function aggregateAllNumbers(results: VerifyResult[], zodiacYear?: number
   for (const result of results) {
     const type = result.formula.resultType;
     
+    // 获取该公式最新一期的期数，计算对应的生肖年份
+    const period = result.periodResults[0]?.period || 0;
+    const zodiacYear = getZodiacYearByPeriod(period);
+    
     // 直接使用第三层的结果字符串来转换号码
     for (const resultStr of result.results) {
-      // 将结果字符串转换为号码
+      // 将结果字符串转换为号码（使用该公式对应期的生肖年份）
       const numbers = convertResultToNumbers(resultStr, type, zodiacYear);
       for (const num of numbers) {
         numberCounts.set(num, (numberCounts.get(num) || 0) + 1);
