@@ -75,9 +75,10 @@ export function normalizeElementName(name: string): string {
   // "二波" -> "平2波"
   normalized = normalized.replace(/^(\d)波$/, '平$1波');
   // "平六波" -> "平6波"（处理中文数字）
-  normalized = normalized.replace(/平([一二三四五六])/, (_, cn) => {
+  // 只匹配"平"+"数字"+"属性"的情况，避免把"五行类"错误替换
+  normalized = normalized.replace(/平([一二三四五六])(波|头|尾|合|肖位|段|行|号)/, (_, cn, attr) => {
     const map: Record<string, string> = { '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' };
-    return '平' + (map[cn] || cn);
+    return '平' + (map[cn] || cn) + attr;
   });
   
   return normalized;
