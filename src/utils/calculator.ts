@@ -163,7 +163,8 @@ export function verifyFormula(
   const latestResults = periodResults.length > 0 
     ? periodResults[periodResults.length - 1].expandedResults 
     : [];
-  const results = Array.from(latestResults).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType));
+  const latestZodiacYear = historyData.length > 0 ? historyData[0].zodiacYear : undefined;
+  const results = Array.from(latestResults).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType, latestZodiacYear));
   
   return {
     formula: {
@@ -267,7 +268,8 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
 
 // 按结果类型分组统计（只统计同类公式的最新一期结果）
 export function groupByResultType(
-  results: VerifyResult[]
+  results: VerifyResult[],
+  zodiacYear?: number
 ): { countsMap: Map<ResultType, Map<string, number>>, formulaCountByType: Map<ResultType, number> } {
   const grouped = new Map<ResultType, Map<string, number>>();
   const formulaCountByType = new Map<ResultType, number>();
@@ -293,35 +295,35 @@ export function groupByResultType(
     const allPossibleValues: string[] = [];
     if (type === '肖位类') {
       for (let i = 1; i <= 12; i++) {
-        allPossibleValues.push(resultToText(i, type));
+        allPossibleValues.push(resultToText(i, type, zodiacYear));
       }
     } else if (type === '单特类') {
       for (let i = 1; i <= 49; i++) {
-        allPossibleValues.push(resultToText(i, type));
+        allPossibleValues.push(resultToText(i, type, zodiacYear));
       }
     } else if (type === '波色类') {
       for (let i = 0; i < 3; i++) {
-        allPossibleValues.push(resultToText(i, type));
+        allPossibleValues.push(resultToText(i, type, zodiacYear));
       }
     } else if (type === '五行类') {
       for (let i = 0; i < 5; i++) {
-        allPossibleValues.push(resultToText(i, type));
+        allPossibleValues.push(resultToText(i, type, zodiacYear));
       }
     } else if (type === '头数类') {
       for (let i = 0; i < 5; i++) {
-        allPossibleValues.push(resultToText(i, type));
+        allPossibleValues.push(resultToText(i, type, zodiacYear));
       }
     } else if (type === '合数类') {
       for (let i = 0; i < 14; i++) {
-        allPossibleValues.push(resultToText(i, type));
+        allPossibleValues.push(resultToText(i, type, zodiacYear));
       }
     } else if (type === '尾数类') {
       for (let i = 0; i < 10; i++) {
-        allPossibleValues.push(resultToText(i, type));
+        allPossibleValues.push(resultToText(i, type, zodiacYear));
       }
     } else if (type === '大小单双类') {
       for (let i = 0; i < 4; i++) {
-        allPossibleValues.push(resultToText(i, type));
+        allPossibleValues.push(resultToText(i, type, zodiacYear));
       }
     }
     

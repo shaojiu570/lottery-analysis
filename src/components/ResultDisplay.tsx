@@ -34,7 +34,6 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     if (results.length === 0) {
       return { hitsPerPeriod: [], groupedResults: new Map(), formulaCountByType: new Map(), allNumberCounts: new Map() };
     }
-    const { countsMap, formulaCountByType } = groupByResultType(results);
     
     // 获取生肖年份：验证模式用目标期，预测模式用最新期
     const isVerifyMode = targetPeriod !== null && targetPeriod !== undefined;
@@ -42,6 +41,8 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
       ? historyData.find(d => d.period === targetPeriod)
       : historyData.find(d => d.period === latestPeriod);
     const zodiacYear = periodData?.zodiacYear;
+    
+    const { countsMap, formulaCountByType } = groupByResultType(results, zodiacYear);
     
     return {
       hitsPerPeriod: countHitsPerPeriod(results, historyData),
@@ -117,7 +118,7 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
       let teAttrText = '';
       if (teNum !== undefined && zodiacYear !== undefined) {
         const teAttrValue = getNumberAttribute(teNum, type as ResultType, zodiacYear);
-        teAttrText = resultToText(teAttrValue, type as ResultType);
+        teAttrText = resultToText(teAttrValue, type as ResultType, zodiacYear);
       }
       
       const byCount = new Map<number, string[]>();

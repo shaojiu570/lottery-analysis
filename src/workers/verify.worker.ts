@@ -96,7 +96,7 @@ function getBigSmallOddEvenName(value: number): string {
   return names[value % 4];
 }
 
-function resultToText(value: number, resultType: string): string {
+function resultToText(value: number, resultType: string, zodiacYear?: number): string {
   switch (resultType) {
     case '尾数类':
       return `${value}尾`;
@@ -109,7 +109,7 @@ function resultToText(value: number, resultType: string): string {
     case '五行类':
       return getFiveElementName(value);
     case '肖位类':
-      return getZodiacName(value);
+      return getZodiacName(getZodiacPosition(value, zodiacYear || 7));
     case '单特类':
       return value.toString().padStart(2, '0');
     case '大小单双类':
@@ -489,7 +489,7 @@ self.onmessage = (event) => {
         totalPeriods: dataToVerify.length,
         hitRate: dataToVerify.length > 0 ? hitCount / dataToVerify.length : 0,
         results: periodResults.length > 0 
-          ? periodResults[periodResults.length - 1].expandedResults.sort((a: number, b: number) => a - b).map((r: number) => resultToText(r, formula.resultType)) 
+          ? periodResults[periodResults.length - 1].expandedResults.sort((a: number, b: number) => a - b).map((r: number) => resultToText(r, formula.resultType, historyData[0]?.zodiacYear)) 
           : [],
         periodResults,
         originalLineIndex: (formula as any).originalLineIndex || 0,

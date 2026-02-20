@@ -257,7 +257,7 @@ export function getExpandedResults(
 }
 
 // 结果值转文字
-export function resultToText(value: number, resultType: keyof typeof RESULT_TYPE_CONFIG): string {
+export function resultToText(value: number, resultType: keyof typeof RESULT_TYPE_CONFIG, zodiacYear?: number): string {
   switch (resultType) {
     case '尾数类':
       return `${value}尾`;
@@ -270,7 +270,7 @@ export function resultToText(value: number, resultType: keyof typeof RESULT_TYPE
     case '五行类':
       return getFiveElementName(value);
     case '肖位类':
-      return getZodiacName(value);
+      return getZodiacName(getZodiacPosition(value, zodiacYear));
     case '单特类':
       return value.toString().padStart(2, '0');
     case '大小单双类':
