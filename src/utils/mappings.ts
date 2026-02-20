@@ -219,6 +219,18 @@ export function getZodiacName(position: number): string {
   return names[pos];
 }
 
+// 根据号码获取生肖名称（使用生肖年份的动态映射）
+export function getZodiacNameByNumber(num: number, zodiacYear?: number): string {
+  const zodiacMap = getZodiacMap(zodiacYear);
+  
+  for (const [zodiacName, numbers] of Object.entries(zodiacMap)) {
+    if (numbers.includes(num)) {
+      return zodiacName;
+    }
+  }
+  return '鼠';  // 默认返回鼠
+}
+
 // 段位映射：号码 -> 段位 (1-7)
 export function getSegment(num: number): number {
   if (num >= 1 && num <= 7) return 1;
@@ -316,7 +328,8 @@ export function resultToText(value: number, resultType: keyof typeof RESULT_TYPE
     case '五行类':
       return getFiveElementName(value);
     case '肖位类':
-      return getZodiacName(getZodiacPosition(value, zodiacYear));
+      // value 当作号码，直接查该号码在当年对应的生肖
+      return getZodiacNameByNumber(value, zodiacYear);
     case '单特类':
       return value.toString().padStart(2, '0');
     case '大小单双类':
