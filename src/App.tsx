@@ -372,6 +372,11 @@ function App() {
         onClose={() => setShowSettings(false)}
         settings={settings}
         onSave={handleSaveSettings}
+        onBatchReplace={(find, replace) => {
+          const regex = new RegExp(find, 'g');
+          setFormulaInput(formulaInput.replace(regex, replace));
+        }}
+        formulaInput={formulaInput}
       />
 
       <FilterModal
