@@ -156,7 +156,10 @@ export function calculateElementValue(
   useSort: boolean
 ): number {
   const normalized = normalizeElementName(elementName);
-  const numbers = useSort ? [...data.numbers].sort((a, b) => a - b) : data.numbers;
+  // D规则：平码按大小排序，特码位置不变
+  const pingma = useSort ? [...data.numbers.slice(0, 6)].sort((a, b) => a - b) : data.numbers.slice(0, 6);
+  const te = data.numbers[6];
+  const numbers = [...pingma, te];
   
   // 期数系列 - 只取后3位计算
   const periodNum = data.period % 1000;
