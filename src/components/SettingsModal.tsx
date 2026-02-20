@@ -74,8 +74,9 @@ export function SettingsModal({ isOpen, onClose, settings, onSave, onBatchReplac
     
     if (replaceRule === '') {
       // 不限：只替换类型部分，保留原规则D或L
-      findPattern = /\[([DL]).+?\]/g;
-      replaceStr = `[${replaceType}]`;
+      // 例如：[L五行类] -> [L肖位类]，保留L
+      findPattern = /\[([DL])([^[\]]+)\]/g;
+      replaceStr = `[$1${replaceType}]`;
     } else {
       findPattern = /\[[DL][^\]]+\]/g;
       replaceStr = `[${replaceRule}${replaceType}]`;
