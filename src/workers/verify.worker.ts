@@ -362,6 +362,7 @@ function applyCycle(value: number, resultType: string): number {
     case '波色类': return ((value % 3) + 3) % 3;
     case '五行类': return ((value % 5) + 5) % 5;
     case '肖位类': return ((value % 12) + 12) % 12 || 12;
+    case '单特类': return ((value - 1) % 49 + 49) % 49 + 1;
     case '大小单双类': return ((value % 4) + 4) % 4;
     default: return value;
   }
