@@ -1,6 +1,6 @@
 import { LotteryData, ResultType, VerifyResult, PeriodResult } from '@/types';
 import { calculateElementValue, normalizeElementName } from './elements';
-import { applyCycle, getExpandedResults, getNumberAttribute, resultToText } from './mappings';
+import { applyCycle, getExpandedResults, getNumberAttribute, resultToText, getZodiacMap } from './mappings';
 import { ParsedFormula } from './formulaParser';
 
 // 计算表达式
@@ -344,7 +344,7 @@ export function groupByResultType(
   return { countsMap: grouped, formulaCountByType };
 }
 
-// 全码类结果汇总（包含0次的号码）
+// 全码类结果汇总（直接使用第三层结果转换号码）
 export function aggregateAllNumbers(results: VerifyResult[], zodiacYear?: number): Map<number, number> {
   const numberCounts = new Map<number, number>();
   
@@ -356,21 +356,36 @@ export function aggregateAllNumbers(results: VerifyResult[], zodiacYear?: number
   for (const result of results) {
     const type = result.formula.resultType;
     
-    // 获取最新一期的扩展结果（反转后periodResults[0]是最新的）
-    if (result.periodResults.length > 0) {
-      const latestResult = result.periodResults[0];
-      
-      for (const value of latestResult.expandedResults) {
-        // 将结果值转换为号码
-        const numbers = getNumbersFromResult(value, type, zodiacYear);
-        for (const num of numbers) {
-          numberCounts.set(num, (numberCounts.get(num) || 0) + 1);
-        }
+    // 直接使用第三层的结果字符串来转换号码
+    for (const resultStr of result.results) {
+      // 将结果字符串转换为号码
+      const numbers = convertResultToNumbers(resultStr, type, zodiacYear);
+      for (const num of numbers) {
+        numberCounts.set(num, (numberCounts.get(num) || 0) + 1);
       }
     }
   }
   
   return numberCounts;
+}
+
+// 将结果字符串转换为号码列表
+function convertResultToNumbers(resultStr: string, resultType: ResultType, zodiacYear?: number): number[] {
+  // 肖位类：如 "鸡" -> 转换为号码
+  if (resultType === '肖位类') {
+    const zodiacMap = getZodiacMap(zodiacYear);
+    const nums = zodiacMap[resultStr];
+    return nums || [];
+  }
+  
+  // 其他类型：解析数字后转换
+  const numMatch = resultStr.match(/^(\d+)/);
+  if (numMatch) {
+    const value = parseInt(numMatch[1]);
+    return getNumbersFromResult(value, resultType, zodiacYear);
+  }
+  
+  return [];
 }
 
 // 根据结果值获取号码列表
