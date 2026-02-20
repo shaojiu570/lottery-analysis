@@ -159,9 +159,9 @@ export function verifyFormula(
   hits.reverse();
   periodResults.reverse();
   
-  // 只取最新一期的结果
+  // 只取最新一期的结果（反转后periodResults[0]是最新的）
   const latestResults = periodResults.length > 0 
-    ? periodResults[periodResults.length - 1].expandedResults 
+    ? periodResults[0].expandedResults 
     : [];
   const latestZodiacYear = historyData.length > 0 ? historyData[0].zodiacYear : undefined;
   const results = Array.from(latestResults).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType, latestZodiacYear));
@@ -356,9 +356,9 @@ export function aggregateAllNumbers(results: VerifyResult[], zodiacYear?: number
   for (const result of results) {
     const type = result.formula.resultType;
     
-    // 获取最新一期的扩展结果（periodResults已反转，最后一个是最新）
+    // 获取最新一期的扩展结果（反转后periodResults[0]是最新的）
     if (result.periodResults.length > 0) {
-      const latestResult = result.periodResults[result.periodResults.length - 1];
+      const latestResult = result.periodResults[0];
       
       for (const value of latestResult.expandedResults) {
         // 将结果值转换为号码
