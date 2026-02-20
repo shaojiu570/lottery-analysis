@@ -356,9 +356,9 @@ export function aggregateAllNumbers(results: VerifyResult[], zodiacYear?: number
   for (const result of results) {
     const type = result.formula.resultType;
     
-    // 获取最新一期的扩展结果
+    // 获取最新一期的扩展结果（periodResults已反转，最后一个是最新）
     if (result.periodResults.length > 0) {
-      const latestResult = result.periodResults[0];
+      const latestResult = result.periodResults[result.periodResults.length - 1];
       
       for (const value of latestResult.expandedResults) {
         // 将结果值转换为号码
