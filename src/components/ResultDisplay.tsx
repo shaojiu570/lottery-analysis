@@ -2,7 +2,7 @@ import { useRef, useEffect, useMemo } from 'react';
 import { VerifyResult, LotteryData, ResultType } from '@/types';
 import { formatFormula, ParseError } from '@/utils/formulaParser';
 import { countHitsPerPeriod, groupByResultType, aggregateAllNumbers } from '@/utils/calculator';
-import { resultToText, getNumberAttribute } from '@/utils/mappings';
+import { resultToText, getNumberAttribute, getZodiacYearByPeriod } from '@/utils/mappings';
 
 interface ResultDisplayProps {
   results: VerifyResult[];
@@ -35,12 +35,10 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
       return { hitsPerPeriod: [], groupedResults: new Map(), formulaCountByType: new Map(), allNumberCounts: new Map() };
     }
     
-    // 获取生肖年份：验证模式用目标期，预测模式用最新期
+    // 根据期数自动计算生肖年份
     const isVerifyMode = targetPeriod !== null && targetPeriod !== undefined;
-    const periodData = isVerifyMode
-      ? historyData.find(d => d.period === targetPeriod)
-      : historyData.find(d => d.period === latestPeriod);
-    const zodiacYear = periodData?.zodiacYear;
+    const displayPeriod = isVerifyMode ? targetPeriod : latestPeriod + 1;
+    const zodiacYear = getZodiacYearByPeriod(displayPeriod);
     
     const { countsMap, formulaCountByType } = groupByResultType(results, zodiacYear);
     
@@ -72,7 +70,8 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
       ? historyData.find(d => d.period === targetPeriod)
       : null;
     const teNum = verifyPeriodData?.numbers[6];
-    const zodiacYear = verifyPeriodData?.zodiacYear;
+    // 根据期数自动计算生肖年份（而非使用导入时存储的zodiacYear）
+    const zodiacYear = getZodiacYearByPeriod(displayPeriod);
     
     // 显示验证期数信息
     const periodLabel = isVerifyMode 

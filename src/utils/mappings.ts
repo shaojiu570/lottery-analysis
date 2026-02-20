@@ -101,6 +101,52 @@ const ZODIAC_NAMES: Record<number, string> = {
 // 基准年份：2020年 = 鼠年 = 1
 const BASE_YEAR = 2020;
 
+// 农历春节日期表（公历月日），用于确定生肖年份分界线
+// key: 公历年份, value: 春节日期（格式：月日，如 "0129" 表示1月29日）
+const SPRING_FESTIVAL_DATES: Record<number, string> = {
+  2020: '0125',  // 鼠年
+  2021: '0212',  // 牛年
+  2022: '0201',  // 虎年
+  2023: '0122',  // 兔年
+  2024: '0210',  // 龙年
+  2025: '0129',  // 蛇年
+  2026: '0217',  // 马年
+  2027: '0206',  // 羊年
+  2028: '0126',  // 猴年
+  2029: '0213',  // 鸡年
+  2030: '0203',  // 狗年
+  2031: '0122',  // 猪年
+};
+
+/**
+ * 根据期数计算对应的生肖年份
+ * @param period 期数（如 2026045）
+ * @returns 生肖索引 1=鼠, 2=牛, ..., 12=猪
+ */
+export function getZodiacYearByPeriod(period: number): number {
+  const year = Math.floor(period / 1000);  // 提取年份部分（2026）
+  const periodNum = period % 1000;  // 提取期号部分（045）
+  
+  // 获取该年的春节日期
+  const springFestival = SPRING_FESTIVAL_DATES[year];
+  if (!springFestival) {
+    // 未知年份，使用默认计算
+    return getZodiacIndexByYear(year);
+  }
+  
+  // 将期号转换为类似月日的格式（假设期号001对应春节前，100+对应春节后）
+  // 简单处理：期号 < 30 左右为春节前，否则为春节后
+  const isAfterSpringFestival = periodNum >= 30;
+  
+  if (isAfterSpringFestival) {
+    // 春节后是该年生肖
+    return getZodiacIndexByYear(year);
+  } else {
+    // 春节前是上一年的生肖
+    return getZodiacIndexByYear(year - 1);
+  }
+}
+
 /**
  * 根据年份计算当前生肖索引 (1-12)
  * @param year 年份，不传则使用当前年份
