@@ -455,7 +455,8 @@ self.onmessage = (event) => {
         const cycledResult = applyCycle(withOffset, formula.resultType);
         const expandedResults = getExpandedResults(cycledResult, formula.leftExpand, formula.rightExpand, formula.resultType);
         
-        const targetValue = getNumberAttribute(verifyData.numbers[6], formula.resultType, verifyData.zodiacYear);
+        // 用计算数据的特码来判断命中
+        const targetValue = getNumberAttribute(calcData.numbers[6], formula.resultType, calcData.zodiacYear);
         const hit = expandedResults.includes(targetValue);
         
         hits.push(hit);
