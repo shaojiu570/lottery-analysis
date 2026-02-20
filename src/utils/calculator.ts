@@ -342,9 +342,8 @@ export function groupByResultType(
         const period = r.periodResults[r.periodResults.length - 1]?.period || 0;
         const zodiacYear = getZodiacYearByPeriod(period);
         
-        // 将结果值转换回原始数值，再根据该公式的生肖年份重新转换
-        const convertedVal = convertTextToValue(val, type, zodiacYear);
-        if (r.results.includes(convertedVal)) {
+        // 直接比较，因为 allPossibleValues 和 r.results 都是用同样的逻辑生成的
+        if (r.results.includes(val)) {
           count++;
         }
       }
