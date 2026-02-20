@@ -310,10 +310,10 @@ export function digitSum(num: number): number {
 }
 
 // 根据结果值获取包含的号码
-export function getNumbersByResult(value: number, resultType: keyof typeof RESULT_TYPE_CONFIG): number[] {
+export function getNumbersByResult(value: number, resultType: keyof typeof RESULT_TYPE_CONFIG, zodiacYear?: number): number[] {
   const numbers: number[] = [];
   for (let i = 1; i <= 49; i++) {
-    if (getNumberAttribute(i, resultType) === value) {
+    if (getNumberAttribute(i, resultType, zodiacYear) === value) {
       numbers.push(i);
     }
   }

@@ -343,7 +343,7 @@ export function groupByResultType(
 }
 
 // 全码类结果汇总（包含0次的号码）
-export function aggregateAllNumbers(results: VerifyResult[]): Map<number, number> {
+export function aggregateAllNumbers(results: VerifyResult[], zodiacYear?: number): Map<number, number> {
   const numberCounts = new Map<number, number>();
   
   // 获取所有49个号码的初始计数
@@ -360,7 +360,7 @@ export function aggregateAllNumbers(results: VerifyResult[]): Map<number, number
       
       for (const value of latestResult.expandedResults) {
         // 将结果值转换为号码
-        const numbers = getNumbersFromResult(value, type);
+        const numbers = getNumbersFromResult(value, type, zodiacYear);
         for (const num of numbers) {
           numberCounts.set(num, (numberCounts.get(num) || 0) + 1);
         }
@@ -372,10 +372,10 @@ export function aggregateAllNumbers(results: VerifyResult[]): Map<number, number
 }
 
 // 根据结果值获取号码列表
-function getNumbersFromResult(value: number, resultType: ResultType): number[] {
+function getNumbersFromResult(value: number, resultType: ResultType, zodiacYear?: number): number[] {
   const numbers: number[] = [];
   for (let i = 1; i <= 49; i++) {
-    if (getNumberAttribute(i, resultType) === value) {
+    if (getNumberAttribute(i, resultType, zodiacYear) === value) {
       numbers.push(i);
     }
   }

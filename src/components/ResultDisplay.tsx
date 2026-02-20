@@ -35,13 +35,21 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
       return { hitsPerPeriod: [], groupedResults: new Map(), formulaCountByType: new Map(), allNumberCounts: new Map() };
     }
     const { countsMap, formulaCountByType } = groupByResultType(results);
+    
+    // 获取生肖年份：验证模式用目标期，预测模式用最新期
+    const isVerifyMode = targetPeriod !== null && targetPeriod !== undefined;
+    const periodData = isVerifyMode
+      ? historyData.find(d => d.period === targetPeriod)
+      : historyData.find(d => d.period === latestPeriod);
+    const zodiacYear = periodData?.zodiacYear;
+    
     return {
       hitsPerPeriod: countHitsPerPeriod(results, historyData),
       groupedResults: countsMap,
       formulaCountByType,
-      allNumberCounts: aggregateAllNumbers(results),
+      allNumberCounts: aggregateAllNumbers(results, zodiacYear),
     };
-  }, [results, historyData]);
+  }, [results, historyData, targetPeriod, latestPeriod]);
 
   // 生成文本框内容
   const resultText = useMemo(() => {
