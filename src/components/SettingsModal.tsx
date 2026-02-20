@@ -7,10 +7,13 @@ interface SettingsModalProps {
   onClose: () => void;
   settings: Settings;
   onSave: (settings: Partial<Settings>) => void;
+  onBatchReplace?: (find: string, replace: string) => void;
+  formulaInput?: string;
 }
 
-export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsModalProps) {
-  // 使用字符串状态来管理输入，避免数字转换问题
+const RESULT_TYPES = ['尾数类', '头数类', '合数类', '波色类', '五行类', '肖位类', '单特类', '大小单双类'];
+
+export function SettingsModal({ isOpen, onClose, settings, onSave, onBatchReplace, formulaInput }: SettingsModalProps) {
   const [offsetInput, setOffsetInput] = useState(settings.offset.toString());
   const [periodsInput, setPeriodsInput] = useState(settings.periods.toString());
   const [leftExpandInput, setLeftExpandInput] = useState(settings.leftExpand.toString());
@@ -18,6 +21,10 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
   const [targetPeriodInput, setTargetPeriodInput] = useState(
     settings.targetPeriod?.toString() || ''
   );
+  
+  const [replaceRule, setReplaceRule] = useState<'D' | 'L'>('L');
+  const [replaceType, setReplaceType] = useState<string>('肖位类');
+  const [replaceCount, setReplaceCount] = useState(0);
 
   useEffect(() => {
     setOffsetInput(settings.offset.toString());
@@ -25,6 +32,7 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
     setLeftExpandInput(settings.leftExpand.toString());
     setRightExpandInput(settings.rightExpand.toString());
     setTargetPeriodInput(settings.targetPeriod?.toString() || '');
+    setReplaceCount(0);
   }, [settings, isOpen]);
 
   if (!isOpen) return null;
@@ -40,15 +48,12 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
     onClose();
   };
 
-  // 处理输入变化，允许空值和负号
   const handleInputChange = (value: string, setter: (val: string) => void, allowNegative = false) => {
-    // 只允许数字和负号（如果允许负数）
     if (value === '' || value === '-') {
       setter(value);
       return;
     }
     
-    // 如果是允许负数，检查负号开头
     if (allowNegative && value.startsWith('-')) {
       const numPart = value.slice(1);
       if (numPart === '' || /^\d*$/.test(numPart)) {
@@ -57,9 +62,21 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
       return;
     }
     
-    // 只允许数字
     if (/^\d*$/.test(value)) {
       setter(value);
+    }
+  };
+
+  const handleBatchReplace = () => {
+    if (!onBatchReplace || !formulaInput) return;
+    
+    const findPattern = /\[[DL][^\]]+\]/g;
+    const matches = formulaInput.match(findPattern) || [];
+    const replaceStr = `[${replaceRule}${replaceType}]`;
+    
+    if (matches.length > 0) {
+      onBatchReplace(findPattern.source, replaceStr);
+      setReplaceCount(matches.length);
     }
   };
 
@@ -72,79 +89,62 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
         </div>
 
         <div className="p-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              补偿值
-            </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={offsetInput}
-              onChange={(e) => handleInputChange(e.target.value, setOffsetInput, true)}
-              className={cn(
-                'w-full px-3 py-2 rounded-lg border border-gray-300',
-                'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200',
-                'text-sm'
-              )}
-            />
+          <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
+            <span>补偿:{offsetInput || '0'} 期:{periodsInput || '15'} 左:{leftExpandInput || '0'} 右:{rightExpandInput || '0'}</span>
+            <button
+              onClick={handleSave}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              保存
+            </button>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              验证期数
-            </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={periodsInput}
-              onChange={(e) => handleInputChange(e.target.value, setPeriodsInput, false)}
-              className={cn(
-                'w-full px-3 py-2 rounded-lg border border-gray-300',
-                'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200',
-                'text-sm'
-              )}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                左扩展
-              </label>
+              <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">补偿</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={offsetInput}
+                onChange={(e) => handleInputChange(e.target.value, setOffsetInput, true)}
+                className="w-full px-1 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">期数</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={periodsInput}
+                onChange={(e) => handleInputChange(e.target.value, setPeriodsInput, false)}
+                className="w-full px-1 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">左扩</label>
               <input
                 type="text"
                 inputMode="numeric"
                 value={leftExpandInput}
                 onChange={(e) => handleInputChange(e.target.value, setLeftExpandInput, false)}
-                className={cn(
-                  'w-full px-3 py-2 rounded-lg border border-gray-300',
-                  'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200',
-                  'text-sm'
-                )}
+                className="w-full px-1 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                右扩展
-              </label>
+              <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">右扩</label>
               <input
                 type="text"
                 inputMode="numeric"
                 value={rightExpandInput}
                 onChange={(e) => handleInputChange(e.target.value, setRightExpandInput, false)}
-                className={cn(
-                  'w-full px-3 py-2 rounded-lg border border-gray-300',
-                  'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200',
-                  'text-sm'
-                )}
+                className="w-full px-1 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              目标期数
-              <span className="text-xs text-gray-500 ml-1">(留空表示验证最新期)</span>
+            <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">
+              目标期数 <span className="text-gray-400">(留空验证最新期)</span>
             </label>
             <input
               type="text"
@@ -152,13 +152,44 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
               value={targetPeriodInput}
               onChange={(e) => handleInputChange(e.target.value, setTargetPeriodInput, false)}
               placeholder="例如: 2026042"
-              className={cn(
-                'w-full px-3 py-2 rounded-lg border border-gray-300',
-                'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200',
-                'text-sm'
-              )}
+              className="w-full px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200"
             />
           </div>
+
+          {onBatchReplace && (
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">📝 批量替换公式类型</h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-gray-500">替换为:</span>
+                <select
+                  value={replaceRule}
+                  onChange={(e) => setReplaceRule(e.target.value as 'D' | 'L')}
+                  className="px-2 py-1 text-xs border border-gray-300 rounded"
+                >
+                  <option value="D">D</option>
+                  <option value="L">L</option>
+                </select>
+                <select
+                  value={replaceType}
+                  onChange={(e) => setReplaceType(e.target.value)}
+                  className="px-2 py-1 text-xs border border-gray-300 rounded flex-1 min-w-0"
+                >
+                  {RESULT_TYPES.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleBatchReplace}
+                  className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                >
+                  替换
+                </button>
+              </div>
+              {replaceCount > 0 && (
+                <p className="text-xs text-emerald-600 mt-2">✓ 已替换 {replaceCount} 处</p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="border-t border-gray-200 px-4 py-3 flex justify-end gap-2">
@@ -166,13 +197,7 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
             onClick={onClose}
             className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 text-sm"
           >
-            取消
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-sm"
-          >
-            保存
+            关闭
           </button>
         </div>
       </div>
