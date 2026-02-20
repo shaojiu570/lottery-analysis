@@ -372,9 +372,9 @@ function getExpandedResults(result: number, leftExpand: number, rightExpand: num
   const results: number[] = [];
   
   if (resultType === '单特类') {
-    // 单特类：直接扩展号码
+    const baseValue = applyCycle(result, resultType);
     for (let i = -leftExpand; i <= rightExpand; i++) {
-      const expanded = result + i;
+      const expanded = applyCycle(baseValue + i, resultType);
       if (expanded >= 1 && expanded <= 49) {
         results.push(expanded);
       }
