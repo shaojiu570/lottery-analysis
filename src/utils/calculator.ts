@@ -371,15 +371,18 @@ export function aggregateAllNumbers(results: VerifyResult[], zodiacYear?: number
 
 // 将结果字符串转换为号码列表
 function convertResultToNumbers(resultStr: string, resultType: ResultType, zodiacYear?: number): number[] {
+  // 去掉星号
+  const cleanStr = resultStr.replace('★', '');
+  
   // 肖位类：如 "鸡" -> 转换为号码
   if (resultType === '肖位类') {
     const zodiacMap = getZodiacMap(zodiacYear);
-    const nums = zodiacMap[resultStr];
+    const nums = zodiacMap[cleanStr];
     return nums || [];
   }
   
   // 其他类型：解析数字后转换
-  const numMatch = resultStr.match(/^(\d+)/);
+  const numMatch = cleanStr.match(/^(\d+)/);
   if (numMatch) {
     const value = parseInt(numMatch[1]);
     return getNumbersFromResult(value, resultType, zodiacYear);
