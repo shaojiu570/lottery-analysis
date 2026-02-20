@@ -63,7 +63,9 @@ export function normalizeElementName(name: string): string {
   let normalized = chineseToNumber(name);
   
   // 处理别名（如"特码波" -> "特波"）
-  for (const [alias, standard] of Object.entries(ELEMENT_ALIASES)) {
+  // 按长度从长到短排序，避免短名称错误替换长名称中的部分
+  const sortedAliases = Object.entries(ELEMENT_ALIASES).sort((a, b) => b[0].length - a[0].length);
+  for (const [alias, standard] of sortedAliases) {
     normalized = normalized.replace(new RegExp(alias, 'g'), standard);
   }
   
@@ -80,7 +82,7 @@ export function normalizeElementName(name: string): string {
     const map: Record<string, string> = { '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' };
     return '平' + (map[cn] || cn) + attr;
   });
-  
+
   return normalized;
 }
 
