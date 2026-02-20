@@ -211,9 +211,12 @@ function getNumberAttributeValue(num: number, attr: string, zodiacYear: number):
 }
 
 // 计算元素值
-function calculateElementValue(element: string, data: LotteryData): number {
+function calculateElementValue(element: string, data: LotteryData, useSort: boolean): number {
   const normalized = normalizeElementName(element);
-  const numbers = data.numbers;
+  // D规则：平码按大小排序，特码位置不变
+  const pingma = useSort ? [...data.numbers.slice(0, 6)].sort((a, b) => a - b) : data.numbers.slice(0, 6);
+  const te = data.numbers[6];
+  const numbers = [...pingma, te];
   
   // 期数系列 - 只取后3位计算
   const periodNum = data.period % 1000;
@@ -284,7 +287,7 @@ function parseFormula(formulaStr: string): { expression: string; rule: 'D' | 'L'
 }
 
 // 评估表达式
-function evaluateExpression(expression: string, data: LotteryData): number {
+function evaluateExpression(expression: string, data: LotteryData, useSort: boolean): number {
   let normalized = normalizeElementName(expression);
   
   // 替换元素为数值（按长度优先）
@@ -301,7 +304,7 @@ function evaluateExpression(expression: string, data: LotteryData): number {
   ];
   
   for (const elem of allElements) {
-    const value = calculateElementValue(elem, data);
+    const value = calculateElementValue(elem, data, useSort);
     normalized = normalized.replace(new RegExp(elem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value.toString());
   }
   
@@ -407,12 +410,13 @@ function verifyFormula(
   
   const dataToVerify = historyData.slice(0, periods);
   let hitCount = 0;
+  const useSort = parsed.rule === 'D';
   
   for (let i = 0; i < dataToVerify.length; i++) {
     const verifyData = dataToVerify[i];
     const calcData = i > 0 ? dataToVerify[i - 1] : verifyData;
     
-    const rawResult = evaluateExpression(parsed.expression, calcData);
+    const rawResult = evaluateExpression(parsed.expression, calcData, useSort);
     const withOffset = rawResult + parsed.offset + offset;
     const cycledResult = applyCycle(withOffset, parsed.resultType);
     const expandedResults = getExpandedResults(cycledResult, parsed.leftExpand + leftExpand, parsed.rightExpand + rightExpand, parsed.resultType);
