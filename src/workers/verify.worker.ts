@@ -490,7 +490,7 @@ self.onmessage = (event) => {
         totalPeriods: dataToVerify.length,
         hitRate: dataToVerify.length > 0 ? hitCount / dataToVerify.length : 0,
         results: periodResults.length > 0 
-          ? periodResults[0].expandedResults.sort((a: number, b: number) => a - b).map((r: number) => resultToText(r, formula.resultType, historyData[0]?.zodiacYear)) 
+          ? periodResults[periodResults.length - 1].expandedResults.sort((a: number, b: number) => a - b).map((r: number) => resultToText(r, formula.resultType, historyData[0]?.zodiacYear)) 
           : [],
         periodResults,
         originalLineIndex: (formula as any).originalLineIndex || 0,

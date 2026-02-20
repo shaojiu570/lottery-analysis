@@ -131,6 +131,7 @@ export function verifyFormula(
     const withOffset = rawResult + offset;
     // 应用循环规则
     const cycledResult = applyCycle(withOffset, parsed.resultType);
+    
     // 获取扩展结果
     const expandedResults = getExpandedResults(cycledResult, leftExpand, rightExpand, parsed.resultType);
     
@@ -159,9 +160,9 @@ export function verifyFormula(
   hits.reverse();
   periodResults.reverse();
   
-  // 只取最新一期的结果（反转后periodResults[0]是最新的）
+  // 只取最新一期的结果（反转后periodResults[length-1]是最新的）
   const latestResults = periodResults.length > 0 
-    ? periodResults[0].expandedResults 
+    ? periodResults[periodResults.length - 1].expandedResults 
     : [];
   const latestZodiacYear = historyData.length > 0 ? historyData[0].zodiacYear : undefined;
   const results = Array.from(latestResults).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType, latestZodiacYear));
@@ -293,7 +294,7 @@ export function groupByResultType(
     // 生成该类型所有可能结果值时使用的生肖年份
     // 使用第一条公式的期数作为代表（用于生成所有可能值）
     const sampleResult = typeResults[0];
-    const samplePeriod = sampleResult.periodResults[0]?.period || 0;
+    const samplePeriod = sampleResult.periodResults[sampleResult.periodResults.length - 1]?.period || 0;
     const sampleZodiacYear = getZodiacYearByPeriod(samplePeriod);
     
     // 获取该类型的所有可能结果值
@@ -338,7 +339,7 @@ export function groupByResultType(
       let count = 0;
       for (const r of typeResults) {
         // 获取该公式最新一期的期数，计算对应的生肖年份
-        const period = r.periodResults[0]?.period || 0;
+        const period = r.periodResults[r.periodResults.length - 1]?.period || 0;
         const zodiacYear = getZodiacYearByPeriod(period);
         
         // 将结果值转换回原始数值，再根据该公式的生肖年份重新转换
@@ -383,7 +384,7 @@ export function aggregateAllNumbers(results: VerifyResult[]): Map<number, number
     const type = result.formula.resultType;
     
     // 获取该公式最新一期的期数，计算对应的生肖年份
-    const period = result.periodResults[0]?.period || 0;
+    const period = result.periodResults[result.periodResults.length - 1]?.period || 0;
     const zodiacYear = getZodiacYearByPeriod(period);
     
     // 直接使用第三层的结果字符串来转换号码
