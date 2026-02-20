@@ -51,10 +51,9 @@ export function SmartSearchModal({
       setPeriodsInput(settings.searchPeriods.toString());
       setLeftExpandInput(settings.searchLeft.toString());
       setRightExpandInput(settings.searchRight.toString());
-      clearResults();
       setSelectedResults(new Set());
     }
-  }, [isOpen, settings, clearResults]);
+  }, [isOpen, settings]);
 
   if (!isOpen) return null;
 
@@ -87,6 +86,9 @@ export function SmartSearchModal({
   };
 
   const handleSearch = () => {
+    // 开始新搜索前清空之前的结果
+    clearResults();
+    
     if (historyData.length === 0) {
       alert('请先导入开奖记录');
       return;
