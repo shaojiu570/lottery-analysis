@@ -219,8 +219,13 @@ function App() {
 
   // 保存设置时更新原公式
   const handleSaveSettings = useCallback((newSettings: Partial<typeof settings>) => {
-    // 如果原公式有内容，提示是否更新
-    if (formulaInput.trim()) {
+    // 检查是否只修改了targetPeriod（目标期数），如果是则不触发公式更新
+    const onlyTargetPeriod = 
+      Object.keys(newSettings).length === 1 && 
+      'targetPeriod' in newSettings;
+    
+    // 如果只修改目标期数，不弹窗询问
+    if (!onlyTargetPeriod && formulaInput.trim()) {
       const update = confirm('是否将新的参数应用到当前公式？');
       if (update) {
         // 重新构建带新参数的公式

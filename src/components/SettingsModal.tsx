@@ -24,6 +24,9 @@ export function SettingsModal({ isOpen, onClose, settings, onSave, onBatchReplac
   const [replaceRule, setReplaceRule] = useState<'D' | 'L' | ''>('L');
   const [replaceType, setReplaceType] = useState<string>('肖位类');
   const [replaceCount, setReplaceCount] = useState(0);
+  
+  // 标记哪个按钮触发的保存，避免不必要的状态重置
+  let isApplyingTargetPeriod = false;
 
   useEffect(() => {
     setOffsetInput(settings.offset.toString());
@@ -48,6 +51,7 @@ export function SettingsModal({ isOpen, onClose, settings, onSave, onBatchReplac
   const handleApplyTargetPeriod = () => {
     const targetPeriod = targetPeriodInput === '' ? null : parseInt(targetPeriodInput) || null;
     onSave({ targetPeriod });
+    // 不关闭弹窗，让用户可以继续操作
   };
 
   const handleInputChange = (value: string, setter: (val: string) => void, allowNegative = false) => {
