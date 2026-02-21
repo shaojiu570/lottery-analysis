@@ -512,22 +512,58 @@ function getRecommendedElements(resultType: ResultType): string[] {
   return elements;
 }
 
-// 从模板生成公式
+// 从模板生成公式 - 根据策略确定元素数量
 function generateFromTemplate(
   resultType: ResultType,
   rule: 'D' | 'L',
   periods: number,
   offset: number,
   leftExpand: number,
-  rightExpand: number
+  rightExpand: number,
+  searchStrategy: 'fast' | 'standard' | 'deep' = 'standard'
 ): string | null {
-  // 根据期数确定元素数量：期数少时元素多，期数多时元素可以少
-  // 15期以下需要10+元素，100期以上可以少一些
-  const elementCount = periods <= 20 ? 10 + Math.floor(Math.random() * 10) : 
-                       periods <= 50 ? 8 + Math.floor(Math.random() * 6) :
-                       6 + Math.floor(Math.random() * 5);
+  // 根据策略确定元素数量范围
+  let minElements: number, maxElements: number;
+  switch (searchStrategy) {
+    case 'fast':
+      minElements = 3;
+      maxElements = 11;
+      break;
+    case 'standard':
+      minElements = 3;
+      maxElements = 15;
+      break;
+    case 'deep':
+      minElements = 3;
+      maxElements = 20;
+      break;
+    default:
+      minElements = 3;
+      maxElements = 15;
+  }
   
-  const elements = generateRandomElements(resultType, elementCount);
+  // 获取相关元素池
+  const elementPool = getRelatedElements(resultType);
+  const allElements = getAllElements();
+  const pool = elementPool.length > 0 ? elementPool : allElements.slice(0, 30);
+  
+  // 随机选择一个元素数量
+  const elementCount = minElements + Math.floor(Math.random() * (maxElements - minElements + 1));
+  
+  // 生成不重复的随机组合
+  const elements: string[] = [];
+  const used = new Set<string>();
+  for (let i = 0; i < elementCount; i++) {
+    let elem: string;
+    let attempts = 0;
+    do {
+      elem = pool[Math.floor(Math.random() * pool.length)];
+      attempts++;
+    } while (used.has(elem) && attempts < 20);
+    used.add(elem);
+    elements.push(elem);
+  }
+  
   if (elements.length < 3) return null;
   
   const expression = elements.join('+');
@@ -536,25 +572,6 @@ function generateFromTemplate(
   const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
   
   return `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
-}
-
-// 随机生成指定数量的元素
-function generateRandomElements(resultType: ResultType, count: number): string[] {
-  const elements: string[] = [];
-  const allElements = getAllElements();
-  
-  // 根据结果类型选择相关的元素
-  const relatedElements = getRelatedElements(resultType);
-  
-  for (let i = 0; i < count; i++) {
-    if (relatedElements.length > 0 && Math.random() > 0.2) {
-      elements.push(relatedElements[Math.floor(Math.random() * relatedElements.length)]);
-    } else {
-      elements.push(allElements[Math.floor(Math.random() * allElements.length)]);
-    }
-  }
-  
-  return elements;
 }
 
 // 获取与结果类型相关的元素
@@ -675,7 +692,7 @@ function evolutionarySearch(
   // 第一阶段：基于模板生成
   for (const resultType of resultTypes) {
     for (const rule of ['D', 'L'] as const) {
-      const formula = generateFromTemplate(resultType, rule, periods, offset, leftExpand, rightExpand);
+      const formula = generateFromTemplate(resultType, rule, periods, offset, leftExpand, rightExpand, strategy);
       if (formula && !seenFormulas.has(formula)) {
         seenFormulas.add(formula);
         const parsed = parseFormula(formula);
