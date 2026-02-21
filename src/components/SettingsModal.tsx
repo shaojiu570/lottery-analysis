@@ -36,15 +36,18 @@ export function SettingsModal({ isOpen, onClose, settings, onSave, onBatchReplac
 
   if (!isOpen) return null;
 
-  const handleSave = () => {
+  const handleSaveParams = () => {
     const offset = offsetInput === '' ? 0 : parseInt(offsetInput) || 0;
     const periods = periodsInput === '' ? 15 : parseInt(periodsInput) || 15;
     const leftExpand = leftExpandInput === '' ? 0 : parseInt(leftExpandInput) || 0;
     const rightExpand = rightExpandInput === '' ? 0 : parseInt(rightExpandInput) || 0;
-    const targetPeriod = targetPeriodInput === '' ? null : parseInt(targetPeriodInput) || null;
     
-    onSave({ offset, periods, leftExpand, rightExpand, targetPeriod });
-    onClose();
+    onSave({ offset, periods, leftExpand, rightExpand, targetPeriod: settings.targetPeriod });
+  };
+
+  const handleApplyTargetPeriod = () => {
+    const targetPeriod = targetPeriodInput === '' ? null : parseInt(targetPeriodInput) || null;
+    onSave({ targetPeriod });
   };
 
   const handleInputChange = (value: string, setter: (val: string) => void, allowNegative = false) => {
@@ -102,10 +105,10 @@ export function SettingsModal({ isOpen, onClose, settings, onSave, onBatchReplac
           <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
             <span>补偿:{offsetInput || '0'} 期:{periodsInput || '15'} 左:{leftExpandInput || '0'} 右:{rightExpandInput || '0'}</span>
             <button
-              onClick={handleSave}
+              onClick={() => { handleSaveParams(); onClose(); }}
               className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
             >
-              保存
+              保存参数
             </button>
           </div>
 
@@ -156,14 +159,22 @@ export function SettingsModal({ isOpen, onClose, settings, onSave, onBatchReplac
             <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">
               目标期数 <span className="text-gray-400">(留空验证最新期)</span>
             </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={targetPeriodInput}
-              onChange={(e) => handleInputChange(e.target.value, setTargetPeriodInput, false)}
-              placeholder="例如: 2026042"
-              className="w-full px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={targetPeriodInput}
+                onChange={(e) => handleInputChange(e.target.value, setTargetPeriodInput, false)}
+                placeholder="例如: 2026042"
+                className="flex-1 px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200"
+              />
+              <button
+                onClick={() => { handleApplyTargetPeriod(); onClose(); }}
+                className="px-3 py-1 text-xs sm:text-sm bg-blue-500 hover:bg-blue-600 text-white rounded"
+              >
+                应用
+              </button>
+            </div>
           </div>
 
           {onBatchReplace && (
