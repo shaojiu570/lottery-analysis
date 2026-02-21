@@ -1,6 +1,10 @@
 // 智能搜索 Worker - 将计算移到后台线程
 import type { LotteryData, ResultType } from '../types';
 
+// ==================== 缓存机制 ====================
+// 元素值缓存 - 避免重复计算相同元素
+const elementCache = new Map<string, Map<number, number>>();
+
 // 波色映射
 const WAVE_COLORS: Record<string, number[]> = {
   红: [1, 2, 7, 8, 12, 13, 18, 19, 23, 24, 29, 30, 34, 35, 40, 45, 46],
@@ -233,46 +237,77 @@ function getNumberAttributeValue(num: number, attr: string, zodiacYear: number):
   }
 }
 
-// 计算元素值
+// 计算元素值（带缓存）
 function calculateElementValue(element: string, data: LotteryData, useSort: boolean): number {
   const normalized = normalizeElementName(element);
+  const period = data.period;
+  const cacheKey = `${element}_${useSort}`;
+  
+  // 检查缓存
+  if (elementCache.has(cacheKey)) {
+    const periodCache = elementCache.get(cacheKey)!;
+    if (periodCache.has(period)) {
+      return periodCache.get(period)!;
+    }
+  }
+  
   // D规则：平码按大小排序，特码位置不变
   const pingma = useSort ? [...data.numbers.slice(0, 6)].sort((a, b) => a - b) : data.numbers.slice(0, 6);
   const te = data.numbers[6];
   const numbers = [...pingma, te];
   
+  let result: number;
+  
   // 期数系列 - 只取后3位计算
   const periodNum = data.period % 1000;
-  if (normalized === '期数') return periodNum;
-  if (normalized === '期数尾') return periodNum % 10;
-  if (normalized === '期数合') return digitSum(periodNum);
-  if (normalized === '期数合尾') return digitSum(periodNum) % 10;
+  if (normalized === '期数') result = periodNum;
+  else if (normalized === '期数尾') result = periodNum % 10;
+  else if (normalized === '期数合') result = digitSum(periodNum);
+  else if (normalized === '期数合尾') result = digitSum(periodNum) % 10;
   
   // 总分系列
-  const totalSum = numbers.reduce((sum, n) => sum + n, 0);
-  if (normalized === '总分') return totalSum;
-  if (normalized === '总分尾') return totalSum % 10;
-  if (normalized === '总分合') return digitSum(totalSum);
-  if (normalized === '总分合尾') return digitSum(totalSum) % 10;
-  
-  // 平码系列
-  const pingMatch = normalized.match(/^平(\d)(.+)$/);
-  if (pingMatch) {
-    const index = parseInt(pingMatch[1]) - 1;
-    const attr = pingMatch[2];
-    if (index >= 0 && index < 6) {
-      return getNumberAttributeValue(numbers[index], attr, data.zodiacYear);
+  else {
+    const totalSum = numbers.reduce((sum, n) => sum + n, 0);
+    if (normalized === '总分') result = totalSum;
+    else if (normalized === '总分尾') result = totalSum % 10;
+    else if (normalized === '总分合') result = digitSum(totalSum);
+    else if (normalized === '总分合尾') result = digitSum(totalSum) % 10;
+    
+    // 平码系列
+    else {
+      const pingMatch = normalized.match(/^平(\d)(.+)$/);
+      if (pingMatch) {
+        const index = parseInt(pingMatch[1]) - 1;
+        const attr = pingMatch[2];
+        if (index >= 0 && index < 6) {
+          result = getNumberAttributeValue(numbers[index], attr, data.zodiacYear);
+        } else result = 0;
+      }
+      
+      // 特码系列
+      else {
+        const teMatch = normalized.match(/^特(.+)$/);
+        if (teMatch) {
+          const attr = teMatch[1];
+          result = getNumberAttributeValue(numbers[6], attr, data.zodiacYear);
+        } else result = 0;
+      }
     }
   }
   
-  // 特码系列
-  const teMatch = normalized.match(/^特(.+)$/);
-  if (teMatch) {
-    const attr = teMatch[1];
-    return getNumberAttributeValue(numbers[6], attr, data.zodiacYear);
+  // 存入缓存
+  if (!elementCache.has(cacheKey)) {
+    elementCache.set(cacheKey, new Map());
+  }
+  elementCache.get(cacheKey)!.set(period, result);
+  
+  // 限制缓存大小
+  if (elementCache.size > 100) {
+    const keys = Array.from(elementCache.keys());
+    elementCache.delete(keys[0]);
   }
   
-  return 0;
+  return result;
 }
 
 // 解析公式
@@ -535,6 +570,49 @@ function getRecommendedElements(resultType: ResultType): string[] {
   return elements;
 }
 
+// 从种子元素生成公式（多种子初始化）
+function generateFromSeed(
+  seedElement: string,
+  resultType: ResultType,
+  rule: 'D' | 'L',
+  periods: number,
+  offset: number,
+  leftExpand: number,
+  rightExpand: number
+): string | null {
+  // 以种子元素为核心，添加更多相关元素
+  const allElements = getAllElements();
+  const relatedElements = getRelatedElements(resultType);
+  
+  // 从相关元素中选择3-8个元素
+  const elementCount = 3 + Math.floor(Math.random() * 6);
+  const elements: string[] = [seedElement];
+  const used = new Set<string>([seedElement]);
+  
+  // 优先从相关元素中选择
+  for (let i = 0; i < elementCount - 1; i++) {
+    let elem: string;
+    let attempts = 0;
+    do {
+      if (relatedElements.length > 0 && Math.random() > 0.3) {
+        elem = relatedElements[Math.floor(Math.random() * relatedElements.length)];
+      } else {
+        elem = allElements[Math.floor(Math.random() * allElements.length)];
+      }
+      attempts++;
+    } while (used.has(elem) && attempts < 20);
+    used.add(elem);
+    elements.push(elem);
+  }
+  
+  const expression = elements.join('+');
+  const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
+  const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
+  const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
+  
+  return `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
+}
+
 // 从模板生成公式 - 根据策略确定元素数量
 function generateFromTemplate(
   resultType: ResultType,
@@ -744,11 +822,11 @@ function exhaustiveSearch(
   return results;
 }
 
-// 变异公式 - 在现有公式基础上修改
+// 变异公式 - 在现有公式基础上修改（更激进的策略）
 function mutateFormula(
   formulaStr: string,
   allElements: string[],
-  mutationRate: number = 0.3,
+  mutationRate: number = 0.5,
   periods: number = 50
 ): string | null {
   const parsed = parseFormula(formulaStr);
@@ -757,16 +835,16 @@ function mutateFormula(
   const elements = parsed.expression.split('+').filter(e => e.trim());
   if (elements.length === 0) return null;
   
-  // 根据期数确定元素数量
+  // 根据期数确定元素数量范围
   const maxElements = periods <= 20 ? 20 : periods <= 50 ? 15 : 10;
-  const minElements = 3;
+  const minElements = 2;
   
   const newElements: string[] = [];
+  const recommended = getRecommendedElements(parsed.resultType);
   
   for (const elem of elements) {
     if (Math.random() < mutationRate) {
-      // 变异：替换为新元素
-      const recommended = getRecommendedElements(parsed.resultType);
+      // 变异：替换为新元素（优先从推荐元素中选择）
       if (recommended.length > 0) {
         newElements.push(recommended[Math.floor(Math.random() * recommended.length)]);
       } else {
@@ -777,20 +855,48 @@ function mutateFormula(
     }
   }
   
-  // 有一定概率增加或删除元素
-  if (Math.random() < 0.25 && newElements.length < maxElements) {
-    const recommended = getRecommendedElements(parsed.resultType);
+  // 增加元素变异的概率和数量
+  const addProb = 0.35; // 提高添加概率
+  const removeProb = 0.2; // 提高删除概率
+  const shuffleProb = 0.15; // 新增：打乱顺序
+  
+  // 添加新元素
+  if (Math.random() < addProb && newElements.length < maxElements) {
     const newElem = recommended.length > 0
       ? recommended[Math.floor(Math.random() * recommended.length)]
       : allElements[Math.floor(Math.random() * allElements.length)];
-    newElements.push(newElem);
+    const pos = Math.floor(Math.random() * (newElements.length + 1));
+    newElements.splice(pos, 0, newElem);
   }
   
-  if (Math.random() < 0.1 && newElements.length > minElements) {
-    newElements.splice(Math.floor(Math.random() * newElements.length), 1);
+  // 删除元素
+  if (Math.random() < removeProb && newElements.length > minElements) {
+    const pos = Math.floor(Math.random() * newElements.length);
+    newElements.splice(pos, 1);
   }
   
-  if (newElements.length === 0) return null;
+  // 打乱顺序（增加多样性）
+  if (Math.random() < shuffleProb && newElements.length > 1) {
+    for (let i = newElements.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newElements[i], newElements[j]] = [newElements[j], newElements[i]];
+    }
+  }
+  
+  // 完全重写（极端情况）
+  if (Math.random() < 0.1) {
+    return generateFromSeed(
+      recommended[Math.floor(Math.random() * recommended.length)] || allElements[0],
+      parsed.resultType,
+      Math.random() > 0.5 ? 'D' : 'L',
+      periods,
+      parsed.offset,
+      parsed.leftExpand,
+      parsed.rightExpand
+    );
+  }
+  
+  if (newElements.length < minElements) return null;
   
   const expression = newElements.join('+');
   const offsetStr = parsed.offset >= 0 ? `+${parsed.offset}` : `${parsed.offset}`;
@@ -860,25 +966,69 @@ function evolutionarySearch(
   const seenFormulas = new Set<string>();
   
   // 根据策略确定参数
-  let populationSize: number, generations: number;
+  let populationSize: number, generations: number, mutationRate: number;
   switch (strategy) {
     case 'fast':
-      populationSize = 100;
-      generations = 10;
+      populationSize = 150;
+      generations = 15;
+      mutationRate = 0.5; // 更激进的变异率
       break;
     case 'standard':
-      populationSize = 200;
-      generations = 20;
+      populationSize = 300;
+      generations = 25;
+      mutationRate = 0.4;
       break;
     default:
-      populationSize = 100;
-      generations = 10;
+      populationSize = 150;
+      generations = 15;
+      mutationRate = 0.5;
   }
   
   const totalIterations = populationSize * generations;
   let currentIteration = 0;
   
-  // 第一阶段：基于模板生成
+  // ==================== 多种子初始化 ====================
+  // 从不同结果类型的目标元素生成初始种群
+  const seedElementsByType: Record<ResultType, string[]> = {
+    '尾数类': ['特尾', '期数尾', '总分尾', '平1尾', '平2尾'],
+    '头数类': ['特头', '期数', '总分', '平1头', '平2头'],
+    '合数类': ['特合', '期数合', '总分合', '平1合', '平2合'],
+    '波色类': ['特波', '平1波', '平2波', '平3波'],
+    '五行类': ['特行', '平1行', '平2行', '平3行'],
+    '肖位类': ['特肖位', '平1肖位', '平2肖位', '平3肖位'],
+    '单特类': ['特号', '期数', '总分', '平1号', '平2号'],
+    '大小单双类': ['特尾', '期数尾', '特合', '平1合'],
+  };
+  
+  // 第一阶段：从不同种子元素生成初始种群
+  for (const resultType of resultTypes) {
+    const seedElements = seedElementsByType[resultType] || [];
+    for (const seedElem of seedElements.slice(0, 3)) { // 每个类型取3个种子
+      for (const rule of ['D', 'L'] as const) {
+        // 基于种子元素生成公式
+        const formula = generateFromSeed(seedElem, resultType, rule, periods, offset, leftExpand, rightExpand);
+        if (formula && !seenFormulas.has(formula)) {
+          seenFormulas.add(formula);
+          const parsed = parseFormula(formula);
+          if (parsed) {
+            const result = verifyFormula(parsed, historyData, 0, periods, 0, 0);
+            const hitRate = result.hitRate * 100;
+            if (Math.abs(hitRate - targetHitRate) <= tolerance * 2) { // 放宽初始容差
+              results.push({
+                formula,
+                hitRate: result.hitRate,
+                hitCount: result.hitCount,
+                totalPeriods: result.totalPeriods,
+              });
+            }
+          }
+        }
+        currentIteration++;
+      }
+    }
+  }
+  
+  // 第二阶段：基于模板生成更多初始解
   for (const resultType of resultTypes) {
     for (const rule of ['D', 'L'] as const) {
       const formula = generateFromTemplate(resultType, rule, periods, offset, leftExpand, rightExpand, strategy);
@@ -911,7 +1061,7 @@ function evolutionarySearch(
     // 从优秀公式变异
     for (const best of bestFormulas) {
       for (let i = 0; i < 3; i++) {
-        const mutated = mutateFormula(best.formula, allElements, 0.3, periods);
+        const mutated = mutateFormula(best.formula, allElements, mutationRate, periods);
         if (mutated && !seenFormulas.has(mutated)) {
           seenFormulas.add(mutated);
           const parsed = parseFormula(mutated);

@@ -3,6 +3,39 @@ import { calculateElementValue, normalizeElementName } from './elements';
 import { applyCycle, getExpandedResults, getNumberAttribute, resultToText, getZodiacMap, getZodiacYearByPeriod } from './mappings';
 import { ParsedFormula } from './formulaParser';
 
+// 元素值缓存 - 避免重复计算
+const elementValueCache = new Map<string, Map<number, number>>();
+
+function getCachedElementValue(element: string, data: LotteryData, useSort: boolean): number {
+  const period = data.period;
+  const cacheKey = `${element}_${useSort}`;
+  
+  if (!elementValueCache.has(cacheKey)) {
+    elementValueCache.set(cacheKey, new Map());
+  }
+  
+  const periodCache = elementValueCache.get(cacheKey)!;
+  if (periodCache.has(period)) {
+    return periodCache.get(period)!;
+  }
+  
+  const value = calculateElementValue(element, data, useSort);
+  periodCache.set(period, value);
+  
+  // 限制缓存大小
+  if (periodCache.size > 1000) {
+    const firstKey = Array.from(periodCache.keys())[0];
+    periodCache.delete(firstKey);
+  }
+  
+  return value;
+}
+
+// 清除缓存
+export function clearCalculationCache(): void {
+  elementValueCache.clear();
+}
+
 // 计算表达式
 export function evaluateExpression(
   expression: string,
