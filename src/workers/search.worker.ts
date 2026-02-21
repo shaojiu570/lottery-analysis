@@ -521,11 +521,16 @@ function generateFromTemplate(
   leftExpand: number,
   rightExpand: number
 ): string | null {
-  const templates = FORMULA_TEMPLATES[resultType];
-  if (!templates || templates.length === 0) return null;
+  // 根据期数确定元素数量：期数少时元素多，期数多时元素可以少
+  // 15期以下需要10+元素，100期以上可以少一些
+  const elementCount = periods <= 20 ? 10 + Math.floor(Math.random() * 10) : 
+                       periods <= 50 ? 8 + Math.floor(Math.random() * 6) :
+                       6 + Math.floor(Math.random() * 5);
   
-  const template = templates[Math.floor(Math.random() * templates.length)];
-  const expression = template.join('+');
+  const elements = generateRandomElements(resultType, elementCount);
+  if (elements.length < 3) return null;
+  
+  const expression = elements.join('+');
   const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
   const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
   const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
@@ -533,17 +538,56 @@ function generateFromTemplate(
   return `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
 }
 
+// 随机生成指定数量的元素
+function generateRandomElements(resultType: ResultType, count: number): string[] {
+  const elements: string[] = [];
+  const allElements = getAllElements();
+  
+  // 根据结果类型选择相关的元素
+  const relatedElements = getRelatedElements(resultType);
+  
+  for (let i = 0; i < count; i++) {
+    if (relatedElements.length > 0 && Math.random() > 0.2) {
+      elements.push(relatedElements[Math.floor(Math.random() * relatedElements.length)]);
+    } else {
+      elements.push(allElements[Math.floor(Math.random() * allElements.length)]);
+    }
+  }
+  
+  return elements;
+}
+
+// 获取与结果类型相关的元素
+function getRelatedElements(resultType: ResultType): string[] {
+  const elementGroups: Record<ResultType, string[]> = {
+    '尾数类': ['特尾', '平1尾', '平2尾', '平3尾', '平4尾', '平5尾', '平6尾', '期数尾', '总分尾'],
+    '头数类': ['特头', '平1头', '平2头', '平3头', '平4头', '平5头', '平6头', '期数', '总分'],
+    '合数类': ['特合', '平1合', '平2合', '平3合', '平4合', '平5合', '平6合', '期数合', '总分合'],
+    '波色类': ['特波', '平1波', '平2波', '平3波', '平4波', '平5波', '平6波'],
+    '五行类': ['特行', '平1行', '平2行', '平3行', '平4行', '平5行', '平6行'],
+    '肖位类': ['特肖位', '平1肖位', '平2肖位', '平3肖位', '平4肖位', '平5肖位', '平6肖位'],
+    '单特类': ['特号', '平1号', '平2号', '平3号', '平4号', '平5号', '平6号', '期数', '总分'],
+    '大小单双类': ['特尾', '平1尾', '平2尾', '特合', '平1合', '平2合'],
+  };
+  return elementGroups[resultType] || [];
+}
+
 // 变异公式 - 在现有公式基础上修改
 function mutateFormula(
   formulaStr: string,
   allElements: string[],
-  mutationRate: number = 0.3
+  mutationRate: number = 0.3,
+  periods: number = 50
 ): string | null {
   const parsed = parseFormula(formulaStr);
   if (!parsed) return null;
   
   const elements = parsed.expression.split('+').filter(e => e.trim());
   if (elements.length === 0) return null;
+  
+  // 根据期数确定元素数量
+  const maxElements = periods <= 20 ? 20 : periods <= 50 ? 15 : 10;
+  const minElements = 3;
   
   const newElements: string[] = [];
   
@@ -562,7 +606,7 @@ function mutateFormula(
   }
   
   // 有一定概率增加或删除元素
-  if (Math.random() < 0.2 && newElements.length < 10) {
+  if (Math.random() < 0.25 && newElements.length < maxElements) {
     const recommended = getRecommendedElements(parsed.resultType);
     const newElem = recommended.length > 0
       ? recommended[Math.floor(Math.random() * recommended.length)]
@@ -570,7 +614,7 @@ function mutateFormula(
     newElements.push(newElem);
   }
   
-  if (Math.random() < 0.1 && newElements.length > 1) {
+  if (Math.random() < 0.1 && newElements.length > minElements) {
     newElements.splice(Math.floor(Math.random() * newElements.length), 1);
   }
   
@@ -624,7 +668,9 @@ function evolutionarySearch(
   
   const totalIterations = populationSize * generations;
   let currentIteration = 0;
-  const tolerance = 5;
+  // 容差根据期数动态调整：期数少时需要更严格
+  // 15期以下容差1%，50期以下容差3%，100期以下容差5%，以上容差8%
+  const tolerance = periods <= 15 ? 1 : periods <= 30 ? 2 : periods <= 50 ? 3 : periods <= 100 ? 5 : 8;
   
   // 第一阶段：基于模板生成
   for (const resultType of resultTypes) {
@@ -659,7 +705,7 @@ function evolutionarySearch(
     // 从优秀公式变异
     for (const best of bestFormulas) {
       for (let i = 0; i < 3; i++) {
-        const mutated = mutateFormula(best.formula, allElements, 0.3);
+        const mutated = mutateFormula(best.formula, allElements, 0.3, periods);
         if (mutated && !seenFormulas.has(mutated)) {
           seenFormulas.add(mutated);
           const parsed = parseFormula(mutated);
