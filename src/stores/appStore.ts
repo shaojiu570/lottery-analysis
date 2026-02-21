@@ -7,6 +7,7 @@ import {
   saveFavoriteGroups,
   addFavoriteGroup,
   deleteFavoriteGroup,
+  renameFavoriteGroup,
   addFormulaToGroup,
   removeFormulaFromGroup,
   getHistoryData,
@@ -37,6 +38,7 @@ interface AppState {
   loadFavorites: () => void;
   addGroup: (name: string) => void;
   removeGroup: (id: string) => void;
+  renameGroup: (id: string, newName: string) => void;
   addToFavorites: (groupId: string, formula: string) => void;
   removeFromFavorites: (groupId: string, formula: string) => void;
   
@@ -115,6 +117,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   removeGroup: (id) => {
     deleteFavoriteGroup(id);
+    const groups = getFavoriteGroups();
+    set({ favoriteGroups: groups });
+  },
+  renameGroup: (id, newName) => {
+    renameFavoriteGroup(id, newName);
     const groups = getFavoriteGroups();
     set({ favoriteGroups: groups });
   },

@@ -11,7 +11,6 @@ import { FilterModal } from '@/components/FilterModal';
 import { AddToFavoritesModal } from '@/components/AddToFavoritesModal';
 import { SavedVerificationsModal } from '@/components/SavedVerificationsModal';
 import { parseFormulas, addFormulaNumbers, removeFormulaNumbers, ParseError } from '@/utils/formulaParser';
-import { verifyFormulas } from '@/utils/calculator';
 import { useWorkerVerify } from '@/hooks/useWorkerVerify';
 import { useSearchWorker } from '@/hooks/useSearchWorker';
 import { getSavedVerifications, saveVerification, deleteVerification, clearAllSavedVerifications } from '@/utils/storage';
@@ -32,6 +31,7 @@ function App() {
     loadFavorites,
     addGroup,
     removeGroup,
+    renameGroup,
     addToFavorites,
     removeFromFavorites,
     settings,
@@ -215,36 +215,7 @@ function App() {
       ? current + '\n' + numberedFormulas
       : numberedFormulas;
     setFormulaInput(newInput);
-    // 延迟执行验证，确保状态更新完成
-      setTimeout(() => {
-      // 直接调用验证逻辑
-      const { historyData, setIsVerifying, setVerifyResults, settings } = useAppStore.getState();
-      if (!newInput.trim() || historyData.length === 0) return;
-      setIsVerifying(true);
-      try {
-        const { formulas: parsed, errors } = parseFormulas(newInput);
-        setParseErrors(errors);
-        if (parsed.length === 0) {
-          return;
-        }
-        // 使用公式里写的参数进行验证，传入目标期数
-        const results = verifyFormulas(
-          parsed,
-          historyData,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          settings.targetPeriod
-        );
-        setVerifyResults(results);
-      } catch (error) {
-        console.error('验证错误:', error);
-      } finally {
-        setIsVerifying(false);
-      }
-    }, 200);
-  }, [formulaInput, setFormulaInput, settings]);
+  }, [formulaInput, setFormulaInput]);
 
   // 保存设置时更新原公式
   const handleSaveSettings = useCallback((newSettings: Partial<typeof settings>) => {
@@ -323,6 +294,7 @@ function App() {
         groups={favoriteGroups}
         onAddGroup={addGroup}
         onDeleteGroup={removeGroup}
+        onRenameGroup={renameGroup}
         onSelectFormulas={(formulas) => {
           const numberedFormulas = addFormulaNumbers(formulas.join('\n'));
           setFormulaInput(numberedFormulas);

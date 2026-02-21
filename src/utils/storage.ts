@@ -127,6 +127,15 @@ export function deleteFavoriteGroup(id: string): void {
   saveFavoriteGroups(groups);
 }
 
+export function renameFavoriteGroup(id: string, newName: string): void {
+  const groups = getFavoriteGroups();
+  const group = groups.find(g => g.id === id);
+  if (group) {
+    group.name = newName;
+    saveFavoriteGroups(groups);
+  }
+}
+
 export function addFormulaToGroup(groupId: string, formula: string): void {
   const groups = getFavoriteGroups();
   const group = groups.find(g => g.id === groupId);

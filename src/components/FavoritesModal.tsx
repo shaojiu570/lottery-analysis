@@ -8,6 +8,7 @@ interface FavoritesModalProps {
   groups: FavoriteGroup[];
   onAddGroup: (name: string) => void;
   onDeleteGroup: (id: string) => void;
+  onRenameGroup?: (id: string, newName: string) => void;
   onSelectFormulas: (formulas: string[]) => void;
   onRemoveFormula: (groupId: string, formula: string) => void;
 }
@@ -18,6 +19,7 @@ export function FavoritesModal({
   groups,
   onAddGroup,
   onDeleteGroup,
+  onRenameGroup,
   onSelectFormulas,
   onRemoveFormula,
 }: FavoritesModalProps) {
@@ -27,6 +29,8 @@ export function FavoritesModal({
   const [newGroupName, setNewGroupName] = useState('');
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editingGroupName, setEditingGroupName] = useState('');
 
   const toggleGroupSelection = (groupId: string) => {
     const newSelected = new Set(selectedGroups);
@@ -107,21 +111,53 @@ export function FavoritesModal({
                     className="shrink-0"
                     onClick={(e) => e.stopPropagation()}
                   />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedGroup(group.id);
-                    }}
-                    className={cn(
-                      'flex-1 px-1 py-1 text-left text-xs sm:text-sm rounded-lg flex items-center justify-between',
-                      selectedGroup === group.id
-                        ? 'bg-emerald-600 text-white'
-                        : 'hover:bg-gray-200 text-gray-700'
-                    )}
-                  >
-                    <span className="truncate">📂</span>
-                    <span className="text-xs opacity-70 shrink-0">{group.formulas.length}</span>
-                  </button>
+                  {editingGroupId === group.id ? (
+                    <input
+                      type="text"
+                      value={editingGroupName}
+                      onChange={(e) => setEditingGroupName(e.target.value)}
+                      onBlur={() => {
+                        if (onRenameGroup && editingGroupName.trim()) {
+                          onRenameGroup(group.id, editingGroupName.trim());
+                        }
+                        setEditingGroupId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          if (onRenameGroup && editingGroupName.trim()) {
+                            onRenameGroup(group.id, editingGroupName.trim());
+                          }
+                          setEditingGroupId(null);
+                        }
+                      }}
+                      autoFocus
+                      className="flex-1 px-1 py-0.5 text-xs sm:text-sm border border-blue-400 rounded"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedGroup(group.id);
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        if (onRenameGroup) {
+                          setEditingGroupId(group.id);
+                          setEditingGroupName(group.name);
+                        }
+                      }}
+                      className={cn(
+                        'flex-1 px-1 py-1 text-left text-xs sm:text-sm rounded-lg flex items-center justify-between',
+                        selectedGroup === group.id
+                          ? 'bg-emerald-600 text-white'
+                          : 'hover:bg-gray-200 text-gray-700'
+                      )}
+                    >
+                      <span className="truncate" title="双击修改名称">{group.name}</span>
+                      <span className="text-xs opacity-70 shrink-0">{group.formulas.length}</span>
+                    </button>
+                  )}
                 </div>
               ))}
               {selectedGroups.size > 0 && (
