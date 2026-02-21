@@ -589,17 +589,6 @@ function getRelatedElements(resultType: ResultType): string[] {
   return elementGroups[resultType] || [];
 }
 
-// 生成所有元素组合（迭代器，避免内存爆炸）
-function* generateAllCombinations(
-  pool: string[], 
-  minCount: number,
-  maxCount: number
-): Generator<string[]> {
-  for (let count = minCount; count <= maxCount; count++) {
-    yield* generateCombinationsOfSize(pool, count);
-  }
-}
-
 // 生成指定大小的所有组合
 function* generateCombinationsOfSize(
   pool: string[], 
@@ -624,7 +613,7 @@ function* generateCombinationsOfSize(
   yield* next(0);
 }
 
-// 全组合搜索（遍历所有可能）
+// 全组合搜索（遍历所有可能，带缓存和剪枝）
 function exhaustiveSearch(
   resultType: ResultType,
   rule: 'D' | 'L',
@@ -636,17 +625,20 @@ function exhaustiveSearch(
   targetHitRate: number,
   maxResults: number,
   tolerance: number,
+  strategy: 'fast' | 'standard' | 'deep',
   onProgress: (current: number, total: number, found: number) => void
 ): { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] {
   const results: { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] = [];
-  const seenFormulas = new Set<string>();
+  
+  // 根据策略确定元素数量范围
+  const maxElements = strategy === 'fast' ? 5 : strategy === 'standard' ? 10 : 15;
+  const minElements = 1;
   
   // 获取相关元素池（限制数量以避免组合爆炸）
   const elementPool = getRelatedElements(resultType).slice(0, 12);
   
-  // 根据策略确定元素数量范围
-  const minElements = 3;
-  const maxElements = 6; // 限制最大元素数以控制组合数量
+  // 缓存已验证的元素组合（用于剪枝）
+  const elementCache = new Map<string, number>();
   
   let processed = 0;
   let totalCombos = 0;
@@ -663,42 +655,64 @@ function exhaustiveSearch(
   
   let found = 0;
   
-  // 遍历所有组合
-  for (const elements of generateAllCombinations(elementPool, minElements, maxElements)) {
-    processed++;
+  // 渐进式搜索：从1个元素到maxElements
+  for (let elementCount = minElements; elementCount <= maxElements; elementCount++) {
     
-    if (processed % 10000 === 0) {
-      onProgress(processed, totalCombos, found);
-    }
-    
-    const expression = elements.join('+');
-    const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
-    const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
-    const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
-    
-    const formula = `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
-    
-    if (seenFormulas.has(formula)) continue;
-    seenFormulas.add(formula);
-    
-    const parsed = parseFormula(formula);
-    if (!parsed) continue;
-    
-    const result = verifyFormula(parsed, historyData, 0, periods, 0, 0);
-    const hitRate = result.hitRate * 100;
-    
-    if (Math.abs(hitRate - targetHitRate) <= tolerance) {
-      results.push({
-        formula,
-        hitRate: result.hitRate,
-        hitCount: result.hitCount,
-        totalPeriods: result.totalPeriods,
-      });
-      found++;
+    // 遍历指定数量的所有组合
+    for (const elements of generateCombinationsOfSize(elementPool, elementCount)) {
+      processed++;
       
-      if (found >= maxResults) {
+      if (processed % 5000 === 0) {
         onProgress(processed, totalCombos, found);
-        return results;
+      }
+      
+      // 剪枝：检查前面部分元素的命中率
+      if (elements.length > 1) {
+        // 检查前面一半元素的命中率
+        const halfCount = Math.ceil(elements.length / 2);
+        const prefixElements = elements.slice(0, halfCount);
+        const prefixKey = prefixElements.sort().join('+');
+        
+        if (elementCache.has(prefixKey)) {
+          const cachedRate = elementCache.get(prefixKey)!;
+          // 如果前面一半元素命中率很低，后面加元素也救不回来
+          const maxPossibleRate = cachedRate + (100 - cachedRate) * 0.3;
+          if (maxPossibleRate < targetHitRate - tolerance) {
+            continue; // 跳过这个组合
+          }
+        }
+      }
+      
+      const expression = elements.join('+');
+      const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
+      const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
+      const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
+      
+      const formula = `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
+      
+      const parsed = parseFormula(formula);
+      if (!parsed) continue;
+      
+      const result = verifyFormula(parsed, historyData, 0, periods, 0, 0);
+      const hitRate = result.hitRate * 100;
+      
+      // 缓存这个元素组合的命中率（用于剪枝）
+      const cacheKey = [...elements].sort().join('+');
+      elementCache.set(cacheKey, hitRate);
+      
+      if (Math.abs(hitRate - targetHitRate) <= tolerance) {
+        results.push({
+          formula,
+          hitRate: result.hitRate,
+          hitCount: result.hitCount,
+          totalPeriods: result.totalPeriods,
+        });
+        found++;
+        
+        if (found >= maxResults) {
+          onProgress(processed, totalCombos, found);
+          return results;
+        }
       }
     }
   }
@@ -800,6 +814,7 @@ function evolutionarySearch(
           targetHitRate,
           maxCount,
           tolerance,
+          strategy,
           onProgress
         );
         
