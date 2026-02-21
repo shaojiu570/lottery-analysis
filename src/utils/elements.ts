@@ -166,13 +166,14 @@ export function normalizeSimplifiedExpression(expression: string): string {
   
   // 处理简化表达式（如"6波" -> "平6波"）
   // 使用从长到短的顺序匹配，避免"一肖位"被错误匹配为"一平肖位"
-  // 只替换独立的简化表达式（前面不是"平"或"特"）
+  // 只替换独立的简化表达式（前面不是"平"或"特"，且后面不是已有的属性尾字）
   const sortedKeys = Object.keys(SIMPLIFIED_EXPRESSIONS).sort((a, b) => b.length - a.length);
   
   for (const simplified of sortedKeys) {
     const standard = SIMPLIFIED_EXPRESSIONS[simplified];
-    // 使用负向前瞻，确保前面不是"平"或"特"
-    const pattern = new RegExp(`(?<![平特])${simplified}`, 'g');
+    // 使用负向前瞻和负向后顾，确保不会重复替换已完整的形式
+    // 例如"特肖"只在前面不是"特"且后面不是"位"时替换
+    const pattern = new RegExp(`(?<![平特])${simplified}(?![位头尾合波行号段])`, 'g');
     normalized = normalized.replace(pattern, standard);
   }
   

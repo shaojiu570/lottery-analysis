@@ -272,7 +272,8 @@ function normalizeElementName(name: string): string {
     ['一行', '平1行'], ['二行', '平2行'], ['三行', '平3行'], ['四行', '平4行'], ['五行', '平5行'], ['六行', '平6行'],
   ];
   for (const [simplified, standard] of simplifiedExprs) {
-    normalized = normalized.replace(new RegExp(`(?<![平特])${simplified}`, 'g'), standard);
+    // 使用负向前瞻和负向后顾，避免重复替换已完整的形式
+    normalized = normalized.replace(new RegExp(`(?<![平特])${simplified}(?![位头尾合波行号段])`, 'g'), standard);
   }
   
   return normalized;
