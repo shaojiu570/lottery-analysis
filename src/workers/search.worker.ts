@@ -589,6 +589,124 @@ function getRelatedElements(resultType: ResultType): string[] {
   return elementGroups[resultType] || [];
 }
 
+// 生成所有元素组合（迭代器，避免内存爆炸）
+function* generateAllCombinations(
+  pool: string[], 
+  minCount: number,
+  maxCount: number
+): Generator<string[]> {
+  for (let count = minCount; count <= maxCount; count++) {
+    yield* generateCombinationsOfSize(pool, count);
+  }
+}
+
+// 生成指定大小的所有组合
+function* generateCombinationsOfSize(
+  pool: string[], 
+  count: number
+): Generator<string[]> {
+  const indices: number[] = [];
+  
+  function* next(i: number): Generator<string[]> {
+    if (indices.length === count) {
+      yield indices.map(idx => pool[idx]);
+      return;
+    }
+    if (i >= pool.length) return;
+    
+    indices.push(i);
+    yield* next(i + 1);
+    indices.pop();
+    
+    yield* next(i + 1);
+  }
+  
+  yield* next(0);
+}
+
+// 全组合搜索（遍历所有可能）
+function exhaustiveSearch(
+  resultType: ResultType,
+  rule: 'D' | 'L',
+  periods: number,
+  offset: number,
+  leftExpand: number,
+  rightExpand: number,
+  historyData: LotteryData[],
+  targetHitRate: number,
+  maxResults: number,
+  tolerance: number,
+  onProgress: (current: number, total: number, found: number) => void
+): { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] {
+  const results: { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] = [];
+  const seenFormulas = new Set<string>();
+  
+  // 获取相关元素池（限制数量以避免组合爆炸）
+  const elementPool = getRelatedElements(resultType).slice(0, 12);
+  
+  // 根据策略确定元素数量范围
+  const minElements = 3;
+  const maxElements = 6; // 限制最大元素数以控制组合数量
+  
+  let processed = 0;
+  let totalCombos = 0;
+  
+  // 计算总组合数
+  for (let c = minElements; c <= maxElements; c++) {
+    let combos = 1;
+    for (let i = 0; i < c; i++) {
+      combos *= (elementPool.length - i);
+      combos /= (i + 1);
+    }
+    totalCombos += combos;
+  }
+  
+  let found = 0;
+  
+  // 遍历所有组合
+  for (const elements of generateAllCombinations(elementPool, minElements, maxElements)) {
+    processed++;
+    
+    if (processed % 10000 === 0) {
+      onProgress(processed, totalCombos, found);
+    }
+    
+    const expression = elements.join('+');
+    const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
+    const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
+    const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
+    
+    const formula = `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
+    
+    if (seenFormulas.has(formula)) continue;
+    seenFormulas.add(formula);
+    
+    const parsed = parseFormula(formula);
+    if (!parsed) continue;
+    
+    const result = verifyFormula(parsed, historyData, 0, periods, 0, 0);
+    const hitRate = result.hitRate * 100;
+    
+    if (Math.abs(hitRate - targetHitRate) <= tolerance) {
+      results.push({
+        formula,
+        hitRate: result.hitRate,
+        hitCount: result.hitCount,
+        totalPeriods: result.totalPeriods,
+      });
+      found++;
+      
+      if (found >= maxResults) {
+        onProgress(processed, totalCombos, found);
+        return results;
+      }
+    }
+  }
+  
+  onProgress(processed, totalCombos, found);
+  return results;
+}
+
 // 变异公式 - 在现有公式基础上修改
 function mutateFormula(
   formulaStr: string,
@@ -661,6 +779,46 @@ function evolutionarySearch(
   
   const allElements = getAllElements();
   const results: { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] = [];
+  
+  // 容差根据期数动态调整
+  const tolerance = periods <= 15 ? 1 : periods <= 30 ? 2 : periods <= 50 ? 3 : periods <= 100 ? 5 : 8;
+  
+  // 深度策略使用全组合搜索
+  if (strategy === 'deep') {
+    const seenFormulas = new Set<string>();
+    
+    for (const resultType of resultTypes) {
+      for (const rule of ['D', 'L'] as const) {
+        const exhaustiveResults = exhaustiveSearch(
+          resultType,
+          rule,
+          periods,
+          offset,
+          leftExpand,
+          rightExpand,
+          historyData,
+          targetHitRate,
+          maxCount,
+          tolerance,
+          onProgress
+        );
+        
+        for (const r of exhaustiveResults) {
+          if (!seenFormulas.has(r.formula)) {
+            seenFormulas.add(r.formula);
+            results.push(r);
+            if (results.length >= maxCount) break;
+          }
+        }
+        
+        if (results.length >= maxCount) break;
+      }
+      if (results.length >= maxCount) break;
+    }
+    
+    return results;
+  }
+  
   const seenFormulas = new Set<string>();
   
   // 根据策略确定参数
@@ -674,10 +832,6 @@ function evolutionarySearch(
       populationSize = 200;
       generations = 20;
       break;
-    case 'deep':
-      populationSize = 300;
-      generations = 30;
-      break;
     default:
       populationSize = 100;
       generations = 10;
@@ -685,9 +839,6 @@ function evolutionarySearch(
   
   const totalIterations = populationSize * generations;
   let currentIteration = 0;
-  // 容差根据期数动态调整：期数少时需要更严格
-  // 15期以下容差1%，50期以下容差3%，100期以下容差5%，以上容差8%
-  const tolerance = periods <= 15 ? 1 : periods <= 30 ? 2 : periods <= 50 ? 3 : periods <= 100 ? 5 : 8;
   
   // 第一阶段：基于模板生成
   for (const resultType of resultTypes) {
