@@ -60,7 +60,29 @@ const ELEMENT_ALIASES: Record<string, string> = {
 
 // 标准化元素名称
 export function normalizeElementName(name: string): string {
-  let normalized = chineseToNumber(name);
+  let normalized = name;
+  
+  // 先保护完整的元素名称，避免被chineseToNumber错误转换
+  normalized = normalized.replace(/期数合尾/g, '__QISHU_HEWEI__');
+  normalized = normalized.replace(/期数合/g, '__QISHU_HE__');
+  normalized = normalized.replace(/期数尾/g, '__QISHU_WEI__');
+  normalized = normalized.replace(/期数/g, '__QISHU__');
+  normalized = normalized.replace(/总分合尾/g, '__ZONGFEN_HEWEI__');
+  normalized = normalized.replace(/总分合/g, '__ZONGFEN_HE__');
+  normalized = normalized.replace(/总分尾/g, '__ZONGFEN_WEI__');
+  normalized = normalized.replace(/总分/g, '__ZONGFEN__');
+  
+  normalized = chineseToNumber(normalized);
+  
+  // 还原元素名称
+  normalized = normalized.replace(/__QISHU__/g, '期数');
+  normalized = normalized.replace(/__QISHU_WEI__/g, '期数尾');
+  normalized = normalized.replace(/__QISHU_HE__/g, '期数合');
+  normalized = normalized.replace(/__QISHU_HEWEI__/g, '期数合尾');
+  normalized = normalized.replace(/__ZONGFEN__/g, '总分');
+  normalized = normalized.replace(/__ZONGFEN_WEI__/g, '总分尾');
+  normalized = normalized.replace(/__ZONGFEN_HE__/g, '总分合');
+  normalized = normalized.replace(/__ZONGFEN_HEWEI__/g, '总分合尾');
   
   // 处理别名（如"特码波" -> "特波"）
   // 按长度从长到短排序，避免短名称错误替换长名称中的部分
@@ -118,7 +140,29 @@ const SIMPLIFIED_EXPRESSIONS: Record<string, string> = {
 
 // 扩展表达式标准化函数
 export function normalizeSimplifiedExpression(expression: string): string {
-  let normalized = chineseToNumber(expression);
+  let normalized = expression;
+  
+  // 先保护完整的元素名称，避免被chineseToNumber错误转换
+  normalized = normalized.replace(/期数合尾/g, '__QISHU_HEWEI__');
+  normalized = normalized.replace(/期数合/g, '__QISHU_HE__');
+  normalized = normalized.replace(/期数尾/g, '__QISHU_WEI__');
+  normalized = normalized.replace(/期数/g, '__QISHU__');
+  normalized = normalized.replace(/总分合尾/g, '__ZONGFEN_HEWEI__');
+  normalized = normalized.replace(/总分合/g, '__ZONGFEN_HE__');
+  normalized = normalized.replace(/总分尾/g, '__ZONGFEN_WEI__');
+  normalized = normalized.replace(/总分/g, '__ZONGFEN__');
+  
+  normalized = chineseToNumber(normalized);
+  
+  // 还原元素名称
+  normalized = normalized.replace(/__QISHU__/g, '期数');
+  normalized = normalized.replace(/__QISHU_WEI__/g, '期数尾');
+  normalized = normalized.replace(/__QISHU_HE__/g, '期数合');
+  normalized = normalized.replace(/__QISHU_HEWEI__/g, '期数合尾');
+  normalized = normalized.replace(/__ZONGFEN__/g, '总分');
+  normalized = normalized.replace(/__ZONGFEN_WEI__/g, '总分尾');
+  normalized = normalized.replace(/__ZONGFEN_HE__/g, '总分合');
+  normalized = normalized.replace(/__ZONGFEN_HEWEI__/g, '总分合尾');
   
   // 处理简化表达式（如"6波" -> "平6波"）
   // 使用从长到短的顺序匹配，避免"一肖位"被错误匹配为"一平肖位"

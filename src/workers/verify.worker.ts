@@ -225,7 +225,29 @@ function chineseToNumber(str: string): string {
 
 // 标准化元素名称
 function normalizeElementName(name: string): string {
-  let normalized = chineseToNumber(name);
+  let normalized = name;
+  
+  // 先保护完整的元素名称，避免被chineseToNumber错误转换
+  normalized = normalized.replace(/期数合尾/g, '__QISHU_HEWEI__');
+  normalized = normalized.replace(/期数合/g, '__QISHU_HE__');
+  normalized = normalized.replace(/期数尾/g, '__QISHU_WEI__');
+  normalized = normalized.replace(/期数/g, '__QISHU__');
+  normalized = normalized.replace(/总分合尾/g, '__ZONGFEN_HEWEI__');
+  normalized = normalized.replace(/总分合/g, '__ZONGFEN_HE__');
+  normalized = normalized.replace(/总分尾/g, '__ZONGFEN_WEI__');
+  normalized = normalized.replace(/总分/g, '__ZONGFEN__');
+  
+  normalized = chineseToNumber(normalized);
+  
+  // 还原元素名称
+  normalized = normalized.replace(/__QISHU__/g, '期数');
+  normalized = normalized.replace(/__QISHU_WEI__/g, '期数尾');
+  normalized = normalized.replace(/__QISHU_HE__/g, '期数合');
+  normalized = normalized.replace(/__QISHU_HEWEI__/g, '期数合尾');
+  normalized = normalized.replace(/__ZONGFEN__/g, '总分');
+  normalized = normalized.replace(/__ZONGFEN_WEI__/g, '总分尾');
+  normalized = normalized.replace(/__ZONGFEN_HE__/g, '总分合');
+  normalized = normalized.replace(/__ZONGFEN_HEWEI__/g, '总分合尾');
   
   // 处理别名
   const aliases: Record<string, string> = {
