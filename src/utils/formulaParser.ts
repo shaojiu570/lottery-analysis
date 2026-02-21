@@ -24,8 +24,30 @@ export function parseFormula(input: string): ParsedFormula | null {
     // 匹配开头的一个或多个数字，后面紧跟着[括号
     formula = formula.replace(/^\d+(?=\[)/, '').trim();
     
+    // 先保护完整的元素名称，避免被chineseToNumber错误转换
+    // 期数系列
+    formula = formula.replace(/期数合尾/g, '__QISHU_HEWEI__');
+    formula = formula.replace(/期数合/g, '__QISHU_HE__');
+    formula = formula.replace(/期数尾/g, '__QISHU_WEI__');
+    formula = formula.replace(/期数/g, '__QISHU__');
+    // 总分系列
+    formula = formula.replace(/总分合尾/g, '__ZONGFEN_HEWEI__');
+    formula = formula.replace(/总分合/g, '__ZONGFEN_HE__');
+    formula = formula.replace(/总分尾/g, '__ZONGFEN_WEI__');
+    formula = formula.replace(/总分/g, '__ZONGFEN__');
+    
     // 转换中文数字为阿拉伯数字
     formula = chineseToNumber(formula);
+    
+    // 还原元素名称
+    formula = formula.replace(/__QISHU__/g, '期数');
+    formula = formula.replace(/__QISHU_WEI__/g, '期数尾');
+    formula = formula.replace(/__QISHU_HE__/g, '期数合');
+    formula = formula.replace(/__QISHU_HEWEI__/g, '期数合尾');
+    formula = formula.replace(/__ZONGFEN__/g, '总分');
+    formula = formula.replace(/__ZONGFEN_WEI__/g, '总分尾');
+    formula = formula.replace(/__ZONGFEN_HE__/g, '总分合');
+    formula = formula.replace(/__ZONGFEN_HEWEI__/g, '总分合尾');
     
     // 处理元素别名（如"特码波" -> "特波"）
     formula = normalizeElementNamesInExpression(formula);
