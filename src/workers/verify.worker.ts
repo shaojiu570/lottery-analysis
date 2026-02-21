@@ -460,8 +460,8 @@ self.onmessage = (event) => {
         const cycledResult = applyCycle(withOffset, formula.resultType);
         const expandedResults = getExpandedResults(cycledResult, formula.leftExpand, formula.rightExpand, formula.resultType);
         
-        // 用计算数据的特码来判断命中
-        const targetValue = getNumberAttribute(calcData.numbers[6], formula.resultType, calcData.zodiacYear);
+        // 用验证期的特码来判断命中（而不是计算期）
+        const targetValue = getNumberAttribute(verifyData.numbers[6], formula.resultType, verifyData.zodiacYear);
         const hit = expandedResults.includes(targetValue);
         
         hits.push(hit);
