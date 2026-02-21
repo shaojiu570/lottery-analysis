@@ -325,35 +325,8 @@ function App() {
         onDeleteGroup={removeGroup}
         onSelectFormulas={(formulas) => {
           const numberedFormulas = addFormulaNumbers(formulas.join('\n'));
-          const newInput = numberedFormulas;
-          setFormulaInput(newInput);
+          setFormulaInput(numberedFormulas);
           setShowFavorites(false);
-          // 延迟执行验证
-          setTimeout(() => {
-            const { historyData, setIsVerifying, setVerifyResults, settings } = useAppStore.getState();
-            if (!newInput.trim() || historyData.length === 0) return;
-            setIsVerifying(true);
-            try {
-              const { formulas: parsed, errors } = parseFormulas(newInput);
-              setParseErrors(errors);
-              if (parsed.length === 0) return;
-              // 使用公式里写的参数进行验证，传入目标期数
-              const results = verifyFormulas(
-                parsed,
-                historyData,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                settings.targetPeriod
-              );
-              setVerifyResults(results);
-            } catch (error) {
-              console.error('验证错误:', error);
-            } finally {
-              setIsVerifying(false);
-            }
-          }, 200);
         }}
         onRemoveFormula={removeFromFavorites}
       />
