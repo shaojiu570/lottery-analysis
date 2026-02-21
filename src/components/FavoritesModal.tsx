@@ -26,25 +26,41 @@ export function FavoritesModal({
   );
   const [newGroupName, setNewGroupName] = useState('');
   const [showAddGroup, setShowAddGroup] = useState(false);
+  const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
 
-  if (!isOpen) return null;
+  const toggleGroupSelection = (groupId: string) => {
+    const newSelected = new Set(selectedGroups);
+    if (newSelected.has(groupId)) {
+      newSelected.delete(groupId);
+    } else {
+      newSelected.add(groupId);
+    }
+    setSelectedGroups(newSelected);
+  };
 
-  const currentGroup = groups.find(g => g.id === selectedGroup);
-
-  const handleAddGroup = () => {
-    if (newGroupName.trim()) {
-      onAddGroup(newGroupName.trim());
-      setNewGroupName('');
-      setShowAddGroup(false);
+  const handleLoadSelected = () => {
+    const allFormulas: string[] = [];
+    for (const groupId of selectedGroups) {
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        allFormulas.push(...group.formulas);
+      }
+    }
+    if (allFormulas.length > 0) {
+      onSelectFormulas(allFormulas);
+      onClose();
     }
   };
 
   const handleLoadAll = () => {
     if (currentGroup && currentGroup.formulas.length > 0) {
       onSelectFormulas(currentGroup.formulas);
-      onClose();
     }
   };
+
+  if (!isOpen) return null;
+
+  const currentGroup = groups.find(g => g.id === selectedGroup);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2">
@@ -68,20 +84,65 @@ export function FavoritesModal({
             </div>
             <div className="flex-1 overflow-y-auto p-1.5 sm:p-2 space-y-1">
               {groups.map(group => (
-                <button
+                <div
                   key={group.id}
-                  onClick={() => setSelectedGroup(group.id)}
                   className={cn(
-                    'w-full px-2 sm:px-3 py-2 text-left text-xs sm:text-sm rounded-lg flex items-center justify-between',
+                    'flex items-center gap-1 px-1 py-1 rounded-lg cursor-pointer',
                     selectedGroup === group.id
-                      ? 'bg-emerald-600 text-white'
-                      : 'hover:bg-gray-200 text-gray-700'
+                      ? 'bg-emerald-100'
+                      : 'hover:bg-gray-200'
                   )}
+                  onClick={() => {
+                    if (selectedGroups.size > 0) {
+                      toggleGroupSelection(group.id);
+                    } else {
+                      setSelectedGroup(group.id);
+                    }
+                  }}
                 >
-                  <span className="truncate">📂</span>
-                  <span className="text-xs opacity-70 shrink-0">{group.formulas.length}</span>
-                </button>
+                  <input
+                    type="checkbox"
+                    checked={selectedGroups.has(group.id)}
+                    onChange={() => toggleGroupSelection(group.id)}
+                    className="shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedGroup(group.id);
+                    }}
+                    className={cn(
+                      'flex-1 px-1 py-1 text-left text-xs sm:text-sm rounded-lg flex items-center justify-between',
+                      selectedGroup === group.id
+                        ? 'bg-emerald-600 text-white'
+                        : 'hover:bg-gray-200 text-gray-700'
+                    )}
+                  >
+                    <span className="truncate">📂</span>
+                    <span className="text-xs opacity-70 shrink-0">{group.formulas.length}</span>
+                  </button>
+                </div>
               ))}
+              {selectedGroups.size > 0 && (
+                <div className="pt-2 border-t border-gray-300 mt-2">
+                  <button
+                    onClick={handleLoadSelected}
+                    disabled={selectedGroups.size === 0}
+                    className="w-full px-2 sm:px-3 py-2 text-xs sm:text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50"
+                  >
+                    加载选中分组 ({selectedGroups.size})
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedGroups(new Set());
+                    }}
+                    className="w-full mt-1 px-2 sm:px-3 py-1 text-xs sm:text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    取消多选
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -171,7 +232,13 @@ export function FavoritesModal({
                   取消
                 </button>
                 <button
-                  onClick={handleAddGroup}
+                  onClick={() => {
+                    if (newGroupName.trim()) {
+                      onAddGroup(newGroupName.trim());
+                      setNewGroupName('');
+                      setShowAddGroup(false);
+                    }
+                  }}
                   className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm"
                 >
                   创建
