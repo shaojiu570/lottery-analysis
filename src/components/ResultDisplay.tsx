@@ -2,7 +2,7 @@ import { useRef, useEffect, useMemo } from 'react';
 import { VerifyResult, LotteryData, ResultType } from '@/types';
 import { formatFormula, ParseError } from '@/utils/formulaParser';
 import { countHitsPerPeriod, groupByResultType, aggregateAllNumbers } from '@/utils/calculator';
-import { resultToText, getNumberAttribute, getZodiacYearByPeriod } from '@/utils/mappings';
+import { resultToText, getNumberAttribute } from '@/utils/mappings';
 
 interface ResultDisplayProps {
   results: VerifyResult[];
@@ -66,8 +66,8 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
       ? historyData.find(d => d.period === targetPeriod)
       : null;
     const teNum = verifyPeriodData?.numbers[6];
-    // 星号标记使用目标期数对应的生肖年份
-    const targetZodiacYear = isVerifyMode && targetPeriod ? getZodiacYearByPeriod(targetPeriod) : undefined;
+    // 星号标记使用目标期数对应的生肖年份（从历史数据中获取，而不是计算）
+    const targetZodiacYear = verifyPeriodData?.zodiacYear;
     
     // 显示验证期数信息
     const periodLabel = isVerifyMode 
