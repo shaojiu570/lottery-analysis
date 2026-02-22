@@ -494,6 +494,56 @@ function getExpandedResults(result: number, leftExpand: number, rightExpand: num
   return [...new Set(results)];
 }
 
+// 验证单个公式
+function verifyFormula(
+  parsed: any,
+  historyData: LotteryData[],
+  offset: number,
+  periods: number,
+  leftExpand: number,
+  rightExpand: number
+): any {
+  if (!parsed) return { hitRate: 0, hitCount: 0, totalPeriods: 0, formula: parsed, hits: [], results: [] };
+  
+  const dataToVerify = historyData.slice(0, periods);
+  let hitCount = 0;
+  const useSort = parsed.rule === 'D';
+  const hits: boolean[] = [];
+  const periodResults: any[] = [];
+  
+  for (let i = 0; i < dataToVerify.length; i++) {
+    const verifyData = dataToVerify[i];
+    const calcData = i > 0 ? dataToVerify[i - 1] : verifyData;
+    
+    const rawResult = evaluateExpression(parsed.expression, calcData, useSort);
+    const withOffset = rawResult + parsed.offset + offset;
+    const cycledResult = applyCycle(withOffset, parsed.resultType);
+    const expandedResults = getExpandedResults(cycledResult, parsed.leftExpand + leftExpand, parsed.rightExpand + rightExpand, parsed.resultType);
+    
+    const targetValue = getNumberAttribute(verifyData.numbers[6], parsed.resultType, verifyData.zodiacYear);
+    const hit = expandedResults.includes(targetValue);
+    
+    if (hit) hitCount++;
+    hits.push(hit);
+    periodResults.push({
+      period: verifyData.period,
+      result: cycledResult,
+      expandedResults,
+      targetValue,
+      hit
+    });
+  }
+  
+  return {
+    hitRate: dataToVerify.length > 0 ? hitCount / dataToVerify.length : 0,
+    hitCount,
+    totalPeriods: dataToVerify.length,
+    formula: parsed,
+    hits,
+    results: periodResults
+  };
+}
+
 // 批量验证公式
 self.onmessage = async (event) => {
   const { type, formulas, historyData, targetPeriod } = event.data;
