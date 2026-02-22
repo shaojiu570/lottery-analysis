@@ -534,7 +534,11 @@ function verifyFormula(
     });
   }
   
-  // 只取最新一期的结果
+  // 反转数组，使顺序变为从旧到新（最旧期在前，最新期在后）
+  hits.reverse();
+  periodResults.reverse();
+  
+  // 只取最新一期的结果（反转后periodResults[periodResults.length-1]是最新的）
   const latestResults = periodResults.length > 0 
     ? (periodResults[periodResults.length - 1] as { expandedResults: number[] }).expandedResults 
     : [];
