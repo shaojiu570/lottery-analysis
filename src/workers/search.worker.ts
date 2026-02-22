@@ -675,19 +675,9 @@ function generateFromTemplate(
   return `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
 }
 
-// 获取与结果类型相关的元素
+// 获取与结果类型相关的元素（现在返回所有元素，支持跨类型搜索）
 function getRelatedElements(resultType: ResultType): string[] {
-  const elementGroups: Record<ResultType, string[]> = {
-    '尾数类': ['特尾', '平1尾', '平2尾', '平3尾', '平4尾', '平5尾', '平6尾', '期数尾', '总分尾'],
-    '头数类': ['特头', '平1头', '平2头', '平3头', '平4头', '平5头', '平6头', '期数', '总分'],
-    '合数类': ['特合', '平1合', '平2合', '平3合', '平4合', '平5合', '平6合', '期数合', '总分合'],
-    '波色类': ['特波', '平1波', '平2波', '平3波', '平4波', '平5波', '平6波'],
-    '五行类': ['特行', '平1行', '平2行', '平3行', '平4行', '平5行', '平6行'],
-    '肖位类': ['特肖位', '平1肖位', '平2肖位', '平3肖位', '平4肖位', '平5肖位', '平6肖位'],
-    '单特类': ['特号', '平1号', '平2号', '平3号', '平4号', '平5号', '平6号', '期数', '总分'],
-    '大小单双类': ['特尾', '平1尾', '平2尾', '特合', '平1合', '平2合'],
-  };
-  return elementGroups[resultType] || [];
+  return getAllElements();
 }
 
 // 生成指定大小的所有组合
@@ -735,8 +725,8 @@ function exhaustiveSearch(
   const maxElements = strategy === 'fast' ? 5 : strategy === 'standard' ? 10 : 15;
   const minElements = 1;
   
-  // 获取相关元素池（限制数量以避免组合爆炸）
-  const elementPool = getRelatedElements(resultType).slice(0, 12);
+  // 获取相关元素池（使用所有元素，支持跨类型搜索）
+  const elementPool = getRelatedElements(resultType);
   
   // 缓存已验证的元素组合（用于剪枝）
   const elementCache = new Map<string, number>();
@@ -988,16 +978,16 @@ function evolutionarySearch(
   let currentIteration = 0;
   
   // ==================== 多种子初始化 ====================
-  // 从不同结果类型的目标元素生成初始种群
+  // 使用所有元素作为种子，支持跨类型搜索
   const seedElementsByType: Record<ResultType, string[]> = {
-    '尾数类': ['特尾', '期数尾', '总分尾', '平1尾', '平2尾'],
-    '头数类': ['特头', '期数', '总分', '平1头', '平2头'],
-    '合数类': ['特合', '期数合', '总分合', '平1合', '平2合'],
-    '波色类': ['特波', '平1波', '平2波', '平3波'],
-    '五行类': ['特行', '平1行', '平2行', '平3行'],
-    '肖位类': ['特肖位', '平1肖位', '平2肖位', '平3肖位'],
-    '单特类': ['特号', '期数', '总分', '平1号', '平2号'],
-    '大小单双类': ['特尾', '期数尾', '特合', '平1合'],
+    '尾数类': getAllElements(),
+    '头数类': getAllElements(),
+    '合数类': getAllElements(),
+    '波色类': getAllElements(),
+    '五行类': getAllElements(),
+    '肖位类': getAllElements(),
+    '单特类': getAllElements(),
+    '大小单双类': getAllElements(),
   };
   
   // 第一阶段：从不同种子元素生成初始种群
