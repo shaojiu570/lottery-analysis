@@ -36,6 +36,9 @@ jobs:
           GITHUB_PAGES: 'true'
         run: npm run build
 
+      - name: Create .nojekyll
+        run: touch dist/.nojekyll
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -45,9 +48,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
