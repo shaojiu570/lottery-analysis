@@ -15,6 +15,7 @@ import { useWorkerVerify } from '@/hooks/useWorkerVerify';
 import { useSearchWorker } from '@/hooks/useSearchWorker';
 import { getSavedVerifications, saveVerification, deleteVerification, clearAllSavedVerifications } from '@/utils/storage';
 import { SavedVerification } from '@/types';
+import { initOptimization } from '@/utils/wasm';
 
 function App() {
   const {
@@ -88,6 +89,7 @@ function App() {
   useEffect(() => {
     loadHistoryData();
     loadFavorites();
+    initOptimization();
   }, []);
 
   // 当 Worker 完成时更新结果
