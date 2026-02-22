@@ -501,9 +501,10 @@ function verifyFormula(
   offset: number,
   periods: number,
   leftExpand: number,
-  rightExpand: number
+  rightExpand: number,
+  targetPeriodVal: number | null = null
 ): any {
-  if (!parsed) return { hitRate: 0, hitCount: 0, totalPeriods: 0, formula: parsed, hits: [], results: [] };
+  if (!parsed) return { hitRate: 0, hitCount: 0, totalPeriods: 0, formula: parsed, hits: [], results: [], targetPeriod: targetPeriodVal };
   
   const dataToVerify = historyData.slice(0, periods);
   let hitCount = 0;
@@ -552,7 +553,8 @@ function verifyFormula(
     formula: parsed,
     hits,
     results,
-    periodResults
+    periodResults,
+    targetPeriod: targetPeriodVal
   };
 }
 
@@ -605,7 +607,7 @@ self.onmessage = async (event) => {
           const overrideRight = rightExpand !== undefined ? rightExpand : formula.rightExpand;
           
           // 验证公式（使用覆盖后的参数，不再加公式原始值）
-          const result = verifyFormula(formula, dataToVerify, 0, overridePeriods, overrideLeft, overrideRight);
+          const result = verifyFormula(formula, dataToVerify, 0, overridePeriods, overrideLeft, overrideRight, targetPeriod);
           results.push(result);
         }
         
