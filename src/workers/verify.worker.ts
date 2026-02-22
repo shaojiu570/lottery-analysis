@@ -518,7 +518,7 @@ function verifyFormula(
     const rawResult = evaluateExpression(parsed.expression, calcData, useSort);
     const withOffset = rawResult + parsed.offset + offset;
     const cycledResult = applyCycle(withOffset, parsed.resultType);
-    const expandedResults = getExpandedResults(cycledResult, parsed.leftExpand + leftExpand, parsed.rightExpand + rightExpand, parsed.resultType);
+    const expandedResults = getExpandedResults(cycledResult, leftExpand, rightExpand, parsed.resultType);
     
     const targetValue = getNumberAttribute(verifyData.numbers[6], parsed.resultType, verifyData.zodiacYear);
     const hit = expandedResults.includes(targetValue);
@@ -600,7 +600,7 @@ self.onmessage = async (event) => {
           const overrideLeft = leftExpand !== undefined ? leftExpand : formula.leftExpand;
           const overrideRight = rightExpand !== undefined ? rightExpand : formula.rightExpand;
           
-          // 验证公式
+          // 验证公式（使用覆盖后的参数，不再加公式原始值）
           const result = verifyFormula(formula, dataToVerify, 0, overridePeriods, overrideLeft, overrideRight);
           results.push(result);
         }
