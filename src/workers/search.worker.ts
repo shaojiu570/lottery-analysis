@@ -794,7 +794,7 @@ function exhaustiveSearch(
       const parsed = parseFormula(formula);
       if (!parsed) continue;
       
-      const result = verifyFormula(parsed, historyData, 0, periods, 0, 0);
+      const result = verifyFormula(parsed, historyData, offset, periods, leftExpand, rightExpand);
       const hitRate = result.hitRate * 100;
       
       // 缓存这个元素组合的命中率（用于剪枝）
@@ -1011,7 +1011,7 @@ function evolutionarySearch(
           seenFormulas.add(formula);
           const parsed = parseFormula(formula);
           if (parsed) {
-            const result = verifyFormula(parsed, historyData, 0, periods, 0, 0);
+            const result = verifyFormula(parsed, historyData, offset, periods, leftExpand, rightExpand);
             const hitRate = result.hitRate * 100;
             if (Math.abs(hitRate - targetHitRate) <= tolerance * 2) { // 放宽初始容差
               results.push({
@@ -1036,7 +1036,7 @@ function evolutionarySearch(
         seenFormulas.add(formula);
         const parsed = parseFormula(formula);
         if (parsed) {
-          const result = verifyFormula(parsed, historyData, 0, periods, 0, 0);
+          const result = verifyFormula(parsed, historyData, offset, periods, leftExpand, rightExpand);
           const hitRate = result.hitRate * 100;
           if (Math.abs(hitRate - targetHitRate) <= tolerance) {
             results.push({
@@ -1066,7 +1066,7 @@ function evolutionarySearch(
           seenFormulas.add(mutated);
           const parsed = parseFormula(mutated);
           if (parsed) {
-            const result = verifyFormula(parsed, historyData, 0, periods, 0, 0);
+            const result = verifyFormula(parsed, historyData, offset, periods, leftExpand, rightExpand);
             const hitRate = result.hitRate * 100;
             if (Math.abs(hitRate - targetHitRate) <= tolerance) {
               newPopulation.push({
