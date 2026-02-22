@@ -19,9 +19,11 @@ export function useWorkerVerify(): UseWorkerVerifyReturn {
   const [isVerifying, setIsVerifying] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const workerRef = useRef<Worker | null>(null);
+  const verifyStartTimeRef = useRef<number>(0);
 
   // 初始化Worker
   useEffect(() => {
+    console.log('[VerifyWorker] 初始化中...');
     const worker = new Worker(new URL('../workers/verify.worker.ts', import.meta.url), {
       type: 'module'
     });
@@ -32,6 +34,7 @@ export function useWorkerVerify(): UseWorkerVerifyReturn {
       if (type === 'progress') {
         setProgress({ current, total });
       } else if (type === 'complete') {
+        console.log(`[VerifyWorker] 验证完成，耗时 ${performance.now() - verifyStartTimeRef.current}ms`);
         setResults(results);
         setIsVerifying(false);
         setProgress(null);
@@ -62,6 +65,8 @@ export function useWorkerVerify(): UseWorkerVerifyReturn {
   ) => {
     if (!workerRef.current || formulas.length === 0) return;
 
+    console.log(`[VerifyWorker] 开始验证 ${formulas.length} 条公式`);
+    verifyStartTimeRef.current = performance.now();
     setIsVerifying(true);
     setResults([]);
     setProgress({ current: 0, total: formulas.length });
