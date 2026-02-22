@@ -12,7 +12,8 @@ interface UseWorkerVerifyReturn {
     targetPeriod: number | null,
     periods?: number,
     leftExpand?: number,
-    rightExpand?: number
+    rightExpand?: number,
+    offset?: number
   ) => void;
   cancel: () => void;
 }
@@ -67,11 +68,12 @@ export function useWorkerVerify(): UseWorkerVerifyReturn {
     targetPeriod: number | null,
     periods?: number,
     leftExpand?: number,
-    rightExpand?: number
+    rightExpand?: number,
+    offset?: number
   ) => {
     if (!workerRef.current || formulas.length === 0) return;
 
-    console.log(`[VerifyWorker] 开始验证 ${formulas.length} 条公式, periods=${periods}, leftExpand=${leftExpand}, rightExpand=${rightExpand}`);
+    console.log(`[VerifyWorker] 开始验证 ${formulas.length} 条公式, periods=${periods}, leftExpand=${leftExpand}, rightExpand=${rightExpand}, offset=${offset}`);
     verifyStartTimeRef.current = performance.now();
     setIsVerifying(true);
     setResults([]);
@@ -84,7 +86,8 @@ export function useWorkerVerify(): UseWorkerVerifyReturn {
       targetPeriod,
       periods,
       leftExpand,
-      rightExpand
+      rightExpand,
+      offset
     });
   }, []);
 
