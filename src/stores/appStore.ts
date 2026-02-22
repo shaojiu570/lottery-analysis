@@ -15,6 +15,7 @@ import {
   clearHistoryData,
   deleteHistoryItem
 } from '@/utils/storage';
+import { precomputeAllElementValues } from '@/utils/calculator';
 
 interface AppState {
   // 公式输入
@@ -76,11 +77,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   // 历史数据
   historyData: [],
-  setHistoryData: (data) => set({ historyData: data }),
+  setHistoryData: (data) => {
+    set({ historyData: data });
+    if (data.length > 0) {
+      precomputeAllElementValues(data);
+    }
+  },
   loadHistoryData: async () => {
     const data = await getHistoryData();
     const latestPeriod = data.length > 0 ? data[0].period : 0;
     set({ historyData: data, latestPeriod });
+    if (data.length > 0) {
+      precomputeAllElementValues(data);
+    }
   },
   importHistoryData: async (data) => {
     const current = get().historyData;
@@ -92,6 +101,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     await saveHistoryData(unique);
     const latestPeriod = unique.length > 0 ? unique[0].period : 0;
     set({ historyData: unique, latestPeriod });
+    if (unique.length > 0) {
+      precomputeAllElementValues(unique);
+    }
   },
   clearAllHistory: async () => {
     await clearHistoryData();

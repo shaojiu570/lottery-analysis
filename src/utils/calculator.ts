@@ -3,6 +3,100 @@ import { calculateElementValue, normalizeElementName } from './elements';
 import { applyCycle, getExpandedResults, getNumberAttribute, resultToText, getZodiacMap, getZodiacYearByPeriod } from './mappings';
 import { ParsedFormula } from './formulaParser';
 
+// ==================== 预计算系统 ====================
+// 预计算所有元素的数值表
+interface PrecomputedData {
+  period: number;
+  useSort: boolean;
+  elementValues: Record<string, number>;
+}
+
+// 预计算数据存储
+const precomputedDataMap = new Map<number, PrecomputedData[]>();
+
+// 预计算所有历史数据的元素值
+export function precomputeAllElementValues(historyData: LotteryData[]): void {
+  precomputedDataMap.clear();
+  
+  for (const data of historyData) {
+    const elementValuesD: Record<string, number> = {};
+    const elementValuesL: Record<string, number> = {};
+    
+    // 排序后的平码（D规则）
+    const pingmaD = [...data.numbers.slice(0, 6)].sort((a, b) => a - b);
+    const pingmaL = data.numbers.slice(0, 6);
+    const teNum = data.numbers[6];
+    const totalD = [...pingmaD, teNum].reduce((s, n) => s + n, 0);
+    const totalL = [...pingmaL, teNum].reduce((s, n) => s + n, 0);
+    const periodNum = data.period % 1000;
+    
+    // 期数系列
+    elementValuesD['期数'] = periodNum;
+    elementValuesD['期数尾'] = periodNum % 10;
+    elementValuesD['期数合'] = digitSum(periodNum);
+    elementValuesD['期数合尾'] = digitSum(periodNum) % 10;
+    Object.assign(elementValuesL, elementValuesD);
+    
+    // 总分系列
+    elementValuesD['总分'] = totalD;
+    elementValuesD['总分尾'] = totalD % 10;
+    elementValuesD['总分合'] = digitSum(totalD);
+    elementValuesD['总分合尾'] = digitSum(totalD) % 10;
+    elementValuesL['总分'] = totalL;
+    elementValuesL['总分尾'] = totalL % 10;
+    elementValuesL['总分合'] = digitSum(totalL);
+    elementValuesL['总分合尾'] = digitSum(totalL) % 10;
+    
+    // 平码系列
+    for (let i = 0; i < 6; i++) {
+      const numD = pingmaD[i];
+      const numL = pingmaL[i];
+      const attrs = ['号', '头', '尾', '合', '波', '段', '行', '肖位'];
+      attrs.forEach(attr => {
+        const elem = `平${i + 1}${attr}`;
+        elementValuesD[elem] = getNumberAttribute(numD, attr as any, data.zodiacYear);
+        elementValuesL[elem] = getNumberAttribute(numL, attr as any, data.zodiacYear);
+      });
+      // 合头合尾
+      elementValuesD[`平${i + 1}合头`] = Math.floor(elementValuesD[`平${i + 1}合`] / 10);
+      elementValuesD[`平${i + 1}合尾`] = elementValuesD[`平${i + 1}合`] % 10;
+      elementValuesL[`平${i + 1}合头`] = Math.floor(elementValuesL[`平${i + 1}合`] / 10);
+      elementValuesL[`平${i + 1}合尾`] = elementValuesL[`平${i + 1}合`] % 10;
+    }
+    
+    // 特码系列
+    const teAttrs = ['号', '头', '尾', '合', '波', '段', '行', '肖位'];
+    teAttrs.forEach(attr => {
+      elementValuesD[`特${attr}`] = getNumberAttribute(teNum, attr as any, data.zodiacYear);
+      elementValuesL[`特${attr}`] = elementValuesD[`特${attr}`];
+    });
+    elementValuesD['特合头'] = Math.floor(elementValuesD['特合'] / 10);
+    elementValuesD['特合尾'] = elementValuesD['特合'] % 10;
+    elementValuesL['特合头'] = elementValuesD['特合头'];
+    elementValuesL['特合尾'] = elementValuesD['特合尾'];
+    
+    precomputedDataMap.set(data.period, [
+      { period: data.period, useSort: true, elementValues: elementValuesD },
+      { period: data.period, useSort: false, elementValues: elementValuesL }
+    ]);
+  }
+}
+
+// 辅助函数：数字各位和
+function digitSum(n: number): number {
+  return n.toString().split('').reduce((s, d) => s + parseInt(d), 0);
+}
+
+// 获取预计算的元素值
+export function getPrecomputedValue(period: number, element: string, useSort: boolean): number | null {
+  const dataList = precomputedDataMap.get(period);
+  if (!dataList) return null;
+  const data = dataList.find(d => d.useSort === useSort);
+  if (!data) return null;
+  return data.elementValues[element] ?? null;
+}
+
+// ==================== 缓存系统 ====================
 // 元素值缓存 - 避免重复计算
 const elementValueCache = new Map<string, Map<number, number>>();
 
@@ -10,6 +104,13 @@ function getCachedElementValue(element: string, data: LotteryData, useSort: bool
   const period = data.period;
   const cacheKey = `${element}_${useSort}`;
   
+  // 先尝试从预计算中获取
+  const precomputed = getPrecomputedValue(period, element, useSort);
+  if (precomputed !== null) {
+    return precomputed;
+  }
+  
+  // 尝试从缓存获取
   if (!elementValueCache.has(cacheKey)) {
     elementValueCache.set(cacheKey, new Map());
   }
@@ -36,7 +137,7 @@ export function clearCalculationCache(): void {
   elementValueCache.clear();
 }
 
-// 计算表达式
+// 计算表达式（使用缓存）
 export function evaluateExpression(
   expression: string,
   data: LotteryData,
@@ -47,18 +148,18 @@ export function evaluateExpression(
   // 将其他运算符替换为空或移除（只允许加号）
   normalized = normalized.replace(/[×\*÷\/%\-]/g, '');
   
-  // 替换元素为数值
+  // 替换元素为数值（使用缓存）
   // 期数系列（按长度优先）
   const periodElements = ['期数合尾', '期数合', '期数尾', '期数'];
   for (const elem of periodElements) {
-    const value = calculateElementValue(elem, data, useSort);
+    const value = getCachedElementValue(elem, data, useSort);
     normalized = normalized.replace(new RegExp(elem, 'g'), value.toString());
   }
   
   // 总分系列（按长度优先）
   const totalElements = ['总分合尾', '总分合', '总分尾', '总分'];
   for (const elem of totalElements) {
-    const value = calculateElementValue(elem, data, useSort);
+    const value = getCachedElementValue(elem, data, useSort);
     normalized = normalized.replace(new RegExp(elem, 'g'), value.toString());
   }
   
@@ -67,7 +168,7 @@ export function evaluateExpression(
   for (let i = 1; i <= 6; i++) {
     for (const attr of pingAttrs) {
       const elem = `平${i}${attr}`;
-      const value = calculateElementValue(elem, data, useSort);
+      const value = getCachedElementValue(elem, data, useSort);
       normalized = normalized.replace(new RegExp(elem, 'g'), value.toString());
     }
   }
@@ -76,7 +177,7 @@ export function evaluateExpression(
   const teAttrs = ['合头', '合尾', '肖位', '号', '头', '尾', '合', '波', '段', '行'];
   for (const attr of teAttrs) {
     const elem = `特${attr}`;
-    const value = calculateElementValue(elem, data, useSort);
+    const value = getCachedElementValue(elem, data, useSort);
     normalized = normalized.replace(new RegExp(elem, 'g'), value.toString());
   }
   

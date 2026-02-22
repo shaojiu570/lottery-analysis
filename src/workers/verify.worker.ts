@@ -1,6 +1,84 @@
 // 验证 Worker - 将计算移到后台线程
 import type { LotteryData, VerifyResult } from '../types';
 
+// ==================== Worker缓存系统 ====================
+// 预计算数据存储
+interface PrecomputedData {
+  period: number;
+  useSort: boolean;
+  elementValues: Record<string, number>;
+}
+
+const precomputedDataMap = new Map<number, PrecomputedData[]>();
+
+// 预计算所有历史数据的元素值
+function precomputeAllElementValues(historyData: LotteryData[]): void {
+  precomputedDataMap.clear();
+  
+  for (const data of historyData) {
+    const elementValuesD: Record<string, number> = {};
+    const elementValuesL: Record<string, number> = {};
+    
+    const pingmaD = [...data.numbers.slice(0, 6)].sort((a, b) => a - b);
+    const pingmaL = data.numbers.slice(0, 6);
+    const teNum = data.numbers[6];
+    const totalD = [...pingmaD, teNum].reduce((s, n) => s + n, 0);
+    const totalL = [...pingmaL, teNum].reduce((s, n) => s + n, 0);
+    const periodNum = data.period % 1000;
+    
+    // 期数系列
+    elementValuesD['期数'] = periodNum;
+    elementValuesD['期数尾'] = periodNum % 10;
+    elementValuesD['期数合'] = digitSum(periodNum);
+    elementValuesD['期数合尾'] = digitSum(periodNum) % 10;
+    Object.assign(elementValuesL, elementValuesD);
+    
+    // 总分系列
+    elementValuesD['总分'] = totalD;
+    elementValuesD['总分尾'] = totalD % 10;
+    elementValuesD['总分合'] = digitSum(totalD);
+    elementValuesD['总分合尾'] = digitSum(totalD) % 10;
+    elementValuesL['总分'] = totalL;
+    elementValuesL['总分尾'] = totalL % 10;
+    elementValuesL['总分合'] = digitSum(totalL);
+    elementValuesL['总分合尾'] = digitSum(totalL) % 10;
+    
+    // 平码系列
+    for (let i = 0; i < 6; i++) {
+      const numD = pingmaD[i];
+      const numL = pingmaL[i];
+      const attrs = ['号', '头', '尾', '合', '波', '段', '行', '肖位'];
+      attrs.forEach(attr => {
+        const elem = `平${i + 1}${attr}`;
+        elementValuesD[elem] = getNumberAttributeValue(numD, attr, data.zodiacYear);
+        elementValuesL[elem] = getNumberAttributeValue(numL, attr, data.zodiacYear);
+      });
+      elementValuesD[`平${i + 1}合头`] = Math.floor(elementValuesD[`平${i + 1}合`] / 10);
+      elementValuesD[`平${i + 1}合尾`] = elementValuesD[`平${i + 1}合`] % 10;
+      elementValuesL[`平${i + 1}合头`] = Math.floor(elementValuesL[`平${i + 1}合`] / 10);
+      elementValuesL[`平${i + 1}合尾`] = elementValuesL[`平${i + 1}合`] % 10;
+    }
+    
+    // 特码系列
+    const teAttrs = ['号', '头', '尾', '合', '波', '段', '行', '肖位'];
+    teAttrs.forEach(attr => {
+      elementValuesD[`特${attr}`] = getNumberAttributeValue(teNum, attr, data.zodiacYear);
+      elementValuesL[`特${attr}`] = elementValuesD[`特${attr}`];
+    });
+    elementValuesD['特合头'] = Math.floor(elementValuesD['特合'] / 10);
+    elementValuesD['特合尾'] = elementValuesD['特合'] % 10;
+    elementValuesL['特合头'] = elementValuesD['特合头'];
+    elementValuesL['特合尾'] = elementValuesD['特合尾'];
+    
+    precomputedDataMap.set(data.period, [
+      { period: data.period, useSort: true, elementValues: elementValuesD },
+      { period: data.period, useSort: false, elementValues: elementValuesL }
+    ]);
+  }
+}
+
+// ==================== 消息批处理 ====================
+
 // 波色映射
 const WAVE_COLORS: Record<string, number[]> = {
   红: [1, 2, 7, 8, 12, 13, 18, 19, 23, 24, 29, 30, 34, 35, 40, 45, 46],
@@ -417,115 +495,74 @@ function getExpandedResults(result: number, leftExpand: number, rightExpand: num
 }
 
 // 批量验证公式
-self.onmessage = (event) => {
+self.onmessage = async (event) => {
   const { type, formulas, historyData, targetPeriod } = event.data;
+  
+  if (type === 'precompute' && historyData) {
+    // 预计算阶段
+    precomputeAllElementValues(historyData);
+    self.postMessage({ type: 'precomputeComplete' });
+    return;
+  }
   
   if (type !== 'verify') return;
   
+  // 先预计算
+  if (historyData.length > 0) {
+    precomputeAllElementValues(historyData);
+  }
+  
   try {
     const results: VerifyResult[] = [];
-    const BATCH_SIZE = 50;
+    const BATCH_SIZE = 20; // 每批处理数量
     
-    for (let i = 0; i < formulas.length; i++) {
-      const formula = formulas[i];
-      
-      // 发送进度
-      if (i % BATCH_SIZE === 0) {
+    // 分帧处理函数
+    const processBatch = (startIndex: number): Promise<void> => {
+      return new Promise((resolve) => {
+        const endIndex = Math.min(startIndex + BATCH_SIZE, formulas.length);
+        
+        for (let i = startIndex; i < endIndex; i++) {
+          const formula = formulas[i];
+          
+          // 确定验证范围
+          let dataToVerify: LotteryData[];
+          if (targetPeriod) {
+            const targetIdx = historyData.findIndex((d: LotteryData) => d.period === targetPeriod);
+            if (targetIdx !== -1) {
+              dataToVerify = historyData.slice(targetIdx);
+            } else {
+              dataToVerify = historyData;
+            }
+          } else {
+            dataToVerify = historyData;
+          }
+          
+          // 验证公式
+          const result = verifyFormula(formula, dataToVerify, 0, formula.periods || dataToVerify.length, 0, 0);
+          results.push(result);
+        }
+        
+        // 发送进度
         self.postMessage({
           type: 'progress',
-          current: i,
+          current: endIndex,
           total: formulas.length
         });
-      }
-      
-      // 确定验证范围
-      let dataToVerify: LotteryData[];
-      if (targetPeriod) {
-        const targetIdx = historyData.findIndex((d: LotteryData) => d.period === targetPeriod);
-        if (targetIdx !== -1) {
-          dataToVerify = historyData.slice(targetIdx, targetIdx + formula.periods);
+        
+        if (endIndex < formulas.length) {
+          // 使用requestIdleCallback分散负载
+          if (typeof requestIdleCallback !== 'undefined') {
+            requestIdleCallback(() => processBatch(endIndex).then(resolve), { timeout: 100 });
+          } else {
+            setTimeout(() => processBatch(endIndex).then(resolve), 0);
+          }
         } else {
-          dataToVerify = historyData.slice(0, formula.periods);
+          resolve();
         }
-      } else {
-        dataToVerify = historyData.slice(0, formula.periods);
-      }
-      
-      // 验证
-      const hits: boolean[] = [];
-      const periodResults: any[] = [];
-      
-      for (let j = 0; j < dataToVerify.length; j++) {
-        const verifyData = dataToVerify[j];
-        
-        // 找到验证期在完整历史数据中的索引
-        const verifyIndex = historyData.findIndex((d: LotteryData) => d.period === verifyData.period);
-        
-        // 判断是否为预测模式（没有指定targetPeriod）
-        const isPredictMode = targetPeriod === null || targetPeriod === undefined;
-        const isLatestPeriod = verifyIndex === 0;
-        
-        let calcData: LotteryData;
-        if (isPredictMode && isLatestPeriod) {
-          // 预测下一期：用最新期数据计算
-          calcData = verifyData;
-        } else {
-          // 验证历史期（包括指定的最新期）：用上一期数据计算
-          // 历史数据是降序排列（最新在前），所以用 verifyIndex - 1 获取上一期
-          calcData = (verifyIndex > 0 && verifyIndex < historyData.length) 
-            ? historyData[verifyIndex - 1] 
-            : verifyData;
-        }
-        
-        const useSort = formula.rule === 'D';
-        const rawResult = evaluateExpression(formula.expression, calcData, useSort);
-        const withOffset = rawResult + formula.offset;
-        const cycledResult = applyCycle(withOffset, formula.resultType);
-        const expandedResults = getExpandedResults(cycledResult, formula.leftExpand, formula.rightExpand, formula.resultType);
-        
-        // 用验证期的特码来判断命中（而不是计算期）
-        const targetValue = getNumberAttribute(verifyData.numbers[6], formula.resultType, verifyData.zodiacYear);
-        const hit = expandedResults.includes(targetValue);
-        
-        hits.push(hit);
-        periodResults.push({
-          period: verifyData.period,
-          result: cycledResult,
-          expandedResults,
-          targetValue,
-          hit
-        });
-      }
-      
-      const hitCount = hits.filter(h => h).length;
-      
-      // 反转数组，使顺序变为从旧到新（最旧期在前，最新期在后）
-      hits.reverse();
-      periodResults.reverse();
-      
-      results.push({
-        formula: {
-          id: `f_${Date.now()}_${i}`,
-          expression: formula.rawExpression,
-          rule: formula.rule,
-          resultType: formula.resultType,
-          offset: formula.offset,
-          periods: formula.periods,
-          leftExpand: formula.leftExpand,
-          rightExpand: formula.rightExpand,
-        },
-        hits,
-        hitCount,
-        totalPeriods: dataToVerify.length,
-        hitRate: dataToVerify.length > 0 ? hitCount / dataToVerify.length : 0,
-        results: periodResults.length > 0 
-          ? periodResults[periodResults.length - 1].expandedResults.sort((a: number, b: number) => a - b).map((r: number) => resultToText(r, formula.resultType, historyData[0]?.zodiacYear)) 
-          : [],
-        periodResults,
-        originalLineIndex: (formula as any).originalLineIndex || 0,
-        targetPeriod
       });
-    }
+    };
+    
+    await processBatch(0);
     
     self.postMessage({
       type: 'complete',
