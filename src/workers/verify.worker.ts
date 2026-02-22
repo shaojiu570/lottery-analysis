@@ -534,13 +534,21 @@ function verifyFormula(
     });
   }
   
+  // 只取最新一期的结果
+  const latestResults = periodResults.length > 0 
+    ? (periodResults[periodResults.length - 1] as { expandedResults: number[] }).expandedResults 
+    : [];
+  const latestZodiacYear = dataToVerify.length > 0 ? dataToVerify[0].zodiacYear : undefined;
+  const results = Array.from(latestResults).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType, latestZodiacYear));
+  
   return {
     hitRate: dataToVerify.length > 0 ? hitCount / dataToVerify.length : 0,
     hitCount,
     totalPeriods: dataToVerify.length,
     formula: parsed,
     hits,
-    results: periodResults
+    results,
+    periodResults
   };
 }
 
