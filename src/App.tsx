@@ -116,8 +116,8 @@ function App() {
     setVerifyResults([]);
     
     // 使用 Web Worker 进行验证
-    workerVerify.verify(parsed, historyData, settings.targetPeriod);
-  }, [formulaInput, historyData, settings.targetPeriod, workerVerify, setIsVerifying, setVerifyResults, setParseErrors]);
+    workerVerify.verify(parsed, historyData, settings.targetPeriod, settings.periods, settings.leftExpand, settings.rightExpand);
+  }, [formulaInput, historyData, settings, workerVerify, setIsVerifying, setVerifyResults, setParseErrors]);
 
   // 清空结果和输入
   const handleClearResults = useCallback(() => {

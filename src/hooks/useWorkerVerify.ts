@@ -9,7 +9,10 @@ interface UseWorkerVerifyReturn {
   verify: (
     formulas: ParsedFormula[],
     historyData: LotteryData[],
-    targetPeriod: number | null
+    targetPeriod: number | null,
+    periods?: number,
+    leftExpand?: number,
+    rightExpand?: number
   ) => void;
   cancel: () => void;
 }
@@ -61,11 +64,14 @@ export function useWorkerVerify(): UseWorkerVerifyReturn {
   const verify = useCallback((
     formulas: ParsedFormula[],
     historyData: LotteryData[],
-    targetPeriod: number | null
+    targetPeriod: number | null,
+    periods?: number,
+    leftExpand?: number,
+    rightExpand?: number
   ) => {
     if (!workerRef.current || formulas.length === 0) return;
 
-    console.log(`[VerifyWorker] 开始验证 ${formulas.length} 条公式`);
+    console.log(`[VerifyWorker] 开始验证 ${formulas.length} 条公式, periods=${periods}, leftExpand=${leftExpand}, rightExpand=${rightExpand}`);
     verifyStartTimeRef.current = performance.now();
     setIsVerifying(true);
     setResults([]);
@@ -75,7 +81,10 @@ export function useWorkerVerify(): UseWorkerVerifyReturn {
       type: 'verify',
       formulas,
       historyData,
-      targetPeriod
+      targetPeriod,
+      periods,
+      leftExpand,
+      rightExpand
     });
   }, []);
 

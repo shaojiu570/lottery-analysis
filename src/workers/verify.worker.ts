@@ -554,7 +554,7 @@ function verifyFormula(
 
 // 批量验证公式
 self.onmessage = async (event) => {
-  const { type, formulas, historyData, targetPeriod } = event.data;
+  const { type, formulas, historyData, targetPeriod, periods, leftExpand, rightExpand } = event.data;
   
   if (type === 'precompute' && historyData) {
     // 预计算阶段
@@ -595,8 +595,13 @@ self.onmessage = async (event) => {
             dataToVerify = historyData;
           }
           
+          // 使用设置的参数覆盖公式中的参数
+          const overridePeriods = periods !== undefined ? periods : (formula.periods || dataToVerify.length);
+          const overrideLeft = leftExpand !== undefined ? leftExpand : formula.leftExpand;
+          const overrideRight = rightExpand !== undefined ? rightExpand : formula.rightExpand;
+          
           // 验证公式
-          const result = verifyFormula(formula, dataToVerify, 0, formula.periods || dataToVerify.length, 0, 0);
+          const result = verifyFormula(formula, dataToVerify, 0, overridePeriods, overrideLeft, overrideRight);
           results.push(result);
         }
         
