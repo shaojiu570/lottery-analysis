@@ -32,8 +32,10 @@ export function useSearchWorker(): UseSearchWorkerReturn {
   const [isSearching, setIsSearching] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number; found: number } | null>(null);
   const workerRef = useRef<Worker | null>(null);
+  const isCancelledRef = useRef(false);
 
-  useEffect(() => {
+  // 创建worker的函数
+  const createWorker = useCallback(() => {
     const worker = new Worker(new URL('../workers/search.worker.ts', import.meta.url), {
       type: 'module'
     });
@@ -41,31 +43,44 @@ export function useSearchWorker(): UseSearchWorkerReturn {
     worker.onmessage = (event) => {
       const { type, results: searchResults, current, total, found, error } = event.data;
       
+      if (isCancelledRef.current) return;
+      
       if (type === 'progress') {
         setProgress({ current, total, found });
       } else if (type === 'complete') {
         setResults(searchResults);
         setIsSearching(false);
         setProgress(null);
+        workerRef.current = null;
       } else if (type === 'error') {
         console.error('Search worker error:', error);
         setIsSearching(false);
         setProgress(null);
+        workerRef.current = null;
       }
     };
 
     worker.onerror = (error) => {
       console.error('Search worker error:', error);
-      setIsSearching(false);
-      setProgress(null);
+      if (!isCancelledRef.current) {
+        setIsSearching(false);
+        setProgress(null);
+      }
+      workerRef.current = null;
     };
 
-    workerRef.current = worker;
+    return worker;
+  }, []);
+
+  useEffect(() => {
+    workerRef.current = createWorker();
 
     return () => {
-      worker.terminate();
+      if (workerRef.current) {
+        workerRef.current.terminate();
+      }
     };
-  }, []);
+  }, [createWorker]);
 
   const search = useCallback((
     historyData: LotteryData[],
@@ -78,8 +93,14 @@ export function useSearchWorker(): UseSearchWorkerReturn {
     leftExpand: number,
     rightExpand: number
   ) => {
-    if (!workerRef.current || historyData.length === 0 || resultTypes.length === 0) return;
+    if (historyData.length === 0 || resultTypes.length === 0) return;
 
+    // 如果worker被终止，重新创建
+    if (!workerRef.current) {
+      workerRef.current = createWorker();
+    }
+
+    isCancelledRef.current = false;
     setIsSearching(true);
     setResults([]);
     setProgress({ current: 0, total: 0, found: 0 });
@@ -96,15 +117,13 @@ export function useSearchWorker(): UseSearchWorkerReturn {
       leftExpand,
       rightExpand
     });
-  }, []);
+  }, [createWorker]);
 
   const cancel = useCallback(() => {
+    isCancelledRef.current = true;
     if (workerRef.current) {
       workerRef.current.terminate();
-      const worker = new Worker(new URL('../workers/search.worker.ts', import.meta.url), {
-        type: 'module'
-      });
-      workerRef.current = worker;
+      workerRef.current = null;
     }
     setIsSearching(false);
     setProgress(null);
