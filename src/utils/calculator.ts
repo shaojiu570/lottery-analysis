@@ -546,6 +546,18 @@ function convertResultToNumbers(resultStr: string, resultType: ResultType, zodia
     return nums || [];
   }
   
+  // 大小单双类：如 "大单" -> 转换为对应号码
+  if (resultType === '大小单双类') {
+    const valueMap: Record<string, number> = {
+      '小单': 0, '小双': 1, '大单': 2, '大双': 3
+    };
+    const value = valueMap[cleanStr];
+    if (value !== undefined) {
+      return getNumbersFromResult(value, resultType, zodiacYear);
+    }
+    return [];
+  }
+  
   // 其他类型：解析数字后转换
   const numMatch = cleanStr.match(/^(\d+)/);
   if (numMatch) {

@@ -313,6 +313,14 @@ export function SmartSearchModal({
                   style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }}
                 />
               </div>
+              <div className="flex justify-center gap-2 mt-3">
+                <button
+                  onClick={() => searchWorker.cancel()}
+                  className="px-4 py-1.5 text-xs sm:text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded"
+                >
+                  停止搜索
+                </button>
+              </div>
             </div>
           )}
 
