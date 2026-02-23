@@ -554,7 +554,8 @@ function verifyFormula(
     hits,
     results,
     periodResults,
-    targetPeriod: targetPeriodVal
+    targetPeriod: targetPeriodVal,
+    originalLineIndex: (parsed as { originalLineIndex?: number }).originalLineIndex ?? 0
   };
 }
 
