@@ -5,6 +5,10 @@ export interface LotteryData {
   timestamp: number;       // 时间戳
   zodiacYear: number;      // 该期使用的生肖年份（1-12）
   fiveElementYear?: number; // 该期使用的五行年份（用于动态五行映射）
+  // 外部数据
+  date?: string;          // 开奖日期 (YYYY-MM-DD)
+  weekday?: number;        // 星期 (0=周日, 1=周一, ...)
+  ganzhi?: string;        // 干支 (如 "甲子")
 }
 
 // 公式结构

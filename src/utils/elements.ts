@@ -215,6 +215,23 @@ export function calculateElementValue(
   if (normalized === '期数合') return digitSum(periodNum);
   if (normalized === '期数合尾') return digitSum(periodNum) % 10;
   
+  // 外部数据系列
+  if (normalized === '星期') return data.weekday ?? 0;
+  if (normalized === '干') {
+    const ganzhi = data.ganzhi || '甲子';
+    return '甲乙丙丁戊己庚辛壬癸'.indexOf(ganzhi[0]);
+  }
+  if (normalized === '支') {
+    const ganzhi = data.ganzhi || '甲子';
+    return '子丑寅卯辰巳午未申酉戌亥'.indexOf(ganzhi[1]);
+  }
+  if (normalized === '干支') {
+    const ganzhi = data.ganzhi || '甲子';
+    const stemIndex = '甲乙丙丁戊己庚辛壬癸'.indexOf(ganzhi[0]);
+    const branchIndex = '子丑寅卯辰巳午未申酉戌亥'.indexOf(ganzhi[1]);
+    return stemIndex + branchIndex * 10;
+  }
+  
   // 总分系列
   const totalSum = numbers.reduce((sum, n) => sum + n, 0);
   if (normalized === '总分') return totalSum;

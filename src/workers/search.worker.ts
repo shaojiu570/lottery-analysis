@@ -94,7 +94,9 @@ function getAllElements(): string[] {
       `平${i + 1}行`, `平${i + 1}肖位`
     ]).flat(),
     // 特码系列 (10个)
-    '特号', '特头', '特尾', '特合', '特合头', '特合尾', '特波', '特段', '特行', '特肖位'
+    '特号', '特头', '特尾', '特合', '特合头', '特合尾', '特波', '特段', '特行', '特肖位',
+    // 外部数据系列
+    '星期', '干支', '干', '支'
   ];
 }
 
@@ -256,7 +258,7 @@ function calculateElementValue(element: string, data: LotteryData, useSort: bool
   const te = data.numbers[6];
   const numbers = [...pingma, te];
   
-  let result: number;
+  let result: number = 0;
   
   // 期数系列 - 只取后3位计算
   const periodNum = data.period % 1000;
@@ -264,6 +266,26 @@ function calculateElementValue(element: string, data: LotteryData, useSort: bool
   else if (normalized === '期数尾') result = periodNum % 10;
   else if (normalized === '期数合') result = digitSum(periodNum);
   else if (normalized === '期数合尾') result = digitSum(periodNum) % 10;
+  
+  // 外部数据系列
+  else if (normalized === '星期') result = data.weekday ?? 0;
+  else if (normalized === '干') {
+    // 干：0-9
+    const ganzhi = data.ganzhi || '甲子';
+    result = '甲乙丙丁戊己庚辛壬癸'.indexOf(ganzhi[0]);
+  }
+  else if (normalized === '支') {
+    // 支：0-11
+    const ganzhi = data.ganzhi || '甲子';
+    result = '子丑寅卯辰巳午未申酉戌亥'.indexOf(ganzhi[1]);
+  }
+  else if (normalized === '干支') {
+    // 干支转为单一数值 (0-59)
+    const ganzhi = data.ganzhi || '甲子';
+    const stemIndex = '甲乙丙丁戊己庚辛壬癸'.indexOf(ganzhi[0]);
+    const branchIndex = '子丑寅卯辰巳午未申酉戌亥'.indexOf(ganzhi[1]);
+    result = stemIndex + branchIndex * 10;
+  }
   
   // 总分系列
   else {
@@ -344,9 +366,71 @@ function parseFormula(formulaStr: string): { expression: string; rule: 'D' | 'L'
   }
 }
 
+// 解析条件表达式 {条件?值1:值2}
+function evaluateCondition(condition: string, data: LotteryData): boolean {
+  const teNum = data.numbers[6] || 0;
+  const teTail = teNum % 10;
+  const teHead = Math.floor(teNum / 10);
+  const teHe = Math.floor(teNum / 10) + (teNum % 10);
+  
+  switch (condition) {
+    case '特码大':
+      return teNum > 24;
+    case '特码小':
+      return teNum <= 24;
+    case '特码单':
+      return teNum % 2 === 1;
+    case '特码双':
+      return teNum % 2 === 0;
+    case '特尾大':
+      return teTail >= 5;
+    case '特尾小':
+      return teTail < 5;
+    case '特尾单':
+      return teTail % 2 === 1;
+    case '特尾双':
+      return teTail % 2 === 0;
+    case '特头大':
+      return teHead >= 2;
+    case '特头小':
+      return teHead < 2;
+    case '特合大':
+      return teHe > 6;
+    case '特合小':
+      return teHe <= 6;
+    case '特合单':
+      return teHe % 2 === 1;
+    case '特合双':
+      return teHe % 2 === 0;
+    default:
+      return false;
+  }
+}
+
+// 处理表达式中的条件元素 {条件?值1:值2}
+function processConditionElements(expression: string, data: LotteryData): string {
+  let result = expression;
+  const conditionRegex = /\{([^?]+)\?([^:]+):(.+?)\}/g;
+  
+  let match;
+  while ((match = conditionRegex.exec(result)) !== null) {
+    const condition = match[1];
+    const trueValue = match[2];
+    const falseValue = match[3];
+    const conditionResult = evaluateCondition(condition, data);
+    const replaceValue = conditionResult ? trueValue : falseValue;
+    result = result.replace(match[0], replaceValue);
+  }
+  
+  return result;
+}
+
 // 评估表达式
 function evaluateExpression(expression: string, data: LotteryData, useSort: boolean): number {
   let normalized = normalizeElementName(expression);
+  
+  // 先处理条件元素
+  normalized = processConditionElements(normalized, data);
   
   // 替换元素为数值（按长度优先）
   const allElements = [

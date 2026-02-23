@@ -188,6 +188,7 @@ export function saveSettings(settings: Partial<Settings>): void {
 // 格式3: 期数:号码1,号码2,号码3,号码4,号码5,号码6,号码7
 // 格式4: 期数;号码1;号码2;号码3;号码4;号码5;号码6;号码7
 // 格式5: 期数|号码1|号码2|号码3|号码4|号码5|号码6|号码7
+// 格式6: 期数,日期,号码1,号码2,... (带日期)
 export function parseHistoryInput(input: string, currentZodiacYear?: number): LotteryData[] {
   const lines = input.trim().split('\n');
   const data: LotteryData[] = [];
@@ -218,32 +219,82 @@ export function parseHistoryInput(input: string, currentZodiacYear?: number): Lo
       parts = trimmed.split(/[,\s]+/).filter(n => n);
     }
     
-    if (parts.length >= 8) {
-      const period = parseInt(parts[0]);
-      const numbers = parts.slice(1, 8).map(n => parseInt(n));
-      
-      // 验证数据
-      if (
-        !isNaN(period) &&
-        numbers.length === 7 &&
-        numbers.every(n => n >= 1 && n <= 49) &&
-        new Set(numbers).size === 7 &&
-        !seen.has(period)
-      ) {
-        seen.add(period);
-        data.push({
-          period,
-          numbers,
-          timestamp: Date.now(),
-          zodiacYear: currentZodiacYear || getSettings().zodiacYear, // 使用传入的或当前设置的生肖年份
-        });
+    // 检查是否包含日期 (格式6: 期数,日期,号码1,...)
+    let date: string | undefined;
+    let numberParts: string[];
+    
+    if (parts.length >= 9) {
+      // 第二部分是日期 (格式: 期数,日期,号码1,...)
+      const dateMatch = parts[1].match(/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/);
+      if (dateMatch) {
+        date = parts[1];
+        numberParts = parts.slice(2, 9);
+      } else {
+        numberParts = parts.slice(1, 8);
       }
+    } else if (parts.length >= 8) {
+      numberParts = parts.slice(1, 8);
+    } else {
+      continue;
+    }
+    
+    const period = parseInt(parts[0]);
+    const numbers = numberParts.map(n => parseInt(n));
+    
+    // 验证数据
+    if (
+      !isNaN(period) &&
+      numbers.length === 7 &&
+      numbers.every(n => n >= 1 && n <= 49) &&
+      new Set(numbers).size === 7 &&
+      !seen.has(period)
+    ) {
+      seen.add(period);
+      
+      // 计算外部数据
+      let weekday: number | undefined;
+      let ganzhi: string | undefined;
+      
+      if (date) {
+        const parsedDate = new Date(date);
+        if (!isNaN(parsedDate.getTime())) {
+          weekday = parsedDate.getDay();
+          ganzhi = calculateGanzhi(parsedDate);
+        }
+      }
+      
+      data.push({
+        period,
+        numbers,
+        timestamp: Date.now(),
+        zodiacYear: currentZodiacYear || getSettings().zodiacYear,
+        date,
+        weekday,
+        ganzhi,
+      });
     }
   }
   
   // 按期数降序排列
   data.sort((a, b) => b.period - a.period);
   return data;
+}
+
+// 根据日期计算干支
+function calculateGanzhi(date: Date): string {
+  const stemNames = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+  const branchNames = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+  
+  // 基准日期: 2020-01-01 是庚子年
+  const baseDate = new Date('2020-01-01');
+  const baseStem = 6;  // 庚
+  const baseBranch = 0; // 子
+  
+  const diffDays = Math.floor((date.getTime() - baseDate.getTime()) / (24 * 60 * 60 * 1000));
+  const stemIndex = (baseStem + diffDays) % 10;
+  const branchIndex = (baseBranch + diffDays) % 12;
+  
+  return stemNames[stemIndex] + branchNames[branchIndex];
 }
 
 // 保存的验证记录管理

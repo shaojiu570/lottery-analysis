@@ -137,6 +137,65 @@ export function clearCalculationCache(): void {
   elementValueCache.clear();
 }
 
+// 解析条件表达式 {条件?值1:值2}
+function evaluateCondition(condition: string, data: LotteryData): boolean {
+  const teNum = data.numbers[6] || 0;
+  const teTail = teNum % 10;
+  const teHead = Math.floor(teNum / 10);
+  const teHe = Math.floor(teNum / 10) + (teNum % 10);
+  
+  switch (condition) {
+    case '特码大':
+      return teNum > 24;
+    case '特码小':
+      return teNum <= 24;
+    case '特码单':
+      return teNum % 2 === 1;
+    case '特码双':
+      return teNum % 2 === 0;
+    case '特尾大':
+      return teTail >= 5;
+    case '特尾小':
+      return teTail < 5;
+    case '特尾单':
+      return teTail % 2 === 1;
+    case '特尾双':
+      return teTail % 2 === 0;
+    case '特头大':
+      return teHead >= 2;
+    case '特头小':
+      return teHead < 2;
+    case '特合大':
+      return teHe > 6;
+    case '特合小':
+      return teHe <= 6;
+    case '特合单':
+      return teHe % 2 === 1;
+    case '特合双':
+      return teHe % 2 === 0;
+    default:
+      return false;
+  }
+}
+
+// 处理表达式中的条件元素 {条件?值1:值2}
+function processConditionElements(expression: string, data: LotteryData): string {
+  let result = expression;
+  const conditionRegex = /\{([^?]+)\?([^:]+):(.+?)\}/g;
+  
+  let match;
+  while ((match = conditionRegex.exec(result)) !== null) {
+    const condition = match[1];
+    const trueValue = match[2];
+    const falseValue = match[3];
+    const conditionResult = evaluateCondition(condition, data);
+    const replaceValue = conditionResult ? trueValue : falseValue;
+    result = result.replace(match[0], replaceValue);
+  }
+  
+  return result;
+}
+
 // 计算表达式（使用缓存）
 export function evaluateExpression(
   expression: string,
@@ -144,6 +203,9 @@ export function evaluateExpression(
   useSort: boolean
 ): number {
   let normalized = normalizeElementName(expression);
+  
+  // 先处理条件元素
+  normalized = processConditionElements(normalized, data);
   
   // 将其他运算符替换为空或移除（只允许加号）
   normalized = normalized.replace(/[×\*÷\/%\-]/g, '');
