@@ -711,20 +711,20 @@ function generateFromTemplate(
   let minElements: number, maxElements: number;
   switch (searchStrategy) {
     case 'fast':
-      minElements = 3;
-      maxElements = 11;
+      minElements = 1;
+      maxElements = 5;
       break;
     case 'standard':
-      minElements = 3;
-      maxElements = 15;
+      minElements = 5;
+      maxElements = 10;
       break;
     case 'deep':
-      minElements = 3;
-      maxElements = 20;
+      minElements = 10;
+      maxElements = 15;
       break;
     default:
-      minElements = 3;
-      maxElements = 15;
+      minElements = 1;
+      maxElements = 5;
   }
   
   // 获取相关元素池
