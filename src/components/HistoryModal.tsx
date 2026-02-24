@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { cn } from '@/utils/cn';
 import { LotteryData } from '@/types';
 import { parseHistoryInput } from '@/utils/storage';
-import { getWaveColor, getZodiacPosition, getZodiacName } from '@/utils/mappings';
+import { getWaveColor, getZodiacPosition, getZodiacName, getFiveElement, getFiveElementName } from '@/utils/mappings';
 
 // 生肖选项
 const ZODIAC_OPTIONS = [
@@ -206,6 +206,7 @@ interface NumberBallProps {
 function NumberBall({ number, isSpecial, showZodiac = true, zodiacYear }: NumberBallProps) {
   const color = getWaveColor(number);
   const zodiac = getZodiacName(getZodiacPosition(number, zodiacYear));
+  const fiveElement = getFiveElementName(getFiveElement(number, zodiacYear));
   const colorClasses = {
     0: 'bg-red-500 text-white',
     1: 'bg-blue-500 text-white',
@@ -225,7 +226,7 @@ function NumberBall({ number, isSpecial, showZodiac = true, zodiacYear }: Number
       </span>
       {showZodiac && (
         <span className="text-[8px] sm:text-[10px] text-gray-500 leading-none">
-          {zodiac}
+          {zodiac}/{fiveElement}
         </span>
       )}
     </div>
