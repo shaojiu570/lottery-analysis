@@ -309,7 +309,11 @@ export function addFormulaNumbers(input: string): string {
 // 移除公式编号
 export function removeFormulaNumbers(input: string): string {
   return input.split('\n').map(line => {
-    return line.replace(/^\[\d+\]\s*/, '');
+    // 移除 [001] 格式
+    let result = line.replace(/^\[\d+\]\s*/, '');
+    // 移除 1[ 格式（紧跟 [ 前的数字）
+    result = result.replace(/^\d+(?=\[)/, '');
+    return result;
   }).join('\n');
 }
 
