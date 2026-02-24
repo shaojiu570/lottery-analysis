@@ -801,13 +801,30 @@ function exhaustiveSearch(
   maxResults: number,
   tolerance: number,
   strategy: 'fast' | 'standard' | 'deep',
-  onProgress: (current: number, total: number, found: number) => void
+  onProgress: (current: number, total: number, found: number, currentResults?: { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[]) => void
 ): { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] {
   const results: { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] = [];
   
   // 根据策略确定元素数量范围
-  const maxElements = strategy === 'fast' ? 5 : strategy === 'standard' ? 10 : 15;
-  const minElements = 1;
+  let minElements: number;
+  let maxElements: number;
+  switch (strategy) {
+    case 'fast':
+      minElements = 1;
+      maxElements = 5;
+      break;
+    case 'standard':
+      minElements = 5;
+      maxElements = 10;
+      break;
+    case 'deep':
+      minElements = 10;
+      maxElements = 15;
+      break;
+    default:
+      minElements = 1;
+      maxElements = 5;
+  }
   
   // 获取相关元素池（使用所有元素，支持跨类型搜索）
   const elementPool = getRelatedElements(resultType);
@@ -838,7 +855,7 @@ function exhaustiveSearch(
       processed++;
       
       if (processed % 5000 === 0) {
-        onProgress(processed, totalCombos, found);
+        onProgress(processed, totalCombos, found, results);
       }
       
       // 剪枝：检查前面部分元素的命中率
@@ -885,14 +902,14 @@ function exhaustiveSearch(
         found++;
         
         if (found >= maxResults) {
-          onProgress(processed, totalCombos, found);
+        onProgress(processed, totalCombos, found, results);
           return results;
         }
       }
     }
   }
   
-  onProgress(processed, totalCombos, found);
+  onProgress(processed, totalCombos, found, results);
   return results;
 }
 
@@ -1154,7 +1171,7 @@ function evolutionarySearch(
         }
         currentIteration++;
         if (currentIteration % 50 === 0) {
-          onProgress(currentIteration, totalIterations, results.length);
+          onProgress(currentIteration, totalIterations, results.length, results);
         }
       }
     }
@@ -1200,7 +1217,7 @@ function evolutionarySearch(
     results.push(...newPopulation);
     bestFormulas = [...results].sort((a, b) => b.hitRate - a.hitRate).slice(0, 20);
     
-    onProgress(currentIteration, totalIterations, results.length);
+    onProgress(currentIteration, totalIterations, results.length, results);
     
     if (results.length >= maxCount * 2) break;
   }

@@ -27,7 +27,7 @@ export function SmartSearchModal({
   onAddFormulas,
   searchWorker,
 }: SmartSearchModalProps) {
-  const { results, isSearching, progress, search, clearResults } = searchWorker;
+  const { results, intermediateResults, isSearching, progress, search, clearResults } = searchWorker;
   
   const [hitRate, setHitRate] = useState(60);
   const [count, setCount] = useState(500);
@@ -324,12 +324,14 @@ export function SmartSearchModal({
             </div>
           )}
 
-          {/* 搜索结果 */}
-          {results.length > 0 && (
+          {/* 搜索结果 - 优先显示中间结果，搜索完成后再显示最终结果 */}
+          {(results.length > 0 || intermediateResults.length > 0) && (
             <div className="p-3 sm:p-4">
               <div className="flex items-center justify-between mb-3 gap-2">
                 <span className="text-xs sm:text-sm text-gray-600">
-                  {results.length}个
+                  {intermediateResults.length > 0 && isSearching 
+                    ? `${intermediateResults.length}个(中间结果)`
+                    : `${results.length}个`}
                 </span>
                 <div className="flex gap-1.5 sm:gap-2">
                   <button
@@ -355,7 +357,7 @@ export function SmartSearchModal({
               </div>
 
               <div className="space-y-2 max-h-48 sm:max-h-60 overflow-y-auto">
-                {results.map((result, index) => (
+                {(intermediateResults.length > 0 && isSearching ? intermediateResults : results).map((result, index) => (
                   <div
                     key={index}
                     onClick={() => handleToggleSelect(index)}

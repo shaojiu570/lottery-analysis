@@ -10,6 +10,7 @@ export interface SearchResult {
 
 interface UseSearchWorkerReturn {
   results: SearchResult[];
+  intermediateResults: SearchResult[];
   isSearching: boolean;
   progress: { current: number; total: number; found: number } | null;
   search: (
@@ -29,6 +30,7 @@ interface UseSearchWorkerReturn {
 
 export function useSearchWorker(): UseSearchWorkerReturn {
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [intermediateResults, setIntermediateResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number; found: number } | null>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -44,8 +46,13 @@ export function useSearchWorker(): UseSearchWorkerReturn {
       
       if (type === 'progress') {
         setProgress({ current, total, found });
+        // 保存中间结果
+        if (searchResults && searchResults.length > 0) {
+          setIntermediateResults(searchResults);
+        }
       } else if (type === 'complete') {
         setResults(searchResults);
+        setIntermediateResults([]);
         setIsSearching(false);
         setProgress(null);
         workerRef.current = null;
@@ -59,10 +66,8 @@ export function useSearchWorker(): UseSearchWorkerReturn {
 
     worker.onerror = (error) => {
       console.error('Search worker error:', error);
-      if (!isCancelledRef.current) {
-        setIsSearching(false);
-        setProgress(null);
-      }
+      setIsSearching(false);
+      setProgress(null);
       workerRef.current = null;
     };
 
@@ -102,6 +107,7 @@ export function useSearchWorker(): UseSearchWorkerReturn {
 
     setIsSearching(true);
     setResults([]);
+    setIntermediateResults([]);
     setProgress({ current: 0, total: 0, found: 0 });
 
     workerRef.current.postMessage({
@@ -127,10 +133,12 @@ export function useSearchWorker(): UseSearchWorkerReturn {
 
   const clearResults = useCallback(() => {
     setResults([]);
+    setIntermediateResults([]);
   }, []);
 
   return {
     results,
+    intermediateResults,
     isSearching,
     progress,
     search,
