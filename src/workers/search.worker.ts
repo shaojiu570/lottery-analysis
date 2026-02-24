@@ -602,48 +602,6 @@ const RESULT_TYPE_ELEMENT_MAP: Record<ResultType, string[]> = {
   '大小单双类': ['尾数组', '合数组', '段数组'],
 };
 
-// 公式模板库 - 预定义的高效模式
-const FORMULA_TEMPLATES: Record<ResultType, string[][]> = {
-  '尾数类': [
-    ['特尾', '平1尾'],
-    ['特尾', '期数尾'],
-    ['平1尾', '平2尾', '平3尾'],
-    ['期数合尾', '特尾'],
-  ],
-  '头数类': [
-    ['特头', '平1头'],
-    ['平1头', '平2头'],
-  ],
-  '合数类': [
-    ['特合', '期数合'],
-    ['特合', '平1合'],
-    ['期数合', '总分合'],
-    ['平1合', '平2合', '平3合'],
-  ],
-  '波色类': [
-    ['特波', '平1波'],
-    ['平1波', '平2波'],
-  ],
-  '五行类': [
-    ['特行', '平1行'],
-    ['平1行', '平2行', '平3行'],
-  ],
-  '肖位类': [
-    ['特肖位', '平1肖位'],
-    ['平1肖位', '平2肖位'],
-  ],
-  '单特类': [
-    ['特号', '期数'],
-    ['平1号', '平2号'],
-  ],
-  '大小单双类': [
-    ['特尾', '期数尾'],
-    ['特合', '平1合'],
-    ['特段', '平1段'],
-    ['平1段', '平2段'],
-  ],
-};
-
 // 获取结果类型推荐的元素
 function getRecommendedElements(resultType: ResultType): string[] {
   const groups = RESULT_TYPE_ELEMENT_MAP[resultType] || [];
@@ -760,7 +718,7 @@ function generateFromTemplate(
 }
 
 // 获取与结果类型相关的元素（现在返回所有元素，支持跨类型搜索）
-function getRelatedElements(resultType: ResultType): string[] {
+function getRelatedElements(_resultType: ResultType): string[] {
   return getAllElements();
 }
 
@@ -1223,32 +1181,6 @@ function evolutionarySearch(
   }
   
   return results;
-}
-
-// 保留随机生成函数作为备用
-function generateRandomFormula(
-  elements: string[],
-  elementCount: number,
-  resultType: ResultType,
-  rule: 'D' | 'L',
-  periods: number,
-  offset: number,
-  leftExpand: number,
-  rightExpand: number
-): string {
-  const shuffled = [...elements].sort(() => Math.random() - 0.5);
-  const selected = shuffled.slice(0, Math.min(elementCount, elements.length));
-  
-  let expression = selected[0];
-  for (let i = 1; i < selected.length; i++) {
-    expression += '+' + selected[i];
-  }
-  
-  const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
-  const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
-  const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
-  
-  return `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
 }
 
 // Worker 消息处理
