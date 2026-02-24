@@ -32,7 +32,6 @@ export function useSearchWorker(): UseSearchWorkerReturn {
   const [isSearching, setIsSearching] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number; found: number } | null>(null);
   const workerRef = useRef<Worker | null>(null);
-  const isCancelledRef = useRef(false);
 
   // 创建worker的函数
   const createWorker = useCallback(() => {
@@ -42,8 +41,6 @@ export function useSearchWorker(): UseSearchWorkerReturn {
 
     worker.onmessage = (event) => {
       const { type, results: searchResults, current, total, found, error } = event.data;
-      
-      if (isCancelledRef.current) return;
       
       if (type === 'progress') {
         setProgress({ current, total, found });
@@ -95,12 +92,14 @@ export function useSearchWorker(): UseSearchWorkerReturn {
   ) => {
     if (historyData.length === 0 || resultTypes.length === 0) return;
 
-    // 如果worker被终止，重新创建
-    if (!workerRef.current) {
-      workerRef.current = createWorker();
+    // 如果有旧的worker在运行，先终止它
+    if (workerRef.current) {
+      workerRef.current.terminate();
     }
+    
+    // 创建新的worker
+    workerRef.current = createWorker();
 
-    isCancelledRef.current = false;
     setIsSearching(true);
     setResults([]);
     setProgress({ current: 0, total: 0, found: 0 });
@@ -120,11 +119,8 @@ export function useSearchWorker(): UseSearchWorkerReturn {
   }, [createWorker]);
 
   const cancel = useCallback(() => {
-    isCancelledRef.current = true;
-    if (workerRef.current) {
-      workerRef.current.terminate();
-      workerRef.current = null;
-    }
+    // 不立即终止worker，让它继续运行直到完成
+    // 这样已找到的结果会在搜索完成后自动显示
     setIsSearching(false);
     setProgress(null);
   }, []);

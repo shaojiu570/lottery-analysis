@@ -991,7 +991,7 @@ function evolutionarySearch(
   periods: number,
   leftExpand: number,
   rightExpand: number,
-  onProgress: (current: number, total: number, found: number) => void
+  onProgress: (current: number, total: number, found: number, currentResults?: { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[]) => void
 ): { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] {
   
   const allElements = getAllElements();
@@ -1252,12 +1252,13 @@ self.onmessage = (event) => {
       periods,
       leftExpand,
       rightExpand,
-      (current, total, found) => {
+      (current, total, found, currentResults) => {
         self.postMessage({
           type: 'progress',
           current,
           total,
-          found
+          found,
+          results: currentResults || []
         });
       }
     );
