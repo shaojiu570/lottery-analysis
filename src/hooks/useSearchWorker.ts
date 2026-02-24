@@ -46,7 +46,7 @@ export function useSearchWorker(): UseSearchWorkerReturn {
       
       if (type === 'progress') {
         setProgress({ current, total, found });
-        // 保存中间结果
+        // 只保存中间结果，不显示
         if (searchResults && searchResults.length > 0) {
           setIntermediateResults(searchResults);
         }
@@ -126,10 +126,13 @@ export function useSearchWorker(): UseSearchWorkerReturn {
 
   const cancel = useCallback(() => {
     // 不立即终止worker，让它继续运行直到完成
-    // 这样已找到的结果会在搜索完成后自动显示
+    // 停止时如果有中间结果，把中间结果显示出来
+    if (intermediateResults.length > 0) {
+      setResults(intermediateResults);
+    }
     setIsSearching(false);
     setProgress(null);
-  }, []);
+  }, [intermediateResults]);
 
   const clearResults = useCallback(() => {
     setResults([]);
