@@ -618,6 +618,30 @@ function convertResultToNumbers(resultStr: string, resultType: ResultType, zodia
     return nums || [];
   }
   
+  // 波色类：如 "红波" -> 转换为对应号码
+  if (resultType === '波色类') {
+    const waveMap: Record<string, number> = {
+      '红波': 0, '蓝波': 1, '绿波': 2
+    };
+    const value = waveMap[cleanStr];
+    if (value !== undefined) {
+      return getNumbersFromResult(value, resultType, zodiacYear);
+    }
+    return [];
+  }
+  
+  // 五行类：如 "金" -> 转换为对应号码
+  if (resultType === '五行类') {
+    const elementMap: Record<string, number> = {
+      '金': 0, '木': 1, '水': 2, '火': 3, '土': 4
+    };
+    const value = elementMap[cleanStr];
+    if (value !== undefined) {
+      return getNumbersFromResult(value, resultType, zodiacYear);
+    }
+    return [];
+  }
+  
   // 大小单双类：如 "大单" -> 转换为对应号码
   if (resultType === '大小单双类') {
     const valueMap: Record<string, number> = {
