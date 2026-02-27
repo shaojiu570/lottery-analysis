@@ -517,7 +517,7 @@ export function groupByResultType(
         allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
       }
     } else if (type === '合数类') {
-      for (let i = 0; i < 14; i++) {
+      for (let i = 1; i <= 13; i++) {
         allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
       }
     } else if (type === '尾数类') {
