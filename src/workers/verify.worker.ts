@@ -585,7 +585,7 @@ function verifyFormula(
 ): any {
   if (!parsed) return { hitRate: 0, hitCount: 0, totalPeriods: 0, formula: parsed, hits: [], results: [], targetPeriod: targetPeriodVal };
   
-  const dataToVerify = historyData;
+  const dataToVerify = historyData.slice(0, periods);
   let hitCount = 0;
   const useSort = parsed.rule === 'D';
   const hits: boolean[] = [];
