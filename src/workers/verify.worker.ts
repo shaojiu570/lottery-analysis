@@ -541,7 +541,7 @@ function applyCycle(value: number, resultType: string): number {
   switch (resultType) {
     case '尾数类': return ((value % 10) + 10) % 10;
     case '头数类': return ((value % 5) + 5) % 5;
-    case '合数类': return ((value % 14) + 14) % 14;
+    case '合数类': return ((value - 1) % 14 + 14) % 14 + 1;
     case '波色类': return ((value % 3) + 3) % 3;
     case '五行类': return ((value % 5) + 5) % 5;
     case '肖位类': return ((value % 12) + 12) % 12 || 12;
