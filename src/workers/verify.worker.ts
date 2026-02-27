@@ -577,7 +577,6 @@ function getExpandedResults(result: number, leftExpand: number, rightExpand: num
 function verifyFormula(
   parsed: any,
   historyData: LotteryData[],
-  offset: number,
   periods: number,
   leftExpand: number,
   rightExpand: number,
@@ -596,7 +595,7 @@ function verifyFormula(
     const calcData = i > 0 ? dataToVerify[i - 1] : verifyData;
     
     const rawResult = evaluateExpression(parsed.expression, calcData, useSort);
-    const withOffset = rawResult + parsed.offset + offset;
+    const withOffset = rawResult + parsed.offset;
     const cycledResult = applyCycle(withOffset, parsed.resultType);
     const expandedResults = getExpandedResults(cycledResult, leftExpand, rightExpand, parsed.resultType);
     
@@ -685,10 +684,9 @@ self.onmessage = async (event) => {
           const overridePeriods = formula.periods || dataToVerify.length;
           const overrideLeft = formula.leftExpand || 0;
           const overrideRight = formula.rightExpand || 0;
-          const overrideOffset = formula.offset || 0;
           
-          // 验证公式
-          const result = verifyFormula(formula, dataToVerify, overrideOffset, overridePeriods, overrideLeft, overrideRight, targetPeriod);
+          // 验证公式（offset已包含在formula.offset中）
+          const result = verifyFormula(formula, dataToVerify, overridePeriods, overrideLeft, overrideRight, targetPeriod);
           results.push(result);
         }
         
