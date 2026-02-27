@@ -441,15 +441,16 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
     // 获取该期的实际特码
     const actualTeNum = periodData.numbers[6];
     
-    // 获取该公式对应期的生肖年份
-    const zodiacYear = getZodiacYearByPeriod(period);
-    
     // 统计所有公式在该期的结果转换为号码后，特码出现的总次数
     let hitCount = 0;
     for (const result of results) {
       // 找到该公式在该期的计算结果
       const periodResult = result.periodResults.find(pr => pr.period === period);
       if (periodResult) {
+        // 每条公式用自己对应期的period计算生肖年份（与aggregateAllNumbers一致）
+        const formulaPeriod = periodResult.period;
+        const zodiacYear = getZodiacYearByPeriod(formulaPeriod);
+        
         // 将该期的所有扩展结果转换为号码，统计特码出现次数
         for (const value of periodResult.expandedResults) {
           const numbers = convertResultToNumbers(
