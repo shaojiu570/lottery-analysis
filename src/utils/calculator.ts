@@ -401,7 +401,8 @@ export function verifyFormulas(
   );
 }
 
-// 统计每期实际特码被多少公式命中
+// 统计每期全码类结果中各号码出现的次数
+// 读取第四层全码类结果的命中次数来同步统计
 export function countHitsPerPeriod(results: VerifyResult[], historyData: LotteryData[]): number[] {
   if (results.length === 0 || historyData.length === 0) return [];
   
@@ -428,7 +429,7 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
   // 初始化计数数组
   const counts: number[] = [];
   
-  // 对每个期数，统计实际特码被多少公式命中
+  // 对每个期数，统计全码类结果中特码出现的次数
   for (const period of periodsToCount) {
     // 找到该期的开奖数据
     const periodData = historyData.find(d => d.period === period);
@@ -440,18 +441,26 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
     // 获取该期的实际特码
     const actualTeNum = periodData.numbers[6];
     
-    // 统计有多少公式的结果包含这个特码
+    // 获取该公式对应期的生肖年份
+    const zodiacYear = getZodiacYearByPeriod(period);
+    
+    // 统计所有公式在该期的结果转换为号码后，特码出现的总次数
     let hitCount = 0;
     for (const result of results) {
       // 找到该公式在该期的计算结果
       const periodResult = result.periodResults.find(pr => pr.period === period);
       if (periodResult) {
-        // 将该期的所有扩展结果转换为号码
+        // 将该期的所有扩展结果转换为号码，统计特码出现次数
         for (const value of periodResult.expandedResults) {
-          const numbers = getNumbersFromResult(value, result.formula.resultType);
-          if (numbers.includes(actualTeNum)) {
-            hitCount++;
-            break; // 该公式已命中，不再重复计数
+          const numbers = convertResultToNumbers(
+            resultToText(value, result.formula.resultType, zodiacYear),
+            result.formula.resultType,
+            zodiacYear
+          );
+          for (const num of numbers) {
+            if (num === actualTeNum) {
+              hitCount++;
+            }
           }
         }
       }

@@ -21,6 +21,7 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
   const [lastPeriodCondition, setLastPeriodCondition] = useState<LastPeriodCondition>('none');
   
   const [consecutiveMissPeriods, setConsecutiveMissPeriods] = useState(0);
+  const [consecutiveHitPeriods, setConsecutiveHitPeriods] = useState(0);
 
   if (!isOpen) return null;
 
@@ -37,6 +38,21 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
       }
     }
     return maxMiss;
+  };
+
+  // 计算最大连续命中期数（任意位置）
+  const calculateMaxConsecutiveHit = (hits: boolean[]): number => {
+    let maxHit = 0;
+    let currentHit = 0;
+    for (const hit of hits) {
+      if (hit) {
+        currentHit++;
+        maxHit = Math.max(maxHit, currentHit);
+      } else {
+        currentHit = 0;
+      }
+    }
+    return maxHit;
   };
 
   const getFilteredResults = () => {
@@ -74,6 +90,13 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
       filtered = filtered.filter(r => {
         const maxMiss = calculateMaxConsecutiveMiss(r.hits);
         return maxMiss >= consecutiveMissPeriods;
+      });
+    }
+
+    if (consecutiveHitPeriods > 0) {
+      filtered = filtered.filter(r => {
+        const maxHit = calculateMaxConsecutiveHit(r.hits);
+        return maxHit >= consecutiveHitPeriods;
       });
     }
 
@@ -300,6 +323,25 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
                 min={0}
               />
               <span className="text-sm text-gray-600">期未命中（0=不限）</span>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-200 pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              连对筛选
+            </label>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">连对≥</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={consecutiveHitPeriods}
+                onChange={(e) => setConsecutiveHitPeriods(parseInt(e.target.value) || 0)}
+                className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
+                min={0}
+              />
+              <span className="text-sm text-gray-600">期连续命中（0=不限）</span>
             </div>
           </div>
 

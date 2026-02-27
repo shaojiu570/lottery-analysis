@@ -108,10 +108,11 @@ export function normalizeElementName(name: string): string {
   normalized = normalized.replace(/__ZONGFEN_HEWEI__/g, '总分合尾');
   
   // 保护结果类型不被替换（如五行类、肖位类等）
+  // 使用不会与别名冲突的占位符
   const rtList: string[] = [];
   const resultTypes = ['五行类', '肖位类', '波色类', '尾数类', '头数类', '合数类', '单特类', '大小单双类'];
   for (const rt of resultTypes) {
-    const placeholder = `__RT_${rtList.length}__`;
+    const placeholder = `__TYP${rtList.length}__`;
     normalized = normalized.replace(new RegExp(rt, 'g'), placeholder);
     rtList.push(rt);
   }
@@ -139,7 +140,7 @@ export function normalizeElementName(name: string): string {
   
   // 还原结果类型
   for (let i = 0; i < rtList.length; i++) {
-    normalized = normalized.replace(`__RT_${i}__`, rtList[i]);
+    normalized = normalized.replace(`__TYP${i}__`, rtList[i]);
   }
 
   return normalized;
