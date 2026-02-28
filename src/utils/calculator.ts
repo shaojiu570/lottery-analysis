@@ -35,6 +35,16 @@ export function precomputeAllElementValues(historyData: LotteryData[]): void {
     elementValuesD['期数尾'] = periodNum % 10;
     elementValuesD['期数合'] = digitSum(periodNum);
     elementValuesD['期数合尾'] = digitSum(periodNum) % 10;
+    
+    // 上期数
+    const prevIdx = historyData.indexOf(data) + 1;
+    if (prevIdx < historyData.length) {
+      elementValuesD['上期数'] = historyData[prevIdx].period % 1000;
+    } else {
+      let prevPeriod = periodNum - 1;
+      if (prevPeriod <= 0) prevPeriod = 150;
+      elementValuesD['上期数'] = prevPeriod;
+    }
     Object.assign(elementValuesL, elementValuesD);
     
     // 总分系列
@@ -212,7 +222,7 @@ export function evaluateExpression(
   
   // 替换元素为数值（使用缓存）
   // 期数系列（按长度优先）
-  const periodElements = ['期数合尾', '期数合', '期数尾', '期数'];
+  const periodElements = ['期数合尾', '期数合', '期数尾', '上期数', '期数'];
   for (const elem of periodElements) {
     const value = getCachedElementValue(elem, data, useSort);
     normalized = normalized.replace(new RegExp(elem, 'g'), value.toString());
@@ -316,9 +326,9 @@ export function verifyFormula(
         calcData = verifyData;
       } else {
         // 验证历史期（包括指定的最新期）：用上一期数据计算
-        // 历史数据是降序排列（最新在前），所以用 verifyIndex - 1 获取上一期
-        calcData = (verifyIndex > 0 && verifyIndex < historyData.length) 
-          ? historyData[verifyIndex - 1] 
+        // 历史数据是降序排列（最新在前），所以用 verifyIndex + 1 获取上一期（更旧的一期）
+        calcData = (verifyIndex >= 0 && verifyIndex < historyData.length - 1) 
+          ? historyData[verifyIndex + 1] 
           : verifyData;
       }
     

@@ -85,6 +85,16 @@ const ELEMENT_ALIASES: Record<string, string> = {
 export function normalizeElementName(name: string): string {
   let normalized = name;
   
+  // 保护结果类型不被替换（如五行类、肖位类等）
+  // 使用不会与别名冲突的占位符
+  const rtList: string[] = [];
+  const resultTypes = ['五行类', '肖位类', '波色类', '尾数类', '头数类', '合数类', '单特类', '大小单双类'];
+  for (const rt of resultTypes) {
+    const placeholder = `__TYP${rtList.length}__`;
+    normalized = normalized.replace(new RegExp(rt, 'g'), placeholder);
+    rtList.push(rt);
+  }
+  
   // 先保护完整的元素名称，避免被chineseToNumber错误转换
   normalized = normalized.replace(/期数合尾/g, '__QISHU_HEWEI__');
   normalized = normalized.replace(/期数合/g, '__QISHU_HE__');
@@ -106,16 +116,6 @@ export function normalizeElementName(name: string): string {
   normalized = normalized.replace(/__ZONGFEN_WEI__/g, '总分尾');
   normalized = normalized.replace(/__ZONGFEN_HE__/g, '总分合');
   normalized = normalized.replace(/__ZONGFEN_HEWEI__/g, '总分合尾');
-  
-  // 保护结果类型不被替换（如五行类、肖位类等）
-  // 使用不会与别名冲突的占位符
-  const rtList: string[] = [];
-  const resultTypes = ['五行类', '肖位类', '波色类', '尾数类', '头数类', '合数类', '单特类', '大小单双类'];
-  for (const rt of resultTypes) {
-    const placeholder = `__TYP${rtList.length}__`;
-    normalized = normalized.replace(new RegExp(rt, 'g'), placeholder);
-    rtList.push(rt);
-  }
   
   // 处理别名（如"特码波" -> "特波"）
   // 按长度从长到短排序，避免短名称错误替换长名称中的部分
@@ -185,6 +185,15 @@ const SIMPLIFIED_EXPRESSIONS: Record<string, string> = {
 export function normalizeSimplifiedExpression(expression: string): string {
   let normalized = expression;
   
+  // 保护结果类型不被替换
+  const rtList: string[] = [];
+  const resultTypes = ['五行类', '肖位类', '波色类', '尾数类', '头数类', '合数类', '单特类', '大小单双类'];
+  for (const rt of resultTypes) {
+    const placeholder = `__TYP${rtList.length}__`;
+    normalized = normalized.replace(new RegExp(rt, 'g'), placeholder);
+    rtList.push(rt);
+  }
+  
   // 先保护完整的元素名称，避免被chineseToNumber错误转换
   normalized = normalized.replace(/期数合尾/g, '__QISHU_HEWEI__');
   normalized = normalized.replace(/期数合/g, '__QISHU_HE__');
@@ -215,9 +224,13 @@ export function normalizeSimplifiedExpression(expression: string): string {
   for (const simplified of sortedKeys) {
     const standard = SIMPLIFIED_EXPRESSIONS[simplified];
     // 使用负向前瞻和负向后顾，确保不会重复替换已完整的形式
-    // 例如"特肖"只在前面不是"特"且后面不是"位"时替换
     const pattern = new RegExp(`(?<![平特])${simplified}(?![位头尾合波行号段])`, 'g');
     normalized = normalized.replace(pattern, standard);
+  }
+
+  // 还原结果类型
+  for (let i = 0; i < rtList.length; i++) {
+    normalized = normalized.replace(`__TYP${i}__`, rtList[i]);
   }
   
   return normalized;
@@ -225,8 +238,8 @@ export function normalizeSimplifiedExpression(expression: string): string {
 
 // 78个固定元素定义
 export const ELEMENT_DEFINITIONS = [
-  // 期数系列 (4个)
-  '期数', '期数尾', '期数合', '期数合尾',
+  // 期数系列 (5个)
+  '期数', '期数尾', '期数合', '期数合尾', '上期数',
   // 总分系列 (4个)
   '总分', '总分尾', '总分合', '总分合尾',
   // 平码系列 (60个)
@@ -243,7 +256,8 @@ export const ELEMENT_DEFINITIONS = [
 export function calculateElementValue(
   elementName: string,
   data: LotteryData,
-  useSort: boolean
+  useSort: boolean,
+  prevData?: LotteryData
 ): number {
   const normalized = normalizeElementName(elementName);
   // D规则：平码按大小排序，特码位置不变
@@ -257,6 +271,17 @@ export function calculateElementValue(
   if (normalized === '期数尾') return periodNum % 10;
   if (normalized === '期数合') return digitSum(periodNum);
   if (normalized === '期数合尾') return digitSum(periodNum) % 10;
+  
+  // 上期数 - 计算期数的上一期期号（后3位）
+  if (normalized === '上期数') {
+    if (prevData) {
+      return prevData.period % 1000;
+    }
+    // 如果没有上一期数据，尝试推算（减1，处理跨年情况）
+    let prevPeriod = periodNum - 1;
+    if (prevPeriod <= 0) prevPeriod = 150; // 假设去年最后一期是150
+    return prevPeriod;
+  }
   
   // 外部数据系列
   if (normalized === '星期') return data.weekday ?? 0;

@@ -31,6 +31,16 @@ function precomputeAllElementValues(historyData: LotteryData[]): void {
     elementValuesD['期数尾'] = periodNum % 10;
     elementValuesD['期数合'] = digitSum(periodNum);
     elementValuesD['期数合尾'] = digitSum(periodNum) % 10;
+    
+    // 上期数
+    const prevIdx = historyData.indexOf(data) + 1;
+    if (prevIdx < historyData.length) {
+      elementValuesD['上期数'] = historyData[prevIdx].period % 1000;
+    } else {
+      let prevPeriod = periodNum - 1;
+      if (prevPeriod <= 0) prevPeriod = 150;
+      elementValuesD['上期数'] = prevPeriod;
+    }
     Object.assign(elementValuesL, elementValuesD);
     
     // 总分系列
@@ -209,12 +219,7 @@ function getNumberAttribute(num: number, resultType: string, zodiacYear: number)
       if (WAVE_COLORS.绿.includes(num)) return 2;
       return 0;
     case '五行类':
-      if (FIVE_ELEMENTS.金.includes(num)) return 0;
-      if (FIVE_ELEMENTS.木.includes(num)) return 1;
-      if (FIVE_ELEMENTS.水.includes(num)) return 2;
-      if (FIVE_ELEMENTS.火.includes(num)) return 3;
-      if (FIVE_ELEMENTS.土.includes(num)) return 4;
-      return 0;
+      return getFiveElement(num, zodiacYear);
     case '肖位类': {
       const zodiacMap = getZodiacMap(zodiacYear);
       for (let i = 1; i <= 12; i++) {
@@ -305,6 +310,15 @@ function chineseToNumber(str: string): string {
 function normalizeElementName(name: string): string {
   let normalized = name;
   
+  // 保护结果类型不被替换
+  const rtList: string[] = [];
+  const resultTypes = ['五行类', '肖位类', '波色类', '尾数类', '头数类', '合数类', '单特类', '大小单双类'];
+  for (const rt of resultTypes) {
+    const placeholder = `__TYP${rtList.length}__`;
+    normalized = normalized.replace(new RegExp(rt, 'g'), placeholder);
+    rtList.push(rt);
+  }
+  
   // 先保护完整的元素名称，避免被chineseToNumber错误转换
   normalized = normalized.replace(/期数合尾/g, '__QISHU_HEWEI__');
   normalized = normalized.replace(/期数合/g, '__QISHU_HE__');
@@ -350,8 +364,13 @@ function normalizeElementName(name: string): string {
     ['一行', '平1行'], ['二行', '平2行'], ['三行', '平3行'], ['四行', '平4行'], ['五行', '平5行'], ['六行', '平6行'],
   ];
   for (const [simplified, standard] of simplifiedExprs) {
-    // 使用负向前瞻和负向后顾，避免重复替换已完整的形式
+    // 使用负向前瞻 and 负向后顾，避免重复替换已完整的形式
     normalized = normalized.replace(new RegExp(`(?<![平特])${simplified}(?![位头尾合波行号段])`, 'g'), standard);
+  }
+  
+  // 还原结果类型
+  for (let i = 0; i < rtList.length; i++) {
+    normalized = normalized.replace(`__TYP${i}__`, rtList[i]);
   }
   
   return normalized;
@@ -502,7 +521,7 @@ function evaluateExpression(expression: string, data: LotteryData, useSort: bool
   // 替换元素为数值（按长度优先，避免短元素名被先替换）
   const allElements = [
     // 期数系列
-    '期数合尾', '期数合', '期数尾', '期数',
+    '期数合尾', '期数合', '期数尾', '上期数', '期数',
     // 总分系列
     '总分合尾', '总分合', '总分尾', '总分',
     // 平码系列 (每个号码的各属性，按长度优先)
@@ -541,10 +560,10 @@ function applyCycle(value: number, resultType: string): number {
   switch (resultType) {
     case '尾数类': return ((value % 10) + 10) % 10;
     case '头数类': return ((value % 5) + 5) % 5;
-    case '合数类': return ((value - 1) % 14 + 14) % 14 + 1;
+    case '合数类': return ((value - 1) % 13 + 13) % 13 + 1;
     case '波色类': return ((value % 3) + 3) % 3;
     case '五行类': return ((value % 5) + 5) % 5;
-    case '肖位类': return ((value % 12) + 12) % 12 || 12;
+    case '肖位类': return ((value - 1) % 12 + 12) % 12 + 1;
     case '单特类': return ((value - 1) % 49 + 49) % 49 + 1;
     case '大小单双类': return ((value % 4) + 4) % 4;
     default: return value;
@@ -592,7 +611,9 @@ function verifyFormula(
   
   for (let i = 0; i < dataToVerify.length; i++) {
     const verifyData = dataToVerify[i];
-    const calcData = i > 0 ? dataToVerify[i - 1] : verifyData;
+    // 验证历史期：用上一期数据计算
+    // 历史数据是降序排列（最新在前），所以用 i + 1 获取上一期（更旧的一期）
+    const calcData = (i < dataToVerify.length - 1) ? dataToVerify[i + 1] : verifyData;
     
     const rawResult = evaluateExpression(parsed.expression, calcData, useSort);
     const withOffset = rawResult + parsed.offset;

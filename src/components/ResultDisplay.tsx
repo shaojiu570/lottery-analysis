@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { VerifyResult, LotteryData, ResultType } from '@/types';
 import { formatFormula, ParseError } from '@/utils/formulaParser';
 import { countHitsPerPeriod, groupByResultType, aggregateAllNumbers } from '@/utils/calculator';
@@ -16,10 +16,25 @@ interface ResultDisplayProps {
 
 export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData, onClear, onCopy, parseErrors = [] }: ResultDisplayProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(false);
 
-  const scrollToBottom = () => {
+  // 监听滚动事件，判断是否在底部
+  const handleScroll = useCallback(() => {
     if (textareaRef.current) {
-      textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+      const { scrollTop, scrollHeight, clientHeight } = textareaRef.current;
+      // 容差 5px
+      const atBottom = scrollHeight - scrollTop - clientHeight < 5;
+      setIsAtBottom(atBottom);
+    }
+  }, []);
+
+  const toggleScroll = () => {
+    if (textareaRef.current) {
+      if (isAtBottom) {
+        textareaRef.current.scrollTop = 0;
+      } else {
+        textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+      }
     }
   };
 
@@ -174,79 +189,74 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     scrollToTop();
   }, [results]);
 
-  const handleScrollToBottom = () => {
-    scrollToBottom();
-  };
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.addEventListener('scroll', handleScroll);
+      // 初始化状态
+      handleScroll();
+      return () => textarea.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll]);
 
   const handleCopyAll = () => {
     onCopy(resultText);
   };
 
+  const ActionButtons = (
+    <div className="flex gap-2">
+      <button
+        onClick={toggleScroll}
+        className="px-3 py-1.5 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg border border-emerald-200 font-medium transition-colors min-w-[64px]"
+      >
+        {isAtBottom ? '到顶部' : '到底部'}
+      </button>
+      <button
+        onClick={handleCopyAll}
+        className="px-3 py-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg border border-blue-200 font-medium transition-colors"
+      >
+        复制
+      </button>
+      <button
+        onClick={onClear}
+        className="px-3 py-1.5 text-xs bg-red-50 hover:bg-red-100 text-red-600 rounded-lg border border-red-200 font-medium transition-colors"
+      >
+        清空
+      </button>
+    </div>
+  );
+
   if (results.length === 0) {
     return (
-      <div className="flex-1 flex flex-col overflow-hidden bg-white">
-        <div className="flex items-center justify-end px-4 py-3 bg-white border-t border-gray-200 shrink-0">
-          <div className="flex gap-2">
-            <button
-              onClick={handleScrollToBottom}
-              className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg border border-gray-300"
-            >
-              到底部
-            </button>
-            <button
-              onClick={handleCopyAll}
-              className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg border border-gray-300"
-            >
-              复制
-            </button>
-            <button
-              onClick={onClear}
-              className="px-4 py-2 text-sm bg-red-50 hover:bg-red-100 text-red-600 rounded-lg border border-red-200"
-            >
-              清空
-            </button>
-          </div>
+      <div className="flex-1 flex flex-col overflow-hidden bg-white relative">
+        <div className="absolute top-3 right-6 z-10">
+          <ActionButtons.type {...ActionButtons.props} />
+        </div>
+        <div className="flex-1 flex items-center justify-center text-gray-400 text-sm italic">
+          暂无验证结果
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-white">
+    <div className="flex-1 flex flex-col overflow-hidden bg-white relative">
+      {/* 固定在右上角的按钮组 */}
+      <div className="absolute top-4 right-8 z-10 flex items-center gap-2 bg-white/80 backdrop-blur-sm p-1 rounded-xl shadow-sm border border-gray-100">
+        {ActionButtons}
+      </div>
+
       <div className="flex-1 min-h-0 overflow-hidden px-4 py-2">
         <textarea
           ref={textareaRef}
           value={resultText}
           readOnly
-          className="w-full h-full text-xs sm:text-xs font-mono bg-gray-50 border border-gray-200 rounded-lg p-3 resize-none focus:outline-none"
+          className="w-full h-full text-[11px] sm:text-xs font-mono bg-gray-50 border border-gray-200 rounded-xl p-4 pt-12 resize-none focus:outline-none scroll-smooth"
           style={{ 
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-all'
           }}
         />
-      </div>
-
-      <div className="flex items-center justify-end px-4 py-3 bg-white border-t border-gray-200 shrink-0">
-        <div className="flex gap-2">
-          <button
-            onClick={handleScrollToBottom}
-            className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg border border-gray-300"
-          >
-            到底部
-          </button>
-          <button
-            onClick={handleCopyAll}
-            className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg border border-gray-300"
-          >
-            复制
-          </button>
-          <button
-            onClick={onClear}
-            className="px-4 py-2 text-sm bg-red-50 hover:bg-red-100 text-red-600 rounded-lg border border-red-200"
-          >
-            清空
-          </button>
-        </div>
       </div>
     </div>
   );

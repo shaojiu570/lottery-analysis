@@ -236,161 +236,162 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
-        <div className="bg-emerald-600 text-white px-4 py-3 flex items-center justify-between">
-          <h2 className="font-bold text-base">筛选</h2>
-          <button onClick={onClose} className="text-2xl hover:opacity-70 w-8 h-8 flex items-center justify-center">×</button>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[95vh]">
+        <div className="bg-emerald-600 text-white px-4 py-3 flex items-center justify-between shrink-0">
+          <h2 className="font-bold text-base text-white">筛选条件</h2>
+          <button onClick={onClose} className="text-2xl text-white hover:opacity-70 w-8 h-8 flex items-center justify-center">×</button>
         </div>
 
-        <div className="p-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              命中率
-            </label>
-            <select
-              value={hitRateCondition}
-              onChange={(e) => setHitRateCondition(e.target.value as HitRateCondition)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg mb-2"
-            >
-              <option value="none">不限</option>
-              <option value="gt">大于</option>
-              <option value="lt">小于</option>
-              <option value="eq">等于</option>
-              <option value="between">范围内</option>
-            </select>
-            
-            {hitRateCondition !== 'none' && hitRateCondition !== 'between' && (
-              <input
-                type="number"
-                inputMode="numeric"
-                value={hitRateValue}
-                onChange={(e) => setHitRateValue(parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
-                placeholder="命中率%"
-              />
-            )}
-            
-            {hitRateCondition === 'between' && (
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={hitRateMin}
-                  onChange={(e) => setHitRateMin(parseInt(e.target.value) || 0)}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg"
-                  placeholder="最小"
-                />
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={hitRateMax}
-                  onChange={(e) => setHitRateMax(parseInt(e.target.value) || 0)}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg"
-                  placeholder="最大"
-                />
-              </div>
-            )}
+        <div className="p-4 space-y-4 overflow-y-auto">
+          {/* 命中率和上期结果在一行 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">命中率</label>
+              <select
+                value={hitRateCondition}
+                onChange={(e) => setHitRateCondition(e.target.value as HitRateCondition)}
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none"
+              >
+                <option value="none">不限</option>
+                <option value="gt">大于</option>
+                <option value="lt">小于</option>
+                <option value="eq">等于</option>
+                <option value="between">范围</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">上期结果</label>
+              <select
+                value={lastPeriodCondition}
+                onChange={(e) => setLastPeriodCondition(e.target.value as LastPeriodCondition)}
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none"
+              >
+                <option value="none">不限</option>
+                <option value="hit">命中</option>
+                <option value="miss">未命中</option>
+              </select>
+            </div>
           </div>
+          
+          {/* 命中率数值输入 */}
+          {hitRateCondition !== 'none' && (
+            <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-100 animate-in fade-in slide-in-from-top-1">
+              {hitRateCondition === 'between' ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={hitRateMin}
+                    onChange={(e) => setHitRateMin(parseInt(e.target.value) || 0)}
+                    className="flex-1 px-2 py-1.5 text-sm border border-emerald-200 rounded bg-white"
+                    placeholder="最小%"
+                  />
+                  <span className="text-emerald-400">至</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={hitRateMax}
+                    onChange={(e) => setHitRateMax(parseInt(e.target.value) || 0)}
+                    className="flex-1 px-2 py-1.5 text-sm border border-emerald-200 rounded bg-white"
+                    placeholder="最大%"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-emerald-700 font-medium">数值:</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={hitRateValue}
+                    onChange={(e) => setHitRateValue(parseInt(e.target.value) || 0)}
+                    className="flex-1 px-2 py-1.5 text-sm border border-emerald-200 rounded bg-white"
+                    placeholder="命中率%"
+                  />
+                  <span className="text-emerald-700">%</span>
+                </div>
+              )}
+            </div>
+          )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              上期结果
-            </label>
-            <select
-              value={lastPeriodCondition}
-              onChange={(e) => setLastPeriodCondition(e.target.value as LastPeriodCondition)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
-            >
-              <option value="none">不限</option>
-              <option value="hit">命中</option>
-              <option value="miss">未命中</option>
-            </select>
-          </div>
-
-          <div className="border-t border-gray-200 pt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              连错筛选
-            </label>
-            
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">连错≥</span>
+          {/* 连错和连对并排 */}
+          <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">连错≥期</label>
               <input
                 type="number"
                 inputMode="numeric"
                 value={consecutiveMissPeriods}
                 onChange={(e) => setConsecutiveMissPeriods(parseInt(e.target.value) || 0)}
-                className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none"
                 min={0}
               />
-              <span className="text-sm text-gray-600">期未命中（0=不限）</span>
             </div>
-          </div>
-
-          <div className="border-t border-gray-200 pt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              连对筛选
-            </label>
-            
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">连对≥</span>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">连对≥期</label>
               <input
                 type="number"
                 inputMode="numeric"
                 value={consecutiveHitPeriods}
                 onChange={(e) => setConsecutiveHitPeriods(parseInt(e.target.value) || 0)}
-                className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none"
                 min={0}
               />
-              <span className="text-sm text-gray-600">期连续命中（0=不限）</span>
             </div>
           </div>
 
-          <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-            当前: {results.length} 个 | 筛选后: {getFilteredResults().length} 个
+          <div className="text-center py-2 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+            <span className="text-xs text-gray-400">
+              当前 <span className="font-bold text-emerald-600">{results.length}</span> 个公式
+            </span>
+            <span className="mx-2 text-gray-300">|</span>
+            <span className="text-xs text-gray-400">
+              筛选后 <span className="font-bold text-emerald-600">{getFilteredResults().length}</span> 个
+            </span>
           </div>
         </div>
 
-        <div className="border-t border-gray-200 px-4 py-3 space-y-2">
-          {/* 筛选显示按钮 */}
-          <div className="flex gap-2">
+        <div className="border-t border-gray-100 px-4 py-3 space-y-3 shrink-0 bg-gray-50">
+          {/* 主操作按钮组 */}
+          <div className="grid grid-cols-2 gap-3">
             <button
               onClick={handleClear}
-              className="flex-1 px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 text-sm border border-gray-300"
+              className="px-4 py-2 rounded-xl text-gray-600 font-medium hover:bg-gray-200 transition-colors text-sm border border-gray-200 bg-white"
             >
-              清除
+              重置
             </button>
             <button
               onClick={handleFilter}
-              className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-sm"
+              className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-shadow shadow-lg shadow-emerald-200 text-sm"
             >
-              应用
+              应用预览
             </button>
           </div>
           
-          {/* 应用到公式按钮 */}
-          <button
-            onClick={handleApplyToFormulas}
-            className="w-full px-4 py-2 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 text-sm border border-purple-200"
-            title="在公式输入框中只显示筛选出的公式"
-          >
-            📝 应用到公式输入框
-          </button>
-          
-          {/* 公式编辑按钮 */}
-          <div className="flex gap-2 pt-2 border-t border-gray-100">
+          {/* 高级操作按钮组 */}
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={handleApplyToFormulas}
+              className="flex flex-col items-center justify-center p-2 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors border border-purple-100"
+              title="应用到输入框"
+            >
+              <span className="text-lg">📝</span>
+              <span className="text-[10px] mt-1 font-bold">同步</span>
+            </button>
             <button
               onClick={handleKeepFiltered}
-              className="flex-1 px-4 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-sm border border-blue-200"
-              title="只保留筛选出的公式，删除其他"
+              className="flex flex-col items-center justify-center p-2 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors border border-blue-100"
+              title="仅保留筛选"
             >
-              ✅ 保留筛选
+              <span className="text-lg">✅</span>
+              <span className="text-[10px] mt-1 font-bold">保留</span>
             </button>
             <button
               onClick={handleDeleteFiltered}
-              className="flex-1 px-4 py-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 text-sm border border-red-200"
-              title="删除筛选出的公式，保留其他"
+              className="flex flex-col items-center justify-center p-2 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 transition-colors border border-red-100"
+              title="删除筛选项"
             >
-              🗑️ 删除筛选
+              <span className="text-lg">🗑️</span>
+              <span className="text-[10px] mt-1 font-bold">删除</span>
             </button>
           </div>
         </div>

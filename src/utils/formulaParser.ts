@@ -25,6 +25,13 @@ export function parseFormula(input: string): ParsedFormula | null {
     formula = formula.replace(/^\d+(?=\[)/, '').trim();
     
     // 先保护完整的元素名称，避免被chineseToNumber错误转换
+    // 结果类型
+    formula = formula.replace(/五行类/g, '__WUXING_LEI__');
+    formula = formula.replace(/肖位类/g, '__XIAOWEI_LEI__');
+    formula = formula.replace(/头数类/g, '__TOUSHU_LEI__');
+    formula = formula.replace(/尾数类/g, '__WEISHU_LEI__');
+    formula = formula.replace(/合数类/g, '__HESHU_LEI__');
+    
     // 期数系列
     formula = formula.replace(/期数合尾/g, '__QISHU_HEWEI__');
     formula = formula.replace(/期数合/g, '__QISHU_HE__');
@@ -40,6 +47,12 @@ export function parseFormula(input: string): ParsedFormula | null {
     formula = chineseToNumber(formula);
     
     // 还原元素名称
+    formula = formula.replace(/__WUXING_LEI__/g, '五行类');
+    formula = formula.replace(/__XIAOWEI_LEI__/g, '肖位类');
+    formula = formula.replace(/__TOUSHU_LEI__/g, '头数类');
+    formula = formula.replace(/__WEISHU_LEI__/g, '尾数类');
+    formula = formula.replace(/__HESHU_LEI__/g, '合数类');
+    
     formula = formula.replace(/__QISHU__/g, '期数');
     formula = formula.replace(/__QISHU_WEI__/g, '期数尾');
     formula = formula.replace(/__QISHU_HE__/g, '期数合');

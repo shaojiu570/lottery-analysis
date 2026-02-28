@@ -266,6 +266,12 @@ function calculateElementValue(element: string, data: LotteryData, useSort: bool
   else if (normalized === '期数尾') result = periodNum % 10;
   else if (normalized === '期数合') result = digitSum(periodNum);
   else if (normalized === '期数合尾') result = digitSum(periodNum) % 10;
+  else if (normalized === '上期数') {
+    // 简单模拟上期数，实际搜索中建议使用准确的上一期期号
+    let prevPeriod = periodNum - 1;
+    if (prevPeriod <= 0) prevPeriod = 150;
+    result = prevPeriod;
+  }
   
   // 外部数据系列
   else if (normalized === '星期') result = data.weekday ?? 0;
@@ -434,7 +440,7 @@ function evaluateExpression(expression: string, data: LotteryData, useSort: bool
   
   // 替换元素为数值（按长度优先）
   const allElements = [
-    '期数合尾', '期数合', '期数尾', '期数',
+    '期数合尾', '期数合', '期数尾', '上期数', '期数',
     '总分合尾', '总分合', '总分尾', '总分',
     ...Array.from({ length: 6 }, (_, i) => [
       `平${i + 1}合头`, `平${i + 1}合尾`, `平${i + 1}肖位`,
@@ -464,14 +470,14 @@ function evaluateExpression(expression: string, data: LotteryData, useSort: bool
 }
 
 // 应用循环规则
-function applyCycle(value: number, resultType: ResultType): number {
+function applyCycle(value: number, resultType: string): number {
   switch (resultType) {
     case '尾数类': return ((value % 10) + 10) % 10;
     case '头数类': return ((value % 5) + 5) % 5;
-    case '合数类': return ((value - 1) % 14 + 14) % 14 + 1;
+    case '合数类': return ((value - 1) % 13 + 13) % 13 + 1;
     case '波色类': return ((value % 3) + 3) % 3;
     case '五行类': return ((value % 5) + 5) % 5;
-    case '肖位类': return ((value % 12) + 12) % 12 || 12;
+    case '肖位类': return ((value - 1) % 12 + 12) % 12 + 1;
     case '单特类': return ((value - 1) % 49 + 49) % 49 + 1;
     case '大小单双类': return ((value % 4) + 4) % 4;
     default: return value;
@@ -500,7 +506,7 @@ function getExpandedResults(result: number, leftExpand: number, rightExpand: num
 }
 
 // 获取特码属性
-function getNumberAttribute(num: number, resultType: ResultType, zodiacYear: number): number {
+function getNumberAttribute(num: number, resultType: string, zodiacYear: number): number {
   switch (resultType) {
     case '尾数类': return num % 10;
     case '头数类': return Math.floor(num / 10);
@@ -508,15 +514,16 @@ function getNumberAttribute(num: number, resultType: ResultType, zodiacYear: num
     case '波色类': {
       if (WAVE_COLORS.红.includes(num)) return 0;
       if (WAVE_COLORS.蓝.includes(num)) return 1;
-      if (WAVE_COLORS.绿.includes(num)) return 2;
+      if (WAVE_COLORS.green?.includes(num) || WAVE_COLORS.绿?.includes(num)) return 2;
       return 0;
     }
     case '五行类': {
-      if (FIVE_ELEMENTS.金.includes(num)) return 0;
-      if (FIVE_ELEMENTS.木.includes(num)) return 1;
-      if (FIVE_ELEMENTS.水.includes(num)) return 2;
-      if (FIVE_ELEMENTS.火.includes(num)) return 3;
-      if (FIVE_ELEMENTS.土.includes(num)) return 4;
+      const elements = (zodiacYear && FIVE_ELEMENTS_BY_YEAR[zodiacYear]) ? FIVE_ELEMENTS_BY_YEAR[zodiacYear] : FIVE_ELEMENTS;
+      if (elements.金.includes(num)) return 0;
+      if (elements.木.includes(num)) return 1;
+      if (elements.水.includes(num)) return 2;
+      if (elements.火.includes(num)) return 3;
+      if (elements.土.includes(num)) return 4;
       return 0;
     }
     case '肖位类': {
@@ -578,7 +585,7 @@ function verifyFormula(
 
 // 元素分组定义 - 根据属性类型分组
 const ELEMENT_GROUPS = {
-  期数组: ['期数', '期数尾', '期数合', '期数合尾'],
+  期数组: ['期数', '期数尾', '期数合', '期数合尾', '上期数'],
   总分组: ['总分', '总分尾', '总分合', '总分合尾'],
   尾数组: ['平1尾', '平2尾', '平3尾', '平4尾', '平5尾', '平6尾', '特尾'],
   头数组: ['平1头', '平2头', '平3头', '平4头', '平5头', '平6头', '特头'],
@@ -871,12 +878,47 @@ function exhaustiveSearch(
   return results;
 }
 
+// 评估公式的适应度（Fitness）
+// 综合考虑：命中率、近期表现、稳定性（连中情况）
+function evaluateFitness(
+  result: { hitRate: number; hitCount: number; totalPeriods: number; hits: boolean[] },
+  targetHitRate: number
+): number {
+  // 1. 命中率得分 (0-50)
+  const hitRateDiff = Math.abs(result.hitRate - targetHitRate);
+  const hitRateScore = Math.max(0, 50 - hitRateDiff * 100);
+  
+  // 2. 近期表现得分 (0-30) - 最近5期权重更高
+  let recentScore = 0;
+  const recentHits = result.hits.slice(-5);
+  recentHits.forEach((hit, idx) => {
+    if (hit) recentScore += (idx + 1) * 2; // 1,2,3,4,5 -> 总分15，乘以2为30
+  });
+  
+  // 3. 稳定性得分 (0-20) - 连续命中奖励
+  let stabilityScore = 0;
+  let maxConsecutive = 0;
+  let currentConsecutive = 0;
+  for (const hit of result.hits) {
+    if (hit) {
+      currentConsecutive++;
+      maxConsecutive = Math.max(maxConsecutive, currentConsecutive);
+    } else {
+      currentConsecutive = 0;
+    }
+  }
+  stabilityScore = Math.min(20, maxConsecutive * 4);
+  
+  return hitRateScore + recentScore + stabilityScore;
+}
+
 // 变异公式 - 在现有公式基础上修改（更激进的策略）
 function mutateFormula(
   formulaStr: string,
   allElements: string[],
   mutationRate: number = 0.5,
-  periods: number = 50
+  periods: number = 50,
+  searchStrategy: 'fast' | 'standard' | 'deep' = 'standard'
 ): string | null {
   const parsed = parseFormula(formulaStr);
   if (!parsed) return null;
@@ -1115,15 +1157,26 @@ function evolutionarySearch(
           seenFormulas.add(mutated);
           const parsed = parseFormula(mutated);
           if (parsed) {
-            const result = verifyFormula(parsed, historyData, offset, periods, leftExpand, rightExpand);
-            const hitRate = result.hitRate * 100;
-            if (Math.abs(hitRate - targetHitRate) <= tolerance) {
-              newPopulation.push({
-                formula: mutated,
-                hitRate: result.hitRate,
-                hitCount: result.hitCount,
-                totalPeriods: result.totalPeriods,
-              });
+            // 添加多样性：如果该结果类型的公式已经太多，降低其被加入的概率
+            const countByType = results.filter(r => r.formula.includes(parsed.resultType)).length;
+            const typeLimit = maxCount / resultTypes.length * 1.5;
+            
+            if (!(countByType > typeLimit && Math.random() > 0.3)) {
+              const result = verifyFormula(parsed, historyData, offset, periods, leftExpand, rightExpand);
+              const hitRate = result.hitRate * 100;
+              
+              if (Math.abs(hitRate - targetHitRate) <= tolerance) {
+                // 综合评估适应度，而不仅仅是命中率
+                const fitness = evaluateFitness({ ...result, hits: [] }, targetHitRate / 100);
+                
+                newPopulation.push({
+                  formula: mutated,
+                  hitRate: result.hitRate,
+                  hitCount: result.hitCount,
+                  totalPeriods: result.totalPeriods,
+                  fitness
+                } as any);
+              }
             }
           }
         }

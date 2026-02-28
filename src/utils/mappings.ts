@@ -285,7 +285,7 @@ export function getBigSmallOddEvenName(value: number): string {
 export const RESULT_TYPE_CONFIG = {
   尾数类: { min: 0, max: 9, cycle: 10 },
   头数类: { min: 0, max: 4, cycle: 5 },
-  合数类: { min: 0, max: 13, cycle: 14 },
+  合数类: { min: 1, max: 13, cycle: 13 },
   波色类: { min: 0, max: 2, cycle: 3 },
   五行类: { min: 0, max: 4, cycle: 5 },
   肖位类: { min: 1, max: 12, cycle: 12 },
@@ -296,7 +296,7 @@ export const RESULT_TYPE_CONFIG = {
 // 应用循环规则
 export function applyCycle(value: number, resultType: keyof typeof RESULT_TYPE_CONFIG): number {
   const config = RESULT_TYPE_CONFIG[resultType];
-  if (resultType === '肖位类' || resultType === '单特类') {
+  if (resultType === '肖位类' || resultType === '单特类' || resultType === '合数类') {
     // 1-based 循环
     return ((value - 1) % config.cycle + config.cycle) % config.cycle + 1;
   }
