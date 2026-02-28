@@ -22,8 +22,10 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
   const handleScroll = useCallback(() => {
     if (textareaRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = textareaRef.current;
-      // 容差 5px
-      const atBottom = scrollHeight - scrollTop - clientHeight < 5;
+      // 在一些浏览器中，scrollTop + clientHeight 可能因为浮点数精度或缩放比例略小于 scrollHeight
+      // 容差增加到 30px 以应对移动端弹性滚动或浏览器渲染差异
+      // 同时也检查是否在顶部（scrollTop < 10）
+      const atBottom = Math.ceil(scrollTop + clientHeight) >= scrollHeight - 30;
       setIsAtBottom(atBottom);
     }
   }, []);
@@ -31,9 +33,13 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
   const toggleScroll = () => {
     if (textareaRef.current) {
       if (isAtBottom) {
-        textareaRef.current.scrollTop = 0;
+        // 返回顶部
+        textareaRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+        setIsAtBottom(false);
       } else {
-        textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+        // 滚到底部
+        textareaRef.current.scrollTo({ top: textareaRef.current.scrollHeight, behavior: 'smooth' });
+        setIsAtBottom(true);
       }
     }
   };
@@ -203,7 +209,7 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     onCopy(resultText);
   };
 
-  const ActionButtons = (
+  const renderActionButtons = () => (
     <div className="flex gap-2">
       <button
         onClick={toggleScroll}
@@ -230,7 +236,7 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     return (
       <div className="flex-1 flex flex-col overflow-hidden bg-white relative">
         <div className="absolute top-3 right-6 z-10">
-          <ActionButtons.type {...ActionButtons.props} />
+          {renderActionButtons()}
         </div>
         <div className="flex-1 flex items-center justify-center text-gray-400 text-sm italic">
           暂无验证结果
@@ -243,7 +249,7 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     <div className="flex-1 flex flex-col overflow-hidden bg-white relative">
       {/* 固定在右上角的按钮组 */}
       <div className="absolute top-4 right-8 z-10 flex items-center gap-2 bg-white/80 backdrop-blur-sm p-1 rounded-xl shadow-sm border border-gray-100">
-        {ActionButtons}
+        {renderActionButtons()}
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden px-4 py-2">
