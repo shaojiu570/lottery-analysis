@@ -332,11 +332,14 @@ export function removeFormulaNumbers(input: string): string {
 
 // 验证表达式中的元素
 export function extractElements(expression: string): string[] {
+  // 先统一转换中文数字
   const normalized = chineseToNumber(expression);
+  // 移除所有加减号和括号，只保留元素名称可能包含的部分
+  const cleanExpr = normalized.replace(/[+\-()]/g, ' ');
   const elements: string[] = [];
   
   // 匹配期数系列
-  const periodElements = ['期数合尾', '期数合', '期数尾', '期数'];
+  const periodElements = ['期数合尾', '期数合', '期数尾', '上期数', '期数'];
   for (const elem of periodElements) {
     if (normalized.includes(elem)) {
       elements.push(elem);

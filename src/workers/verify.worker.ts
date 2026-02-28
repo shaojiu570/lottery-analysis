@@ -540,12 +540,12 @@ function evaluateExpression(expression: string, data: LotteryData, useSort: bool
     normalized = normalized.replace(new RegExp(elem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value.toString());
   }
   
-  // 将其他运算符替换为空或移除（只允许加号）
-  normalized = normalized.replace(/[×\*÷\/%\-]/g, '');
+  // 将其他运算符替换为空或移除（允许加减号）
+  normalized = normalized.replace(/[×\*÷\/%]/g, '');
   
-  // 安全计算 - 只允许加号
+  // 安全计算 - 允许加减号
   try {
-    if (!/^[\d+()\s]+$/.test(normalized)) {
+    if (!/^[\d+\-()\s]+$/.test(normalized)) {
       return 0;
     }
     // @ts-ignore
