@@ -138,9 +138,10 @@ function evaluateSingleElement(
   rule: 'D' | 'L',
   historyData: LotteryData[],
   periods: number,
-  offset: number
+  offset: number,
+  targetPeriod: number | null
 ): number {
-  const cacheKey = `${element}_${resultType}_${rule}_${periods}_${offset}`;
+  const cacheKey = `${element}_${resultType}_${rule}_${periods}_${offset}_${targetPeriod}`;
   
   if (singleElementCache.has(cacheKey)) {
     return singleElementCache.get(cacheKey)!;
@@ -151,7 +152,7 @@ function evaluateSingleElement(
   const parsed = parseFormula(formula);
   if (!parsed) return 0;
   
-  const result = verifyFormula(parsed, historyData, offset, periods, 0, 0);
+  const result = verifyFormula(parsed, historyData, offset, periods, 0, 0, targetPeriod);
   const score = result.hitRate;
   
   singleElementCache.set(cacheKey, score);
@@ -169,10 +170,11 @@ function evaluateElementPair(
   rule: 'D' | 'L',
   historyData: LotteryData[],
   periods: number,
-  offset: number
+  offset: number,
+  targetPeriod: number | null
 ): number {
   const pairKey = [elem1, elem2].sort().join('+');
-  const cacheKey = `${pairKey}_${resultType}_${rule}_${periods}_${offset}`;
+  const cacheKey = `${pairKey}_${resultType}_${rule}_${periods}_${offset}_${targetPeriod}`;
   
   if (elementPairCache.has(cacheKey)) {
     return elementPairCache.get(cacheKey)!;
@@ -183,7 +185,7 @@ function evaluateElementPair(
   const parsed = parseFormula(formula);
   if (!parsed) return 0;
   
-  const result = verifyFormula(parsed, historyData, offset, periods, 0, 0);
+  const result = verifyFormula(parsed, historyData, offset, periods, 0, 0, targetPeriod);
   const score = result.hitRate;
   
   elementPairCache.set(cacheKey, score);
@@ -199,6 +201,7 @@ function findTopElements(
   targetHitRate: number,
   periods: number,
   offset: number,
+  targetPeriod: number | null,
   topN: number = 20
 ): string[] {
   // 使用所有可用元素，不仅仅是推荐元素
@@ -206,7 +209,7 @@ function findTopElements(
   const elementScores: Array<{ element: string; score: number; diff: number }> = [];
   
   for (const elem of allAvailable) {
-    const score = evaluateSingleElement(elem, resultType, rule, historyData, periods, offset);
+    const score = evaluateSingleElement(elem, resultType, rule, historyData, periods, offset, targetPeriod);
     const diff = Math.abs(score - targetHitRate / 100);
     elementScores.push({ element: elem, score, diff });
   }
@@ -226,13 +229,14 @@ function findTopPairs(
   targetHitRate: number,
   periods: number,
   offset: number,
+  targetPeriod: number | null,
   topN: number = 15
 ): Array<[string, string]> {
   const pairScores: Array<{ elem1: string; elem2: string; score: number; diff: number }> = [];
   
   for (let i = 0; i < topElements.length && i < 15; i++) {
     for (let j = i + 1; j < topElements.length && j < 15; j++) {
-      const score = evaluateElementPair(topElements[i], topElements[j], resultType, rule, historyData, periods, offset);
+      const score = evaluateElementPair(topElements[i], topElements[j], resultType, rule, historyData, periods, offset, targetPeriod);
       const diff = Math.abs(score - targetHitRate / 100);
       pairScores.push({ elem1: topElements[i], elem2: topElements[j], score, diff });
     }
@@ -257,6 +261,7 @@ function buildComplexFormulas(
   rightExpand: number,
   maxResults: number,
   tolerance: number,
+  targetPeriod: number | null,
   pattern?: FormulaPattern,
   allResultTypes?: ResultType[]
 ): Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> {
@@ -273,7 +278,7 @@ function buildComplexFormulas(
     const formula2 = buildFormula([elem1, elem2], resultType, rule, periods, offset, leftExpand, rightExpand);
     if (formula2 && !seenFormulas.has(formula2)) {
       seenFormulas.add(formula2);
-      const result = verifyFormulaString(formula2, historyData, offset, periods, leftExpand, rightExpand);
+      const result = verifyFormulaString(formula2, historyData, offset, periods, leftExpand, rightExpand, targetPeriod);
       if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance) {
         results.push(result);
         if (results.length >= maxResults) return results;
@@ -293,7 +298,8 @@ function buildComplexFormulas(
         historyData,
         targetHitRate,
         tolerance,
-        seenFormulas
+        seenFormulas,
+        targetPeriod
       );
       results.push(...crossResults);
       if (results.length >= maxResults) return results;
@@ -320,7 +326,7 @@ function buildComplexFormulas(
       const formula = buildFormula(elements, resultType, rule, periods, offset, leftExpand, rightExpand);
       if (formula && !seenFormulas.has(formula)) {
         seenFormulas.add(formula);
-        const result = verifyFormulaString(formula, historyData, offset, periods, leftExpand, rightExpand);
+        const result = verifyFormulaString(formula, historyData, offset, periods, leftExpand, rightExpand, targetPeriod);
         if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance) {
           results.push(result);
           if (results.length >= maxResults) return results;
@@ -334,7 +340,7 @@ function buildComplexFormulas(
           const crossFormula = buildFormula(elements, otherType, rule, periods, offset, leftExpand, rightExpand);
           if (crossFormula && !seenFormulas.has(crossFormula)) {
             seenFormulas.add(crossFormula);
-            const result = verifyFormulaString(crossFormula, historyData, offset, periods, leftExpand, rightExpand);
+            const result = verifyFormulaString(crossFormula, historyData, offset, periods, leftExpand, rightExpand, targetPeriod);
             if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance) {
               results.push(result);
               if (results.length >= maxResults) return results;
@@ -384,7 +390,8 @@ function crossTypeFormulas(
   historyData: LotteryData[],
   targetHitRate: number,
   tolerance: number,
-  seenFormulas: Set<string>
+  seenFormulas: Set<string>,
+  targetPeriod: number | null
 ): Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> {
   const results: Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> = [];
   
@@ -394,7 +401,7 @@ function crossTypeFormulas(
     if (!formula || seenFormulas.has(formula)) continue;
     
     seenFormulas.add(formula);
-    const result = verifyFormulaString(formula, historyData, offset, periods, leftExpand, rightExpand);
+    const result = verifyFormulaString(formula, historyData, offset, periods, leftExpand, rightExpand, targetPeriod);
     
     if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance) {
       results.push(result);
@@ -411,12 +418,13 @@ function verifyFormulaString(
   offset: number,
   periods: number,
   leftExpand: number,
-  rightExpand: number
+  rightExpand: number,
+  targetPeriod: number | null
 ): { formula: string; hitRate: number; hitCount: number; totalPeriods: number } | null {
   const parsed = parseFormula(formulaStr);
   if (!parsed) return null;
   
-  const result = verifyFormula(parsed, historyData, offset, periods, leftExpand, rightExpand);
+  const result = verifyFormula(parsed, historyData, offset, periods, leftExpand, rightExpand, targetPeriod);
   return {
     formula: formulaStr,
     hitRate: result.hitRate,
@@ -469,6 +477,7 @@ function optimizedSearch(
   periods: number,
   leftExpand: number,
   rightExpand: number,
+  targetPeriod: number | null,  // 添加目标期数参数
   onProgress: (current: number, total: number, found: number, currentResults?: any[]) => void
 ): Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> {
   const allResults: Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> = [];
@@ -513,12 +522,12 @@ function optimizedSearch(
       let pattern = patternCache.get(cacheKey);
       
       // 第一层：找优质元素
-      const topElements = findTopElements(resultType, rule, historyData, targetHitRate, periods, offset, topElementsCount);
+      const topElements = findTopElements(resultType, rule, historyData, targetHitRate, periods, offset, targetPeriod, topElementsCount);
       currentStep++;
       onProgress(currentStep, totalSteps, allResults.length, allResults);
       
       // 第二层：找优质元素对
-      const topPairs = findTopPairs(topElements, resultType, rule, historyData, targetHitRate, periods, offset, topPairsCount);
+      const topPairs = findTopPairs(topElements, resultType, rule, historyData, targetHitRate, periods, offset, targetPeriod, topPairsCount);
       currentStep++;
       onProgress(currentStep, totalSteps, allResults.length, allResults);
       
@@ -536,6 +545,7 @@ function optimizedSearch(
         rightExpand,
         hierarchicalCount,
         tolerance,
+        targetPeriod,  // 传入目标期数
         pattern,
         resultTypes  // 传入所有结果类型
       );
@@ -576,7 +586,7 @@ function optimizedSearch(
     if (!formulaStr || seenFormulas.has(formulaStr)) continue;
     
     seenFormulas.add(formulaStr);
-    const result = verifyFormulaString(formulaStr, historyData, offset, periods, leftExpand, rightExpand);
+    const result = verifyFormulaString(formulaStr, historyData, offset, periods, leftExpand, rightExpand, targetPeriod);
     
     if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance) {
       allResults.push(result);
@@ -606,7 +616,7 @@ function optimizedSearch(
       if (!formulaStr || seenFormulas.has(formulaStr)) continue;
       
       seenFormulas.add(formulaStr);
-      const result = verifyFormulaString(formulaStr, historyData, offset, periods, leftExpand, rightExpand);
+      const result = verifyFormulaString(formulaStr, historyData, offset, periods, leftExpand, rightExpand, targetPeriod);
       
       if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance * 1.5) {
         allResults.push(result);
@@ -647,7 +657,8 @@ function optimizedSearch(
           historyData,
           targetHitRate,
           tolerance,
-          seenFormulas
+          seenFormulas,
+          targetPeriod
         );
         
         allResults.push(...crossResults);
@@ -676,7 +687,7 @@ function sortAndReturn(
 
 // ==================== Worker 消息处理 ====================
 self.onmessage = (event) => {
-  const { type, historyData, targetHitRate, maxCount, strategy, resultTypes, offset, periods, leftExpand, rightExpand } = event.data;
+  const { type, historyData, targetHitRate, maxCount, strategy, resultTypes, offset, periods, leftExpand, rightExpand, targetPeriod } = event.data;
   
   if (type !== 'search') return;
   
@@ -691,6 +702,7 @@ self.onmessage = (event) => {
       periods,
       leftExpand,
       rightExpand,
+      targetPeriod,  // 传入目标期数
       (current, total, found, currentResults) => {
         self.postMessage({
           type: 'progress',

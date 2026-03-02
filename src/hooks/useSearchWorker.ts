@@ -93,7 +93,8 @@ export function useSearchWorker(): UseSearchWorkerReturn {
     offset: number,
     periods: number,
     leftExpand: number,
-    rightExpand: number
+    rightExpand: number,
+    targetPeriod: number | null
   ) => {
     if (historyData.length === 0 || resultTypes.length === 0) return;
 
@@ -120,7 +121,8 @@ export function useSearchWorker(): UseSearchWorkerReturn {
       offset,
       periods,
       leftExpand,
-      rightExpand
+      rightExpand,
+      targetPeriod
     });
   }, [createWorker]);
 

@@ -114,7 +114,8 @@ export function SmartSearchModal({
       offset,
       periods,
       leftExpand,
-      rightExpand
+      rightExpand,
+      settings.targetPeriod  // 传入目标期数
     );
   };
 
