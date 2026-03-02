@@ -198,6 +198,22 @@ function generateFormulaId(): string {
   return `f_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
+// 标准化表达式用于去重（将元素排序）
+// 例如 "平3号+特尾" 和 "特尾+平3号" 标准化后都是 "平3号+特尾"
+function normalizeExpressionForDedup(expression: string): string {
+  // 只处理加法表达式（因为加法满足交换律）
+  // 如果包含减法，保持原样（因为减法不满足交换律）
+  if (expression.includes('-')) {
+    return expression;
+  }
+  
+  // 分割元素并排序
+  const elements = expression.split('+').map(e => e.trim()).filter(e => e);
+  elements.sort();
+  
+  return elements.join('+');
+}
+
 // 解析错误信息
 export interface ParseError {
   lineNumber: number;
@@ -258,8 +274,12 @@ export function parseFormulas(input: string): { formulas: ParsedFormulaWithIndex
       continue;
     }
     
-    // 使用完整公式字符串去重，而不是仅表达式部分
-    const formulaKey = `${parsed.rule}_${parsed.resultType}_${parsed.expression}_${parsed.periods}_${parsed.offset}_${parsed.leftExpand}_${parsed.rightExpand}`;
+    // 标准化表达式用于去重：将元素排序
+    // 例如 "平3号+特尾" 和 "特尾+平3号" 应该被视为同一个公式
+    const normalizedExpression = normalizeExpressionForDedup(parsed.expression);
+    
+    // 使用标准化后的表达式去重
+    const formulaKey = `${parsed.rule}_${parsed.resultType}_${normalizedExpression}_${parsed.periods}_${parsed.offset}_${parsed.leftExpand}_${parsed.rightExpand}`;
     
     if (!seen.has(formulaKey)) {
       seen.add(formulaKey);

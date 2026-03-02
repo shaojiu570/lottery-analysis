@@ -349,6 +349,7 @@ function buildComplexFormulas(
 }
 
 // ==================== 辅助函数 ====================
+// ==================== 辅助函数 ====================
 // 构建公式字符串
 function buildFormula(
   elements: string[],
@@ -361,7 +362,9 @@ function buildFormula(
 ): string | null {
   if (elements.length === 0) return null;
   
-  const expression = elements.join('+');
+  // 对元素排序，确保相同元素组合生成相同的公式
+  const sortedElements = [...elements].sort();
+  const expression = sortedElements.join('+');
   const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
   const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
   const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
