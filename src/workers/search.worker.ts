@@ -1,14 +1,10 @@
-// 智能搜索 Worker - 将计算移到后台线程
+// 优化的智能搜索 Worker - 包含模式学习和改进策略
 import type { LotteryData, ResultType } from '../types';
-import { chineseToNumber, normalizeSimplifiedExpression, normalizeElementName, getAllElements, getZodiacMap, WAVE_COLORS, FIVE_ELEMENTS_BY_YEAR, BIG_SMALL_ODD_EVEN, ZODIAC_NAMES, BASE_ZODIAC_NUMBERS } from '../utils/elements';
-import { ParsedFormula, parseFormula, RESULT_TYPES } from '../utils/formulaParser';
-import { evaluateCondition, processConditionElements, evaluateExpression, applyCycle, getExpandedResults, getNumberAttribute, verifyFormula, calculateElementValue, getRecommendedElements } from '../utils/calculator';
+import { getAllElements } from '../utils/elements';
+import { parseFormula } from '../utils/formulaParser';
+import { verifyFormula } from '../utils/calculator';
 
-
-
-
-
-// 元素分组定义 - 根据属性类型分组
+// ==================== 元素分组定义 ====================
 const ELEMENT_GROUPS = {
   期数组: ['期数', '期数尾', '期数合', '期数合尾', '上期数'],
   总分组: ['总分', '总分尾', '总分合', '总分合尾'],
@@ -22,44 +18,291 @@ const ELEMENT_GROUPS = {
   号数组: ['平1号', '平2号', '平3号', '平4号', '平5号', '平6号', '特号'],
 };
 
-// 结果类型与元素组的映射关系
+// 结果类型与元素组的映射
 const RESULT_TYPE_ELEMENT_MAP: Record<ResultType, string[]> = {
   '尾数类': ['尾数组', '期数组', '合数组'],
-  '头数类': ['头数组'],
+  '头数类': ['头数组', '期数组'],
   '合数类': ['合数组', '期数组', '总分组'],
-  '波色类': ['波数组'],
-  '五行类': ['行数组'],
-  '肖位类': ['肖位数组'],
-  '单特类': ['号数组', '期数组'],
-  '大小单双类': ['尾数组', '合数组', '段数组'],
+  '波色类': ['波数组', '期数组'],
+  '五行类': ['行数组', '期数组'],
+  '肖位类': ['肖位数组', '期数组'],
+  '单特类': ['号数组', '期数组', '总分组'],
+  '大小单双类': ['尾数组', '合数组', '段数组', '期数组'],
 };
 
-// 获取结果类型推荐的元素
+// 获取推荐元素
 function getRecommendedElements(resultType: ResultType): string[] {
   const groups = RESULT_TYPE_ELEMENT_MAP[resultType] || [];
   const elements: string[] = [];
   for (const group of groups) {
     elements.push(...(ELEMENT_GROUPS[group as keyof typeof ELEMENT_GROUPS] || []));
   }
-  return elements;
+  return [...new Set(elements)];
 }
 
-// 辅助函数：随机使用加减号连接元素
-function joinElementsWithRandomOperators(elements: string[]): string {
-  if (elements.length === 0) return '';
-  if (elements.length === 1) return elements[0];
+// ==================== 模式学习系统 ====================
+interface ElementPattern {
+  element: string;
+  avgHitRate: number;
+  frequency: number;
+  bestPairs: string[];
+}
+
+interface FormulaPattern {
+  elementCount: number;
+  avgHitRate: number;
+  commonElements: string[];
+  elementPairs: Map<string, number>;
+}
+
+// 模式学习缓存
+const patternCache = new Map<string, FormulaPattern>();
+
+// 学习历史公式的模式
+function learnPatterns(
+  results: Array<{ formula: string; hitRate: number }>,
+  minHitRate: number = 0.5
+): FormulaPattern {
+  const highHitFormulas = results.filter(r => r.hitRate >= minHitRate);
   
-  let result = elements[0];
-  for (let i = 1; i < elements.length; i++) {
-    const operator = Math.random() > 0.2 ? '+' : '-'; // 80% 概率加法，20% 概率减法
-    result += operator + elements[i];
+  if (highHitFormulas.length === 0) {
+    return {
+      elementCount: 3,
+      avgHitRate: 0,
+      commonElements: [],
+      elementPairs: new Map(),
+    };
   }
-  return result;
+  
+  const elementFreq = new Map<string, number>();
+  const pairFreq = new Map<string, number>();
+  let totalElements = 0;
+  let totalHitRate = 0;
+  
+  for (const result of highHitFormulas) {
+    const parsed = parseFormula(result.formula);
+    if (!parsed) continue;
+    
+    // 提取元素
+    const elements = parsed.expression.split(/[+\-]/).filter(e => e.trim());
+    totalElements += elements.length;
+    totalHitRate += result.hitRate;
+    
+    // 统计元素频率
+    for (const elem of elements) {
+      elementFreq.set(elem, (elementFreq.get(elem) || 0) + 1);
+    }
+    
+    // 统计元素对频率
+    for (let i = 0; i < elements.length; i++) {
+      for (let j = i + 1; j < elements.length; j++) {
+        const pair = [elements[i], elements[j]].sort().join('+');
+        pairFreq.set(pair, (pairFreq.get(pair) || 0) + 1);
+      }
+    }
+  }
+  
+  // 找出高频元素
+  const sortedElements = Array.from(elementFreq.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(e => e[0]);
+  
+  return {
+    elementCount: Math.round(totalElements / highHitFormulas.length),
+    avgHitRate: totalHitRate / highHitFormulas.length,
+    commonElements: sortedElements,
+    elementPairs: pairFreq,
+  };
 }
 
-// 从种子元素生成公式（多种子初始化）
-function generateFromSeed(
-  seedElement: string,
+// ==================== 智能评分系统 ====================
+// 单元素评分缓存
+const singleElementCache = new Map<string, number>();
+
+// 评估单个元素的有效性
+function evaluateSingleElement(
+  element: string,
+  resultType: ResultType,
+  rule: 'D' | 'L',
+  historyData: LotteryData[],
+  periods: number,
+  offset: number
+): number {
+  const cacheKey = `${element}_${resultType}_${rule}_${periods}_${offset}`;
+  
+  if (singleElementCache.has(cacheKey)) {
+    return singleElementCache.get(cacheKey)!;
+  }
+  
+  const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
+  const formula = `[${rule}${resultType}]${element}${offsetStr}=${periods}`;
+  const parsed = parseFormula(formula);
+  if (!parsed) return 0;
+  
+  const result = verifyFormula(parsed, historyData, offset, periods, 0, 0);
+  const score = result.hitRate;
+  
+  singleElementCache.set(cacheKey, score);
+  return score;
+}
+
+// 元素对评分缓存
+const elementPairCache = new Map<string, number>();
+
+// 评估元素对的协同效应
+function evaluateElementPair(
+  elem1: string,
+  elem2: string,
+  resultType: ResultType,
+  rule: 'D' | 'L',
+  historyData: LotteryData[],
+  periods: number,
+  offset: number
+): number {
+  const pairKey = [elem1, elem2].sort().join('+');
+  const cacheKey = `${pairKey}_${resultType}_${rule}_${periods}_${offset}`;
+  
+  if (elementPairCache.has(cacheKey)) {
+    return elementPairCache.get(cacheKey)!;
+  }
+  
+  const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
+  const formula = `[${rule}${resultType}]${elem1}+${elem2}${offsetStr}=${periods}`;
+  const parsed = parseFormula(formula);
+  if (!parsed) return 0;
+  
+  const result = verifyFormula(parsed, historyData, offset, periods, 0, 0);
+  const score = result.hitRate;
+  
+  elementPairCache.set(cacheKey, score);
+  return score;
+}
+
+// ==================== 分层搜索策略 ====================
+// 第一层：找出优质单元素
+function findTopElements(
+  resultType: ResultType,
+  rule: 'D' | 'L',
+  historyData: LotteryData[],
+  targetHitRate: number,
+  periods: number,
+  offset: number,
+  topN: number = 20
+): string[] {
+  const recommended = getRecommendedElements(resultType);
+  const elementScores: Array<{ element: string; score: number; diff: number }> = [];
+  
+  for (const elem of recommended) {
+    const score = evaluateSingleElement(elem, resultType, rule, historyData, periods, offset);
+    const diff = Math.abs(score - targetHitRate / 100);
+    elementScores.push({ element: elem, score, diff });
+  }
+  
+  // 按与目标命中率的接近程度排序
+  elementScores.sort((a, b) => a.diff - b.diff);
+  
+  return elementScores.slice(0, topN).map(e => e.element);
+}
+
+// 第二层：找出优质元素对
+function findTopPairs(
+  topElements: string[],
+  resultType: ResultType,
+  rule: 'D' | 'L',
+  historyData: LotteryData[],
+  targetHitRate: number,
+  periods: number,
+  offset: number,
+  topN: number = 15
+): Array<[string, string]> {
+  const pairScores: Array<{ elem1: string; elem2: string; score: number; diff: number }> = [];
+  
+  for (let i = 0; i < topElements.length && i < 15; i++) {
+    for (let j = i + 1; j < topElements.length && j < 15; j++) {
+      const score = evaluateElementPair(topElements[i], topElements[j], resultType, rule, historyData, periods, offset);
+      const diff = Math.abs(score - targetHitRate / 100);
+      pairScores.push({ elem1: topElements[i], elem2: topElements[j], score, diff });
+    }
+  }
+  
+  pairScores.sort((a, b) => a.diff - b.diff);
+  
+  return pairScores.slice(0, topN).map(p => [p.elem1, p.elem2] as [string, string]);
+}
+
+// 第三层：基于优质元素对构建复杂公式
+function buildComplexFormulas(
+  topPairs: Array<[string, string]>,
+  topElements: string[],
+  resultType: ResultType,
+  rule: 'D' | 'L',
+  historyData: LotteryData[],
+  targetHitRate: number,
+  periods: number,
+  offset: number,
+  leftExpand: number,
+  rightExpand: number,
+  maxResults: number,
+  tolerance: number,
+  pattern?: FormulaPattern
+): Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> {
+  const results: Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> = [];
+  const seenFormulas = new Set<string>();
+  
+  // 使用模式学习的元素数量建议
+  const suggestedCount = pattern?.elementCount || 3;
+  const minElements = Math.max(2, suggestedCount - 2);
+  const maxElements = Math.min(8, suggestedCount + 3);
+  
+  for (const [elem1, elem2] of topPairs) {
+    // 2元素公式
+    const formula2 = buildFormula([elem1, elem2], resultType, rule, periods, offset, leftExpand, rightExpand);
+    if (formula2 && !seenFormulas.has(formula2)) {
+      seenFormulas.add(formula2);
+      const result = verifyFormulaString(formula2, historyData, offset, periods, leftExpand, rightExpand);
+      if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance) {
+        results.push(result);
+        if (results.length >= maxResults) return results;
+      }
+    }
+    
+    // 3-N元素公式
+    for (let extraCount = 1; extraCount <= maxElements - 2; extraCount++) {
+      const elements = [elem1, elem2];
+      
+      // 优先使用模式学习中的高频元素
+      const candidateElements = pattern?.commonElements.length 
+        ? [...pattern.commonElements, ...topElements]
+        : topElements;
+      
+      for (const elem of candidateElements) {
+        if (!elements.includes(elem) && elements.length < minElements + extraCount) {
+          elements.push(elem);
+        }
+      }
+      
+      if (elements.length < 3) continue;
+      
+      const formula = buildFormula(elements, resultType, rule, periods, offset, leftExpand, rightExpand);
+      if (formula && !seenFormulas.has(formula)) {
+        seenFormulas.add(formula);
+        const result = verifyFormulaString(formula, historyData, offset, periods, leftExpand, rightExpand);
+        if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance) {
+          results.push(result);
+          if (results.length >= maxResults) return results;
+        }
+      }
+    }
+  }
+  
+  return results;
+}
+
+// ==================== 辅助函数 ====================
+// 构建公式字符串
+function buildFormula(
+  elements: string[],
   resultType: ResultType,
   rule: 'D' | 'L',
   periods: number,
@@ -67,376 +310,67 @@ function generateFromSeed(
   leftExpand: number,
   rightExpand: number
 ): string | null {
-  // 以种子元素为核心，添加更多相关元素
-  const allElements = getAllElements();
-  const relatedElements = getRelatedElements(resultType);
+  if (elements.length === 0) return null;
   
-  // 从相关元素中选择3-8个元素
-  const elementCount = 3 + Math.floor(Math.random() * 6);
-  const elements: string[] = [seedElement];
-  const used = new Set<string>([seedElement]);
-  
-  // 优先从相关元素中选择
-  for (let i = 0; i < elementCount - 1; i++) {
-    let elem: string;
-    let attempts = 0;
-    do {
-      if (relatedElements.length > 0 && Math.random() > 0.3) {
-        elem = relatedElements[Math.floor(Math.random() * relatedElements.length)];
-      } else {
-        elem = allElements[Math.floor(Math.random() * allElements.length)];
-      }
-      attempts++;
-    } while (used.has(elem) && attempts < 20);
-    used.add(elem);
-    elements.push(elem);
-  }
-  const expression = joinElementsWithRandomOperators(elements);
-  // FIX: Ensure proper offset handling by using '+X' or '-X' format for consistency with formulaParser
-  const offsetPart = offset !== 0 ? `补偿${offset}` : '';
+  const expression = elements.join('+');
+  const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
   const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
   const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
   
-  return `[${rule}${resultType}]${expression}${offsetPart}=${periods}${leftStr}${rightStr}`;
+  return `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
 }
 
-// 从模板生成公式 - 根据策略确定元素数量
-function generateFromTemplate(
-  resultType: ResultType,
-  rule: 'D' | 'L',
-  periods: number,
-  offset: number,
-  leftExpand: number,
-  rightExpand: number,
-  searchStrategy: 'fast' | 'standard' | 'deep' = 'standard'
-): string | null {
-  // 根据策略确定元素数量范围
-  let minElements: number, maxElements: number;
-  switch (searchStrategy) {
-    case 'fast':
-      minElements = 1;
-      maxElements = 5;
-      break;
-    case 'standard':
-      minElements = 5;
-      maxElements = 10;
-      break;
-    case 'deep':
-      minElements = 10;
-      maxElements = 15;
-      break;
-    default:
-      minElements = 1;
-      maxElements = 5;
-  }
-  
-  // 获取相关元素池
-  const elementPool = getRelatedElements(resultType);
-  const allElements = getAllElements();
-  const pool = elementPool.length > 0 ? elementPool : allElements.slice(0, 30);
-  
-  // 随机选择一个元素数量
-  const elementCount = minElements + Math.floor(Math.random() * (maxElements - minElements + 1));
-  
-  // 生成不重复的随机组合
-  const elements: string[] = [];
-  const used = new Set<string>();
-  for (let i = 0; i < elementCount; i++) {
-    let elem: string;
-    let attempts = 0;
-    do {
-      elem = pool[Math.floor(Math.random() * pool.length)];
-      attempts++;
-    } while (used.has(elem) && attempts < 20);
-    used.add(elem);
-    elements.push(elem);
-  }
-  
-  if (elements.length < 3) return null;
-  
-  const expression = joinElementsWithRandomOperators(elements);
-  const offsetPart = offset !== 0 ? `补偿${offset}` : '';
-  const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
-  const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
-  
-  return `[${rule}${resultType}]${expression}${offsetPart}=${periods}${leftStr}${rightStr}`;
-}
-
-// 获取与结果类型相关的元素（现在返回所有元素，支持跨类型搜索）
-function getRelatedElements(_resultType: ResultType): string[] {
-  return getAllElements();
-}
-
-// 生成指定大小的所有组合
-function* generateCombinationsOfSize(
-  pool: string[], 
-  count: number
-): Generator<string[]> {
-  const indices: number[] = [];
-  
-  function* next(i: number): Generator<string[]> {
-    if (indices.length === count) {
-      yield indices.map(idx => pool[idx]);
-      return;
-    }
-    if (i >= pool.length) return;
-    
-    indices.push(i);
-    yield* next(i + 1);
-    indices.pop();
-    
-    yield* next(i + 1);
-  }
-  
-  yield* next(0);
-}
-
-// 全组合搜索（遍历所有可能，带缓存和剪枝）
-function exhaustiveSearch(
-  resultType: ResultType,
-  rule: 'D' | 'L',
-  periods: number,
-  offset: number,
-  leftExpand: number,
-  rightExpand: number,
-  historyData: LotteryData[],
-  targetHitRate: number,
-  maxResults: number,
-  tolerance: number,
-  strategy: 'fast' | 'standard' | 'deep',
-  onProgress: (current: number, total: number, found: number, currentResults?: { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[]) => void
-): { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] {
-  const results: { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] = [];
-  
-  // 根据策略确定元素数量范围
-  let minElements: number;
-  let maxElements: number;
-  switch (strategy) {
-    case 'fast':
-      minElements = 1;
-      maxElements = 5;
-      break;
-    case 'standard':
-      minElements = 5;
-      maxElements = 10;
-      break;
-    case 'deep':
-      minElements = 10;
-      maxElements = 15;
-      break;
-    default:
-      minElements = 1;
-      maxElements = 5;
-  }
-  
-  // 获取相关元素池（使用所有元素，支持跨类型搜索）
-  const elementPool = getRelatedElements(resultType);
-  
-  // 缓存已验证的元素组合（用于剪枝）
-  const elementCache = new Map<string, number>();
-  
-  let processed = 0;
-  let totalCombos = 0;
-  
-  // 计算总组合数
-  for (let c = minElements; c <= maxElements; c++) {
-    let combos = 1;
-    for (let i = 0; i < c; i++) {
-      combos *= (elementPool.length - i);
-      combos /= (i + 1);
-    }
-    totalCombos += combos;
-  }
-  
-  let found = 0;
-  
-  // 渐进式搜索：从1个元素到maxElements
-  for (let elementCount = minElements; elementCount <= maxElements; elementCount++) {
-    
-    // 遍历指定数量的所有组合
-    for (const elements of generateCombinationsOfSize(elementPool, elementCount)) {
-      processed++;
-      
-      if (processed % 5000 === 0) {
-        onProgress(processed, totalCombos, found, results);
-      }
-      
-      // 剪枝：检查前面部分元素的命中率
-      if (elements.length > 1) {
-        // 检查前面一半元素的命中率
-        const halfCount = Math.ceil(elements.length / 2);
-        const prefixElements = elements.slice(0, halfCount);
-        const prefixKey = prefixElements.sort().join('+');
-        
-        if (elementCache.has(prefixKey)) {
-          const cachedRate = elementCache.get(prefixKey)!;
-          // 如果前面一半元素命中率很低，后面加元素也救不回来
-          const maxPossibleRate = cachedRate + (100 - cachedRate) * 0.3;
-          if (maxPossibleRate < targetHitRate - tolerance) {
-            continue; // 跳过这个组合
-          }
-        }
-      }
-      
-      const expression = elements.join('+');
-      const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
-      const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
-      const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
-      
-      const formula = `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
-      
-      const parsed = parseFormula(formula);
-      if (!parsed) continue;
-      
-      const result = verifyFormula(parsed, historyData, offset, periods, leftExpand, rightExpand);
-      const hitRate = result.hitRate * 100;
-      
-      // 缓存这个元素组合的命中率（用于剪枝）
-      const cacheKey = [...elements].sort().join('+');
-      elementCache.set(cacheKey, hitRate);
-      
-      if (Math.abs(hitRate - targetHitRate) <= tolerance) {
-        results.push({
-          formula,
-          hitRate: result.hitRate,
-          hitCount: result.hitCount,
-          totalPeriods: result.totalPeriods,
-        });
-        found++;
-        
-        if (found >= maxResults) {
-        onProgress(processed, totalCombos, found, results);
-          return results;
-        }
-      }
-    }
-  }
-  
-  onProgress(processed, totalCombos, found, results);
-  return results;
-}
-
-// 评估公式的适应度（Fitness）
-// 综合考虑：命中率、近期表现、稳定性（连中情况）
-function evaluateFitness(
-  result: { hitRate: number; hitCount: number; totalPeriods: number; hits: boolean[] },
-  targetHitRate: number
-): number {
-  // 1. 命中率得分 (0-50)
-  const hitRateDiff = Math.abs(result.hitRate - targetHitRate);
-  const hitRateScore = Math.max(0, 50 - hitRateDiff * 100);
-  
-  // 2. 近期表现得分 (0-30) - 最近5期权重更高
-  let recentScore = 0;
-  const recentHits = result.hits.slice(-5);
-  recentHits.forEach((hit, idx) => {
-    if (hit) recentScore += (idx + 1) * 2; // 1,2,3,4,5 -> 总分15，乘以2为30
-  });
-  
-  // 3. 稳定性得分 (0-20) - 连续命中奖励
-  let stabilityScore = 0;
-  let maxConsecutive = 0;
-  let currentConsecutive = 0;
-  for (const hit of result.hits) {
-    if (hit) {
-      currentConsecutive++;
-      maxConsecutive = Math.max(maxConsecutive, currentConsecutive);
-    } else {
-      currentConsecutive = 0;
-    }
-  }
-  stabilityScore = Math.min(20, maxConsecutive * 4);
-  
-  return hitRateScore + recentScore + stabilityScore;
-}
-
-// 变异公式 - 在现有公式基础上修改（更激进的策略）
-function mutateFormula(
+// 验证公式字符串
+function verifyFormulaString(
   formulaStr: string,
-  allElements: string[],
-  mutationRate: number = 0.5,
-  periods: number = 50,
-  searchStrategy: 'fast' | 'standard' | 'deep' = 'standard'
-): string | null {
+  historyData: LotteryData[],
+  offset: number,
+  periods: number,
+  leftExpand: number,
+  rightExpand: number
+): { formula: string; hitRate: number; hitCount: number; totalPeriods: number } | null {
   const parsed = parseFormula(formulaStr);
   if (!parsed) return null;
   
-  const elements = parsed.expression.split('+').filter(e => e.trim());
-  if (elements.length === 0) return null;
-  
-  // 根据期数确定元素数量范围
-  const maxElements = periods <= 20 ? 20 : periods <= 50 ? 15 : 10;
-  const minElements = 2;
-  
-  const newElements: string[] = [];
-  const recommended = getRecommendedElements(parsed.resultType);
-  
-  for (const elem of elements) {
-    if (Math.random() < mutationRate) {
-      // 变异：替换为新元素（优先从推荐元素中选择）
-      if (recommended.length > 0) {
-        newElements.push(recommended[Math.floor(Math.random() * recommended.length)]);
-      } else {
-        newElements.push(allElements[Math.floor(Math.random() * allElements.length)]);
-      }
-    } else {
-      newElements.push(elem);
-    }
-  }
-  
-  // 增加元素变异的概率和数量
-  const addProb = 0.35; // 提高添加概率
-  const removeProb = 0.2; // 提高删除概率
-  const shuffleProb = 0.15; // 新增：打乱顺序
-  
-  // 添加新元素
-  if (Math.random() < addProb && newElements.length < maxElements) {
-    const newElem = recommended.length > 0
-      ? recommended[Math.floor(Math.random() * recommended.length)]
-      : allElements[Math.floor(Math.random() * allElements.length)];
-    const pos = Math.floor(Math.random() * (newElements.length + 1));
-    newElements.splice(pos, 0, newElem);
-  }
-  
-  // 删除元素
-  if (Math.random() < removeProb && newElements.length > minElements) {
-    const pos = Math.floor(Math.random() * newElements.length);
-    newElements.splice(pos, 1);
-  }
-  
-  // 打乱顺序（增加多样性）
-  if (Math.random() < shuffleProb && newElements.length > 1) {
-    for (let i = newElements.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [newElements[i], newElements[j]] = [newElements[j], newElements[i]];
-    }
-  }
-  
-  // 完全重写（极端情况）
-  if (Math.random() < 0.1) {
-    return generateFromSeed(
-      recommended[Math.floor(Math.random() * recommended.length)] || allElements[0],
-      parsed.resultType,
-      Math.random() > 0.5 ? 'D' : 'L',
-      periods,
-      parsed.offset,
-      parsed.leftExpand,
-      parsed.rightExpand
-    );
-  }
-  
-  if (newElements.length < minElements) return null;
-  
-  const expression = joinElementsWithRandomOperators(newElements);
-  const offsetPart = parsed.offset !== 0 ? `补偿${parsed.offset}` : '';
-  const leftStr = parsed.leftExpand > 0 ? `左${parsed.leftExpand}` : '';
-  const rightStr = parsed.rightExpand > 0 ? `右${parsed.rightExpand}` : '';
-  
-  return `[${parsed.rule}${parsed.resultType}]${expression}${offsetPart}=${parsed.periods}${leftStr}${rightStr}`;
+  const result = verifyFormula(parsed, historyData, offset, periods, leftExpand, rightExpand);
+  return {
+    formula: formulaStr,
+    hitRate: result.hitRate,
+    hitCount: result.hitCount,
+    totalPeriods: result.totalPeriods,
+  };
 }
 
-// 进化搜索算法
-function evolutionarySearch(
+// 随机生成公式（补充多样性）
+function generateRandomFormula(
+  resultType: ResultType,
+  rule: 'D' | 'L',
+  periods: number,
+  offset: number,
+  leftExpand: number,
+  rightExpand: number,
+  elementCount: number,
+  pattern?: FormulaPattern
+): string | null {
+  // 优先使用模式学习的元素
+  let candidateElements = pattern?.commonElements.length 
+    ? pattern.commonElements 
+    : getRecommendedElements(resultType);
+  
+  if (candidateElements.length === 0) {
+    candidateElements = getAllElements();
+  }
+  
+  const shuffled = [...candidateElements].sort(() => Math.random() - 0.5);
+  const selected = shuffled.slice(0, Math.min(elementCount, candidateElements.length));
+  
+  if (selected.length === 0) return null;
+  
+  return buildFormula(selected, resultType, rule, periods, offset, leftExpand, rightExpand);
+}
+
+// ==================== 主搜索算法 ====================
+function optimizedSearch(
   historyData: LotteryData[],
   targetHitRate: number,
   maxCount: number,
@@ -446,243 +380,151 @@ function evolutionarySearch(
   periods: number,
   leftExpand: number,
   rightExpand: number,
-  onProgress: (current: number, total: number, found: number, currentResults?: { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[]) => void
-): { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] {
-  
-  const allElements = getAllElements();
-  const results: { formula: string; hitRate: number; hitCount: number; totalPeriods: number }[] = [];
-  
-  // 容差根据期数动态调整
-  const tolerance = periods <= 15 ? 1 : periods <= 30 ? 2 : periods <= 50 ? 3 : periods <= 100 ? 5 : 8;
-  
-  // 深度策略使用全组合搜索
-  if (strategy === 'deep') {
-    const seenFormulas = new Set<string>();
-    
-    for (const resultType of resultTypes) {
-      for (const rule of ['D', 'L'] as const) {
-        const exhaustiveResults = exhaustiveSearch(
-          resultType,
-          rule,
-          periods,
-          offset,
-          leftExpand,
-          rightExpand,
-          historyData,
-          targetHitRate,
-          maxCount,
-          tolerance,
-          strategy,
-          onProgress
-        );
-        
-        for (const r of exhaustiveResults) {
-          if (!seenFormulas.has(r.formula)) {
-            seenFormulas.add(r.formula);
-            results.push(r);
-            if (results.length >= maxCount) break;
-          }
-        }
-        
-        if (results.length >= maxCount) break;
-      }
-      if (results.length >= maxCount) break;
-    }
-    
-    return results;
-  }
-  
+  onProgress: (current: number, total: number, found: number, currentResults?: any[]) => void
+): Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> {
+  const allResults: Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> = [];
   const seenFormulas = new Set<string>();
   
+  // 动态容差
+  const tolerance = periods <= 15 ? 2 : periods <= 30 ? 3 : periods <= 50 ? 5 : 8;
+  
   // 根据策略确定参数
-  let populationSize: number, generations: number, mutationRate: number;
+  let topElementsCount: number, topPairsCount: number, randomIterations: number;
   switch (strategy) {
     case 'fast':
-      populationSize = 150;
-      generations = 15;
-      mutationRate = 0.5; // 更激进的变异率
+      topElementsCount = 15;
+      topPairsCount = 10;
+      randomIterations = 500;
       break;
     case 'standard':
-      populationSize = 300;
-      generations = 25;
-      mutationRate = 0.4;
+      topElementsCount = 20;
+      topPairsCount = 15;
+      randomIterations = 1500;
+      break;
+    case 'deep':
+      topElementsCount = 25;
+      topPairsCount = 20;
+      randomIterations = 3000;
       break;
     default:
-      populationSize = 150;
-      generations = 15;
-      mutationRate = 0.5;
+      topElementsCount = 15;
+      topPairsCount = 10;
+      randomIterations = 500;
   }
   
-  const totalIterations = populationSize * generations;
-  let currentIteration = 0;
+  const hierarchicalCount = Math.floor(maxCount * 0.7);
+  const totalSteps = resultTypes.length * 2 * 3 + randomIterations;
+  let currentStep = 0;
   
-  // ==================== 多种子初始化 ====================
-  // 使用所有元素作为种子，支持跨类型搜索
-  const seedElementsByType: Record<ResultType, string[]> = {
-    '尾数类': getAllElements(),
-    '头数类': getAllElements(),
-    '合数类': getAllElements(),
-    '波色类': getAllElements(),
-    '五行类': getAllElements(),
-    '肖位类': getAllElements(),
-    '单特类': getAllElements(),
-    '大小单双类': getAllElements(),
-  };
-  
-  // 第一阶段：从不同种子元素生成初始种群
-  for (const resultType of resultTypes) {
-    const seedElements = seedElementsByType[resultType] || [];
-    for (const seedElem of seedElements.slice(0, 3)) { // 每个类型取3个种子
-      for (const rule of ['D', 'L'] as const) {
-        // 基于种子元素生成公式
-        const formula = generateFromSeed(seedElem, resultType, rule, periods, offset, leftExpand, rightExpand);
-        if (formula && !seenFormulas.has(formula)) {
-          seenFormulas.add(formula);
-          const parsed = parseFormula(formula);
-          if (parsed) {
-            const result = verifyFormula(parsed, historyData, offset, periods, leftExpand, rightExpand);
-            const hitRate = result.hitRate * 100;
-            if (Math.abs(hitRate - targetHitRate) <= tolerance * 2) { // 放宽初始容差
-              results.push({
-                formula,
-                hitRate: result.hitRate,
-                hitCount: result.hitCount,
-                totalPeriods: result.totalPeriods,
-              });
-            }
-          }
-        }
-        currentIteration++;
-      }
-    }
-  }
-  
-  // 第二阶段：基于模板生成更多初始解
+  // 阶段1：分层智能搜索
   for (const resultType of resultTypes) {
     for (const rule of ['D', 'L'] as const) {
-      const formula = generateFromTemplate(resultType, rule, periods, offset, leftExpand, rightExpand, strategy);
-      if (formula && !seenFormulas.has(formula)) {
-        seenFormulas.add(formula);
-        const parsed = parseFormula(formula);
-        if (parsed) {
-          const result = verifyFormula(parsed, historyData, offset, periods, leftExpand, rightExpand);
-          const hitRate = result.hitRate * 100;
-          if (Math.abs(hitRate - targetHitRate) <= tolerance) {
-            results.push({
-              formula,
-              hitRate: result.hitRate,
-              hitCount: result.hitCount,
-              totalPeriods: result.totalPeriods,
-            });
-          }
+      // 学习模式（如果有历史结果）
+      const cacheKey = `${resultType}_${rule}_${periods}`;
+      let pattern = patternCache.get(cacheKey);
+      
+      // 第一层：找优质元素
+      const topElements = findTopElements(resultType, rule, historyData, targetHitRate, periods, offset, topElementsCount);
+      currentStep++;
+      onProgress(currentStep, totalSteps, allResults.length, allResults);
+      
+      // 第二层：找优质元素对
+      const topPairs = findTopPairs(topElements, resultType, rule, historyData, targetHitRate, periods, offset, topPairsCount);
+      currentStep++;
+      onProgress(currentStep, totalSteps, allResults.length, allResults);
+      
+      // 第三层：构建复杂公式
+      const results = buildComplexFormulas(
+        topPairs,
+        topElements,
+        resultType,
+        rule,
+        historyData,
+        targetHitRate,
+        periods,
+        offset,
+        leftExpand,
+        rightExpand,
+        hierarchicalCount,
+        tolerance,
+        pattern
+      );
+      
+      // 更新模式学习
+      if (results.length > 0) {
+        pattern = learnPatterns(results, targetHitRate / 100 * 0.8);
+        patternCache.set(cacheKey, pattern);
+      }
+      
+      for (const r of results) {
+        if (!seenFormulas.has(r.formula)) {
+          seenFormulas.add(r.formula);
+          allResults.push(r);
         }
       }
-      currentIteration++;
+      
+      currentStep++;
+      onProgress(currentStep, totalSteps, allResults.length, allResults);
+      
+      if (allResults.length >= maxCount) {
+        return sortAndReturn(allResults, targetHitRate, maxCount);
+      }
     }
   }
   
-  // 第二阶段：基于推荐元素的智能生成
-  let bestFormulas = [...results].sort((a, b) => b.hitRate - a.hitRate).slice(0, 20);
-  
-  for (let gen = 0; gen < generations; gen++) {
-    const newPopulation: typeof results = [];
+  // 阶段2：随机搜索（补充多样性）
+  for (let i = 0; i < randomIterations && allResults.length < maxCount; i++) {
+    const resultType = resultTypes[Math.floor(Math.random() * resultTypes.length)];
+    const rule = Math.random() < 0.5 ? 'D' : 'L' as const;
+    const elementCount = 2 + Math.floor(Math.random() * 6);
     
-    // 从优秀公式变异
-    for (const best of bestFormulas) {
-      for (let i = 0; i < 3; i++) {
-        const mutated = mutateFormula(best.formula, allElements, mutationRate, periods);
-        if (mutated && !seenFormulas.has(mutated)) {
-          seenFormulas.add(mutated);
-          const parsed = parseFormula(mutated);
-          if (parsed) {
-            // 添加多样性：如果该结果类型的公式已经太多，降低其被加入的概率
-            const countByType = results.filter(r => r.formula.includes(parsed.resultType)).length;
-            const typeLimit = maxCount / resultTypes.length * 1.5;
-            
-            if (!(countByType > typeLimit && Math.random() > 0.3)) {
-              const result = verifyFormula(parsed, historyData, offset, periods, leftExpand, rightExpand);
-              const hitRate = result.hitRate * 100;
-              
-              if (Math.abs(hitRate - targetHitRate) <= tolerance) {
-                // 综合评估适应度，而不仅仅是命中率
-                const fitness = evaluateFitness({ ...result, hits: [] }, targetHitRate / 100);
-                
-                newPopulation.push({
-                  formula: mutated,
-                  hitRate: result.hitRate,
-                  hitCount: result.hitCount,
-                  totalPeriods: result.totalPeriods,
-                  fitness
-                } as any);
-              }
-            }
-          }
-        }
-        currentIteration++;
-        if (currentIteration % 50 === 0) {
-          onProgress(currentIteration, totalIterations, results.length, results);
-        }
-      }
+    // 获取该类型的模式
+    const cacheKey = `${resultType}_${rule}_${periods}`;
+    const pattern = patternCache.get(cacheKey);
+    
+    const formulaStr = generateRandomFormula(resultType, rule, periods, offset, leftExpand, rightExpand, elementCount, pattern);
+    if (!formulaStr || seenFormulas.has(formulaStr)) continue;
+    
+    seenFormulas.add(formulaStr);
+    const result = verifyFormulaString(formulaStr, historyData, offset, periods, leftExpand, rightExpand);
+    
+    if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance) {
+      allResults.push(result);
     }
     
-    // 随机生成补充
-    for (let i = 0; i < populationSize / 2; i++) {
-      const resultType = resultTypes[Math.floor(Math.random() * resultTypes.length)];
-      const rule = Math.random() < 0.5 ? 'D' : 'L' as const;
-      const recommended = getRecommendedElements(resultType);
-      
-      const elementCount = Math.floor(Math.random() * 5) + 1;
-      const shuffled = [...recommended].sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, elementCount);
-      
-      if (selected.length === 0) continue;
-      
-      const expression = joinElementsWithRandomOperators(selected);
-      const randomOffset = Math.floor(Math.random() * 10) - 5;
-      const offsetStr = randomOffset >= 0 ? `+${randomOffset}` : `${randomOffset}`;
-      
-      const formulaStr = `[${rule}${resultType}]${expression}${offsetStr}=${periods}`;
-      
-      if (seenFormulas.has(formulaStr)) continue;
-      seenFormulas.add(formulaStr);
-      
-      const parsed = parseFormula(formulaStr);
-      if (parsed) {
-        const result = verifyFormula(parsed, historyData, 0, periods, 0, 0);
-        const hitRate = result.hitRate * 100;
-        if (Math.abs(hitRate - targetHitRate) <= tolerance) {
-          newPopulation.push({
-            formula: formulaStr,
-            hitRate: result.hitRate,
-            hitCount: result.hitCount,
-            totalPeriods: result.totalPeriods,
-          });
-        }
-      }
-      currentIteration++;
+    if (i % 100 === 0) {
+      currentStep++;
+      onProgress(currentStep, totalSteps, allResults.length, allResults);
     }
-    
-    // 合并结果并更新最佳公式
-    results.push(...newPopulation);
-    bestFormulas = [...results].sort((a, b) => b.hitRate - a.hitRate).slice(0, 20);
-    
-    onProgress(currentIteration, totalIterations, results.length, results);
-    
-    if (results.length >= maxCount * 2) break;
   }
   
-  return results;
+  return sortAndReturn(allResults, targetHitRate, maxCount);
 }
 
-// Worker 消息处理
+// 排序并返回结果
+function sortAndReturn(
+  results: Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }>,
+  targetHitRate: number,
+  maxCount: number
+): Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> {
+  // 按与目标命中率的接近程度排序
+  results.sort((a, b) => {
+    const diffA = Math.abs(a.hitRate * 100 - targetHitRate);
+    const diffB = Math.abs(b.hitRate * 100 - targetHitRate);
+    return diffA - diffB;
+  });
+  
+  return results.slice(0, maxCount);
+}
+
+// ==================== Worker 消息处理 ====================
 self.onmessage = (event) => {
   const { type, historyData, targetHitRate, maxCount, strategy, resultTypes, offset, periods, leftExpand, rightExpand } = event.data;
   
   if (type !== 'search') return;
   
   try {
-    // 使用进化搜索算法
-    const results = evolutionarySearch(
+    const results = optimizedSearch(
       historyData,
       targetHitRate,
       maxCount,
@@ -703,16 +545,9 @@ self.onmessage = (event) => {
       }
     );
     
-    // 按命中率排序
-    if (targetHitRate >= 50) {
-      results.sort((a, b) => b.hitRate - a.hitRate);
-    } else {
-      results.sort((a, b) => a.hitRate - b.hitRate);
-    }
-    
     self.postMessage({
       type: 'complete',
-      results: results.slice(0, maxCount)
+      results
     });
   } catch (error) {
     self.postMessage({
