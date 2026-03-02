@@ -232,23 +232,10 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
     </div>
   );
 
-  if (results.length === 0) {
-    return (
-      <div className="flex-1 flex flex-col overflow-hidden bg-white relative">
-        <div className="absolute top-3 right-6 z-10">
-          {renderActionButtons()}
-        </div>
-        <div className="flex-1 flex items-center justify-center text-gray-400 text-sm italic">
-          暂无验证结果
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white relative">
-      {/* 固定在右上角的按钮组 */}
-      <div className="absolute top-4 right-8 z-10 flex items-center gap-2 bg-white/80 backdrop-blur-sm p-1 rounded-xl shadow-sm border border-gray-100">
+      {/* 固定在右下角的按钮组 */}
+      <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2 bg-white/80 backdrop-blur-sm p-1 rounded-xl shadow-sm border border-gray-100">
         {renderActionButtons()}
       </div>
 
@@ -257,7 +244,7 @@ export function ResultDisplay({ results, latestPeriod, targetPeriod, historyData
           ref={textareaRef}
           value={resultText}
           readOnly
-          className="w-full h-full text-[11px] sm:text-xs font-mono bg-gray-50 border border-gray-200 rounded-xl p-4 pt-12 resize-none focus:outline-none scroll-smooth"
+          className="w-full h-full text-[11px] sm:text-xs font-mono bg-gray-50 border border-gray-200 rounded-xl p-4 resize-none focus:outline-none scroll-smooth"
           style={{ 
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-all'

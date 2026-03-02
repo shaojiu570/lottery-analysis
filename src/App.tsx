@@ -361,6 +361,10 @@ function App() {
             alert(`已添加 ${formulas.length} 个公式到"${group.name}"分组`);
           }
         }}
+        onAddGroup={(name) => {
+          const newGroup = addGroup(name);
+          return newGroup.id;
+        }}
       />
 
       <SavedVerificationsModal

@@ -20,44 +20,17 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
   const [hitRateMax, setHitRateMax] = useState(90);
   const [lastPeriodCondition, setLastPeriodCondition] = useState<LastPeriodCondition>('none');
   
-  const [consecutiveMissPeriods, setConsecutiveMissPeriods] = useState(0);
-  const [consecutiveHitPeriods, setConsecutiveHitPeriods] = useState(0);
+  const [hitCountCondition, setHitCountCondition] = useState<'gt' | 'lt' | 'eq' | 'none'>('none');
+  const [hitCountValue, setHitCountValue] = useState(15);
+  const [missCountCondition, setMissCountCondition] = useState<'gt' | 'lt' | 'eq' | 'none'>('none');
+  const [missCountValue, setMissCountValue] = useState(5);
 
   if (!isOpen) return null;
-
-  // 计算最大连续未命中期数（任意位置）
-  const calculateMaxConsecutiveMiss = (hits: boolean[]): number => {
-    let maxMiss = 0;
-    let currentMiss = 0;
-    for (const hit of hits) {
-      if (!hit) {
-        currentMiss++;
-        maxMiss = Math.max(maxMiss, currentMiss);
-      } else {
-        currentMiss = 0;
-      }
-    }
-    return maxMiss;
-  };
-
-  // 计算最大连续命中期数（任意位置）
-  const calculateMaxConsecutiveHit = (hits: boolean[]): number => {
-    let maxHit = 0;
-    let currentHit = 0;
-    for (const hit of hits) {
-      if (hit) {
-        currentHit++;
-        maxHit = Math.max(maxHit, currentHit);
-      } else {
-        currentHit = 0;
-      }
-    }
-    return maxHit;
-  };
 
   const getFilteredResults = () => {
     let filtered = [...results];
 
+    // 命中率筛选
     if (hitRateCondition !== 'none') {
       filtered = filtered.filter(r => {
         const rate = r.hitRate * 100;
@@ -76,9 +49,9 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
       });
     }
 
+    // 上期结果筛选
     if (lastPeriodCondition !== 'none') {
       filtered = filtered.filter(r => {
-        // hits 数组顺序：最旧期在前，最新期在后
         const lastHit = r.hits.length > 0 ? r.hits[r.hits.length - 1] : false;
         if (lastPeriodCondition === 'hit') return lastHit;
         if (lastPeriodCondition === 'miss') return !lastHit;
@@ -86,17 +59,36 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
       });
     }
 
-    if (consecutiveMissPeriods > 0) {
+    // 命中总数筛选
+    if (hitCountCondition !== 'none') {
       filtered = filtered.filter(r => {
-        const maxMiss = calculateMaxConsecutiveMiss(r.hits);
-        return maxMiss >= consecutiveMissPeriods;
+        switch (hitCountCondition) {
+          case 'gt':
+            return r.hitCount > hitCountValue;
+          case 'lt':
+            return r.hitCount < hitCountValue;
+          case 'eq':
+            return r.hitCount === hitCountValue;
+          default:
+            return true;
+        }
       });
     }
 
-    if (consecutiveHitPeriods > 0) {
+    // 未命中总数筛选
+    if (missCountCondition !== 'none') {
       filtered = filtered.filter(r => {
-        const maxHit = calculateMaxConsecutiveHit(r.hits);
-        return maxHit >= consecutiveHitPeriods;
+        const missCount = r.totalPeriods - r.hitCount;
+        switch (missCountCondition) {
+          case 'gt':
+            return missCount > missCountValue;
+          case 'lt':
+            return missCount < missCountValue;
+          case 'eq':
+            return missCount === missCountValue;
+          default:
+            return true;
+        }
       });
     }
 
@@ -313,28 +305,54 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
             </div>
           )}
 
-          {/* 连错和连对并排 */}
-          <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-3">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">连错≥期</label>
+          {/* 命中总数筛选 */}
+          <div className="border-t border-gray-100 pt-3">
+            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">命中总数</label>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={hitCountCondition}
+                onChange={(e) => setHitCountCondition(e.target.value as any)}
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none"
+              >
+                <option value="none">不限</option>
+                <option value="gt">大于</option>
+                <option value="lt">小于</option>
+                <option value="eq">等于</option>
+              </select>
               <input
                 type="number"
                 inputMode="numeric"
-                value={consecutiveMissPeriods}
-                onChange={(e) => setConsecutiveMissPeriods(parseInt(e.target.value) || 0)}
+                value={hitCountValue}
+                onChange={(e) => setHitCountValue(parseInt(e.target.value) || 0)}
                 className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none"
                 min={0}
+                disabled={hitCountCondition === 'none'}
               />
             </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">连对≥期</label>
+          </div>
+
+          {/* 未命中总数筛选 */}
+          <div>
+            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">未命中总数</label>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={missCountCondition}
+                onChange={(e) => setMissCountCondition(e.target.value as any)}
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none"
+              >
+                <option value="none">不限</option>
+                <option value="gt">大于</option>
+                <option value="lt">小于</option>
+                <option value="eq">等于</option>
+              </select>
               <input
                 type="number"
                 inputMode="numeric"
-                value={consecutiveHitPeriods}
-                onChange={(e) => setConsecutiveHitPeriods(parseInt(e.target.value) || 0)}
+                value={missCountValue}
+                onChange={(e) => setMissCountValue(parseInt(e.target.value) || 0)}
                 className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none"
                 min={0}
+                disabled={missCountCondition === 'none'}
               />
             </div>
           </div>

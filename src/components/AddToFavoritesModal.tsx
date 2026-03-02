@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FavoriteGroup } from '@/types';
 
 interface AddToFavoritesModalProps {
@@ -7,6 +7,7 @@ interface AddToFavoritesModalProps {
   groups: FavoriteGroup[];
   formulas: string[];
   onAdd: (groupId: string, formulas: string[]) => void;
+  onAddGroup: (name: string) => string; // 返回新分组的 ID
 }
 
 export function AddToFavoritesModal({
@@ -15,17 +16,71 @@ export function AddToFavoritesModal({
   groups,
   formulas,
   onAdd,
+  onAddGroup,
 }: AddToFavoritesModalProps) {
-  const [selectedGroup, setSelectedGroup] = useState<string>(groups.length > 0 ? groups[0].id : '');
+  const [selectedGroup, setSelectedGroup] = useState<string>('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      // 默认选择第一个分组
+      setSelectedGroup(groups.length > 0 ? groups[0].id : '');
+      setIsCreating(false);
+      setNewGroupName('');
+    }
+  }, [isOpen, groups]);
 
   if (!isOpen) return null;
 
   const handleAdd = () => {
-    if (selectedGroup && formulas.length > 0) {
-      onAdd(selectedGroup, formulas);
-      onClose();
+    if (isCreating) {
+      if (newGroupName.trim()) {
+        const newGroupId = onAddGroup(newGroupName.trim());
+        onAdd(newGroupId, formulas);
+        onClose();
+      }
+    } else {
+      if (selectedGroup && formulas.length > 0) {
+        onAdd(selectedGroup, formulas);
+        onClose();
+      }
     }
   };
+
+  const renderGroupSelector = () => (
+    <div className="space-y-2 max-h-48 overflow-y-auto">
+      {groups.map(group => (
+        <button
+          key={group.id}
+          onClick={() => {
+            setSelectedGroup(group.id);
+            setIsCreating(false);
+          }}
+          className={`w-full text-left px-4 py-3 rounded-lg flex items-center justify-between transition-colors ${
+            selectedGroup === group.id && !isCreating
+              ? 'bg-emerald-50 border-2 border-emerald-500'
+              : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+          }`}
+        >
+          <span className="text-sm font-medium text-gray-700">{group.name}</span>
+          <span className="text-xs text-gray-500">{group.formulas.length}个</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  const renderCreateGroup = () => (
+    <div>
+      <input
+        type="text"
+        value={newGroupName}
+        onChange={(e) => setNewGroupName(e.target.value)}
+        placeholder="输入新分组名称"
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+      />
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2">
@@ -40,22 +95,22 @@ export function AddToFavoritesModal({
             共 {formulas.length} 个公式
           </p>
 
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {groups.map(group => (
-              <button
-                key={group.id}
-                onClick={() => setSelectedGroup(group.id)}
-                className={`w-full text-left px-4 py-3 rounded-lg flex items-center justify-between transition-colors ${
-                  selectedGroup === group.id
-                    ? 'bg-emerald-50 border-2 border-emerald-500'
-                    : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                }`}
-              >
-                <span className="text-sm font-medium text-gray-700">{group.name}</span>
-                <span className="text-xs text-gray-500">{group.formulas.length}个</span>
-              </button>
-            ))}
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              onClick={() => setIsCreating(false)}
+              className={`flex-1 py-2 text-sm rounded-lg ${!isCreating ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+            >
+              选择分组
+            </button>
+            <button
+              onClick={() => setIsCreating(true)}
+              className={`flex-1 py-2 text-sm rounded-lg ${isCreating ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+            >
+              新建分组
+            </button>
           </div>
+
+          {isCreating ? renderCreateGroup() : renderGroupSelector()}
         </div>
 
         <div className="border-t border-gray-200 px-4 py-3 flex justify-between gap-2">
@@ -67,10 +122,10 @@ export function AddToFavoritesModal({
           </button>
           <button
             onClick={handleAdd}
-            disabled={!selectedGroup || formulas.length === 0}
+            disabled={formulas.length === 0 || (isCreating ? !newGroupName.trim() : !selectedGroup)}
             className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-sm disabled:opacity-50"
           >
-            添加
+            {isCreating ? '创建并添加' : '添加到分组'}
           </button>
         </div>
       </div>
