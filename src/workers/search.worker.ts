@@ -30,7 +30,7 @@ const RESULT_TYPE_ELEMENT_MAP: Record<ResultType, string[]> = {
   '大小单双类': ['尾数组', '合数组', '段数组', '期数组'],
 };
 
-// 获取推荐元素
+// 获取推荐元素（核心元素）
 function getRecommendedElements(resultType: ResultType): string[] {
   const groups = RESULT_TYPE_ELEMENT_MAP[resultType] || [];
   const elements: string[] = [];
@@ -38,6 +38,16 @@ function getRecommendedElements(resultType: ResultType): string[] {
     elements.push(...(ELEMENT_GROUPS[group as keyof typeof ELEMENT_GROUPS] || []));
   }
   return [...new Set(elements)];
+}
+
+// 获取所有可用元素（包括推荐和其他元素）
+function getAllAvailableElements(resultType: ResultType): string[] {
+  const recommended = getRecommendedElements(resultType);
+  const allElements = getAllElements();
+  
+  // 推荐元素在前，其他元素在后
+  const otherElements = allElements.filter(e => !recommended.includes(e));
+  return [...recommended, ...otherElements];
 }
 
 // ==================== 模式学习系统 ====================
@@ -180,7 +190,7 @@ function evaluateElementPair(
 }
 
 // ==================== 分层搜索策略 ====================
-// 第一层：找出优质单元素
+// 第一层：找出优质单元素（扩展到所有元素）
 function findTopElements(
   resultType: ResultType,
   rule: 'D' | 'L',
@@ -190,10 +200,11 @@ function findTopElements(
   offset: number,
   topN: number = 20
 ): string[] {
-  const recommended = getRecommendedElements(resultType);
+  // 使用所有可用元素，不仅仅是推荐元素
+  const allAvailable = getAllAvailableElements(resultType);
   const elementScores: Array<{ element: string; score: number; diff: number }> = [];
   
-  for (const elem of recommended) {
+  for (const elem of allAvailable) {
     const score = evaluateSingleElement(elem, resultType, rule, historyData, periods, offset);
     const diff = Math.abs(score - targetHitRate / 100);
     elementScores.push({ element: elem, score, diff });
@@ -231,7 +242,7 @@ function findTopPairs(
   return pairScores.slice(0, topN).map(p => [p.elem1, p.elem2] as [string, string]);
 }
 
-// 第三层：基于优质元素对构建复杂公式
+// 第三层：基于优质元素对构建复杂公式（支持跨类型）
 function buildComplexFormulas(
   topPairs: Array<[string, string]>,
   topElements: string[],
@@ -245,7 +256,8 @@ function buildComplexFormulas(
   rightExpand: number,
   maxResults: number,
   tolerance: number,
-  pattern?: FormulaPattern
+  pattern?: FormulaPattern,
+  allResultTypes?: ResultType[]
 ): Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> {
   const results: Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> = [];
   const seenFormulas = new Set<string>();
@@ -256,7 +268,7 @@ function buildComplexFormulas(
   const maxElements = Math.min(8, suggestedCount + 3);
   
   for (const [elem1, elem2] of topPairs) {
-    // 2元素公式
+    // 2元素公式 - 当前类型
     const formula2 = buildFormula([elem1, elem2], resultType, rule, periods, offset, leftExpand, rightExpand);
     if (formula2 && !seenFormulas.has(formula2)) {
       seenFormulas.add(formula2);
@@ -265,6 +277,25 @@ function buildComplexFormulas(
         results.push(result);
         if (results.length >= maxResults) return results;
       }
+    }
+    
+    // 跨类型尝试：同样的元素对，尝试其他结果类型
+    if (allResultTypes && allResultTypes.length > 1) {
+      const crossResults = crossTypeFormulas(
+        [elem1, elem2],
+        allResultTypes.filter(t => t !== resultType),
+        rule,
+        periods,
+        offset,
+        leftExpand,
+        rightExpand,
+        historyData,
+        targetHitRate,
+        tolerance,
+        seenFormulas
+      );
+      results.push(...crossResults);
+      if (results.length >= maxResults) return results;
     }
     
     // 3-N元素公式
@@ -284,6 +315,7 @@ function buildComplexFormulas(
       
       if (elements.length < 3) continue;
       
+      // 当前类型
       const formula = buildFormula(elements, resultType, rule, periods, offset, leftExpand, rightExpand);
       if (formula && !seenFormulas.has(formula)) {
         seenFormulas.add(formula);
@@ -291,6 +323,22 @@ function buildComplexFormulas(
         if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance) {
           results.push(result);
           if (results.length >= maxResults) return results;
+        }
+      }
+      
+      // 跨类型尝试：30%概率尝试其他类型
+      if (allResultTypes && allResultTypes.length > 1 && Math.random() < 0.3) {
+        const otherType = allResultTypes[Math.floor(Math.random() * allResultTypes.length)];
+        if (otherType !== resultType) {
+          const crossFormula = buildFormula(elements, otherType, rule, periods, offset, leftExpand, rightExpand);
+          if (crossFormula && !seenFormulas.has(crossFormula)) {
+            seenFormulas.add(crossFormula);
+            const result = verifyFormulaString(crossFormula, historyData, offset, periods, leftExpand, rightExpand);
+            if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance) {
+              results.push(result);
+              if (results.length >= maxResults) return results;
+            }
+          }
         }
       }
     }
@@ -320,6 +368,38 @@ function buildFormula(
   return `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
 }
 
+// 跨类型复用元素组：同一组元素尝试不同的结果类型
+function crossTypeFormulas(
+  elements: string[],
+  resultTypes: ResultType[],
+  rule: 'D' | 'L',
+  periods: number,
+  offset: number,
+  leftExpand: number,
+  rightExpand: number,
+  historyData: LotteryData[],
+  targetHitRate: number,
+  tolerance: number,
+  seenFormulas: Set<string>
+): Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> {
+  const results: Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> = [];
+  
+  // 对每个结果类型都尝试这组元素
+  for (const resultType of resultTypes) {
+    const formula = buildFormula(elements, resultType, rule, periods, offset, leftExpand, rightExpand);
+    if (!formula || seenFormulas.has(formula)) continue;
+    
+    seenFormulas.add(formula);
+    const result = verifyFormulaString(formula, historyData, offset, periods, leftExpand, rightExpand);
+    
+    if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance) {
+      results.push(result);
+    }
+  }
+  
+  return results;
+}
+
 // 验证公式字符串
 function verifyFormulaString(
   formulaStr: string,
@@ -341,7 +421,7 @@ function verifyFormulaString(
   };
 }
 
-// 随机生成公式（补充多样性）
+// 随机生成公式（补充多样性，使用所有元素）
 function generateRandomFormula(
   resultType: ResultType,
   rule: 'D' | 'L',
@@ -352,10 +432,15 @@ function generateRandomFormula(
   elementCount: number,
   pattern?: FormulaPattern
 ): string | null {
-  // 优先使用模式学习的元素
-  let candidateElements = pattern?.commonElements.length 
-    ? pattern.commonElements 
-    : getRecommendedElements(resultType);
+  let candidateElements: string[];
+  
+  // 70%概率使用模式学习的元素，30%概率使用所有元素
+  if (pattern?.commonElements.length && Math.random() < 0.7) {
+    candidateElements = pattern.commonElements;
+  } else {
+    // 使用所有可用元素，确保充分利用
+    candidateElements = getAllAvailableElements(resultType);
+  }
   
   if (candidateElements.length === 0) {
     candidateElements = getAllElements();
@@ -392,24 +477,24 @@ function optimizedSearch(
   let topElementsCount: number, topPairsCount: number, randomIterations: number;
   switch (strategy) {
     case 'fast':
-      topElementsCount = 15;
-      topPairsCount = 10;
-      randomIterations = 500;
+      topElementsCount = 20;  // 增加到20个
+      topPairsCount = 15;     // 增加到15对
+      randomIterations = 1000; // 增加随机迭代
       break;
     case 'standard':
-      topElementsCount = 20;
-      topPairsCount = 15;
-      randomIterations = 1500;
+      topElementsCount = 30;  // 增加到30个
+      topPairsCount = 20;     // 增加到20对
+      randomIterations = 2500; // 增加随机迭代
       break;
     case 'deep':
-      topElementsCount = 25;
-      topPairsCount = 20;
-      randomIterations = 3000;
+      topElementsCount = 40;  // 增加到40个，覆盖更多元素
+      topPairsCount = 30;     // 增加到30对
+      randomIterations = 5000; // 大幅增加随机迭代
       break;
     default:
-      topElementsCount = 15;
-      topPairsCount = 10;
-      randomIterations = 500;
+      topElementsCount = 20;
+      topPairsCount = 15;
+      randomIterations = 1000;
   }
   
   const hierarchicalCount = Math.floor(maxCount * 0.7);
@@ -433,7 +518,7 @@ function optimizedSearch(
       currentStep++;
       onProgress(currentStep, totalSteps, allResults.length, allResults);
       
-      // 第三层：构建复杂公式
+      // 第三层：构建复杂公式（传入所有结果类型以支持跨类型）
       const results = buildComplexFormulas(
         topPairs,
         topElements,
@@ -447,7 +532,8 @@ function optimizedSearch(
         rightExpand,
         hierarchicalCount,
         tolerance,
-        pattern
+        pattern,
+        resultTypes  // 传入所有结果类型
       );
       
       // 更新模式学习
@@ -495,6 +581,73 @@ function optimizedSearch(
     if (i % 100 === 0) {
       currentStep++;
       onProgress(currentStep, totalSteps, allResults.length, allResults);
+    }
+  }
+  
+  // 阶段3：全元素探索（确保所有元素都被使用）
+  if (allResults.length < maxCount && strategy !== 'fast') {
+    const allElements = getAllElements();
+    const explorationCount = strategy === 'deep' ? 500 : 200;
+    
+    for (let i = 0; i < explorationCount && allResults.length < maxCount; i++) {
+      const resultType = resultTypes[Math.floor(Math.random() * resultTypes.length)];
+      const rule = Math.random() < 0.5 ? 'D' : 'L' as const;
+      
+      // 随机选择2-5个元素，确保包含一些不常用的元素
+      const elementCount = 2 + Math.floor(Math.random() * 4);
+      const shuffled = [...allElements].sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, elementCount);
+      
+      const formulaStr = buildFormula(selected, resultType, rule, periods, offset, leftExpand, rightExpand);
+      if (!formulaStr || seenFormulas.has(formulaStr)) continue;
+      
+      seenFormulas.add(formulaStr);
+      const result = verifyFormulaString(formulaStr, historyData, offset, periods, leftExpand, rightExpand);
+      
+      if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance * 1.5) {
+        allResults.push(result);
+      }
+    }
+  }
+  
+  // 阶段4：跨类型复用优质元素组（同一组元素尝试不同结果类型）
+  if (allResults.length < maxCount && resultTypes.length > 1) {
+    // 从已找到的优质公式中提取元素组
+    const topFormulas = allResults
+      .sort((a, b) => Math.abs(b.hitRate * 100 - targetHitRate) - Math.abs(a.hitRate * 100 - targetHitRate))
+      .slice(0, 20);
+    
+    for (const topFormula of topFormulas) {
+      if (allResults.length >= maxCount) break;
+      
+      const parsed = parseFormula(topFormula.formula);
+      if (!parsed) continue;
+      
+      // 提取元素
+      const elements = parsed.expression.split(/[+\-]/).filter(e => e.trim());
+      if (elements.length < 2) continue;
+      
+      // 尝试不同的规则
+      for (const rule of ['D', 'L'] as const) {
+        if (allResults.length >= maxCount) break;
+        
+        // 跨类型复用这组元素
+        const crossResults = crossTypeFormulas(
+          elements,
+          resultTypes,
+          rule,
+          periods,
+          offset,
+          leftExpand,
+          rightExpand,
+          historyData,
+          targetHitRate,
+          tolerance,
+          seenFormulas
+        );
+        
+        allResults.push(...crossResults);
+      }
     }
   }
   
