@@ -109,11 +109,14 @@ export function Header({
                 <span className="hidden xs:inline">记录</span>
               </HeaderButton>
             )}
-            <HeaderButton onClick={onOpenSearch} icon="🎯">
+            <HeaderButton onClick={onShowSearch} icon="🎯">
               <span className="hidden xs:inline">搜索</span>
             </HeaderButton>
-            <HeaderButton onClick={onOpenHistory} icon="📋">
+            <HeaderButton onClick={onShowHistory} icon="📋">
               <span className="hidden sm:inline">记录</span>
+            </HeaderButton>
+            <HeaderButton onClick={onShowSettings} icon="⚙️">
+              <span className="hidden sm:inline">设置</span>
             </HeaderButton>
           </nav>
         </div>
