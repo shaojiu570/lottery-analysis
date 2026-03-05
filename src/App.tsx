@@ -324,6 +324,8 @@ function App() {
         onClose={() => setShowSettings(false)}
         settings={settings}
         onSave={handleSaveSettings}
+        aliases={aliases}
+        onUpdateAlias={updateAlias}
         onBatchReplace={(find, replace) => {
           const regex = new RegExp(find, 'g');
           setFormulaInput(formulaInput.replace(regex, replace));

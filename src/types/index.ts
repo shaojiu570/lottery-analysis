@@ -107,3 +107,7 @@ export interface FilterCondition {
   recentMissPeriods?: number;
   maxMissPeriods?: number;
 }
+
+// 别名映射类型
+export type AliasMapping = Record<string, string[]>;
+

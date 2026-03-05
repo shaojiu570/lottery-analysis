@@ -117,10 +117,19 @@ export function normalizeElementName(name: string): string {
   normalized = normalized.replace(/__ZONGFEN_HE__/g, '总分合');
   normalized = normalized.replace(/__ZONGFEN_HEWEI__/g, '总分合尾');
   
-  // 处理别名（如"特码波" -> "特波"）
-  // 按长度从长到短排序，避免短名称错误替换长名称中的部分
-  const sortedAliases = Object.entries(ELEMENT_ALIASES).sort((a, b) => b[0].length - a[0].length);
-  for (const [alias, standard] of sortedAliases) {
+  // 首先应用用户自定义别名
+  const userAliases = loadAliases();
+  const sortedUserAliases = Object.entries(userAliases).flatMap(([standard, aliasList]) => 
+    aliasList.map(alias => [alias, standard])
+  ).sort((a, b) => b[0].length - a[0].length);
+
+  for (const [alias, standard] of sortedUserAliases) {
+    normalized = normalized.replace(new RegExp(alias, 'g'), standard);
+  }
+
+  // 然后处理内置别名
+  const sortedBuiltInAliases = Object.entries(ELEMENT_ALIASES).sort((a, b) => b[0].length - a[0].length);
+  for (const [alias, standard] of sortedBuiltInAliases) {
     normalized = normalized.replace(new RegExp(alias, 'g'), standard);
   }
   

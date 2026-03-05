@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { LotteryData, Settings, FavoriteGroup, VerifyResult, Formula } from '@/types';
+import { LotteryData, Settings, FavoriteGroup, VerifyResult, Formula, AliasMapping } from '@/types';
 import { 
   getSettings, 
   saveSettings, 
@@ -16,6 +16,7 @@ import {
   deleteHistoryItem
 } from '@/utils/storage';
 import { precomputeAllElementValues } from '@/utils/calculator';
+import { loadAliases, saveAliases } from '@/utils/alias';
 
 interface AppState {
   // 公式输入
@@ -37,7 +38,7 @@ interface AppState {
   // 收藏
   favoriteGroups: FavoriteGroup[];
   loadFavorites: () => void;
-  addGroup: (name: string) => void;
+  addGroup: (name: string) => string; // 返回新分组的 ID
   removeGroup: (id: string) => void;
   renameGroup: (id: string, newName: string) => void;
   addToFavorites: (groupId: string, formula: string) => void;
@@ -46,6 +47,11 @@ interface AppState {
   // 设置
   settings: Settings;
   updateSettings: (settings: Partial<Settings>) => void;
+
+  // 别名管理
+  aliases: AliasMapping;
+  loadAliases: () => void;
+  updateAlias: (standardName: string, aliases: string[]) => void;
   
   // UI状态
   isVerifying: boolean;
@@ -123,9 +129,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ favoriteGroups: groups });
   },
   addGroup: (name) => {
-    addFavoriteGroup(name);
+    const newGroup = addFavoriteGroup(name);
     const groups = getFavoriteGroups();
     set({ favoriteGroups: groups });
+    return newGroup.id;
   },
   removeGroup: (id) => {
     deleteFavoriteGroup(id);
@@ -153,6 +160,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateSettings: (newSettings) => {
     saveSettings(newSettings);
     set({ settings: getSettings() });
+  },
+
+  // 别名管理
+  aliases: loadAliases(),
+  loadAliases: () => {
+    set({ aliases: loadAliases() });
+  },
+  updateAlias: (standardName, newAliases) => {
+    const currentAliases = get().aliases;
+    const updatedAliases = {
+      ...currentAliases,
+      [standardName]: newAliases.filter(a => a.trim() !== ''), // 过滤空别名
+    };
+    saveAliases(updatedAliases);
+    set({ aliases: updatedAliases });
   },
   
   // UI状态
