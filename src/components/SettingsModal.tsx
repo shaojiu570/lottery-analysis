@@ -1,27 +1,41 @@
 import { useState, useEffect } from 'react';
-import { Settings, AliasMapping } from '@/types';
+import { Settings, AliasMapping, CustomElement, CustomResultType } from '@/types';
 import { AliasManager } from './AliasManager';
+import { CustomElementManager } from './CustomElementManager';
+import { CustomResultTypeManager } from './CustomResultTypeManager';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   settings: Settings;
   aliases: AliasMapping;
+  customElements: CustomElement[];
+  customResultTypes: CustomResultType[];
   onSave: (settings: Partial<Settings>) => void;
   onUpdateAlias: (standardName: string, aliases: string[]) => void;
+  onSaveCustomElement: (element: CustomElement) => void;
+  onDeleteCustomElement: (id: string) => void;
+  onSaveCustomResultType: (type: CustomResultType) => void;
+  onDeleteCustomResultType: (id: string) => void;
   onBatchReplace?: (find: string, replace: string) => void;
   formulaInput?: string;
 }
 
-const RESULT_TYPES = ['尾数类', '头数类', '合数类', '波色类', '五行类', '肖位类', '单特类', '大小单双类'];
+const BUILTIN_RESULT_TYPES = ['尾数类', '头数类', '合数类', '波色类', '五行类', '肖位类', '单特类', '大小单双类'];
 
 export function SettingsModal({ 
   isOpen, 
   onClose, 
   settings, 
   aliases,
+  customElements,
+  customResultTypes,
   onSave, 
   onUpdateAlias,
+  onSaveCustomElement,
+  onDeleteCustomElement,
+  onSaveCustomResultType,
+  onDeleteCustomResultType,
   onBatchReplace, 
   formulaInput 
 }: SettingsModalProps) {
@@ -37,6 +51,8 @@ export function SettingsModal({
   const [replaceRule, setReplaceRule] = useState<'D' | 'L' | ''>('L');
   const [replaceType, setReplaceType] = useState<string>('肖位类');
   const [replaceCount, setReplaceCount] = useState(0);
+
+  const allResultTypes = [...BUILTIN_RESULT_TYPES, ...customResultTypes.map(t => t.name)];
   
   // 标记哪个按钮触发的保存，避免不必要的状态重置
   let isApplyingTargetPeriod = false;
@@ -206,7 +222,7 @@ export function SettingsModal({
               onChange={(e) => setReplaceType(e.target.value)}
               className="px-2 py-1 text-xs border border-gray-300 rounded flex-1 min-w-0"
             >
-              {RESULT_TYPES.map(type => (
+              {allResultTypes.map(type => (
                 <option key={type} value={type}>{type}</option>
               ))}
             </select>
@@ -234,7 +250,7 @@ export function SettingsModal({
         </div>
 
         <div className="border-b border-gray-200">
-          <div className="flex px-4">
+          <div className="flex px-4 overflow-x-auto whitespace-nowrap scrollbar-hide">
             <button 
               onClick={() => setActiveTab('params')} 
               className={`px-4 py-2 text-sm font-medium ${activeTab === 'params' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500'}`}>
@@ -245,12 +261,36 @@ export function SettingsModal({
               className={`px-4 py-2 text-sm font-medium ${activeTab === 'aliases' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500'}`}>
               别名管理
             </button>
+            <button 
+              onClick={() => setActiveTab('elements')} 
+              className={`px-4 py-2 text-sm font-medium ${activeTab === 'elements' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500'}`}>
+              自定义元素
+            </button>
+            <button 
+              onClick={() => setActiveTab('resultTypes')} 
+              className={`px-4 py-2 text-sm font-medium ${activeTab === 'resultTypes' ? 'border-b-2 border-emerald-500 text-emerald-600' : 'text-gray-500'}`}>
+              结果类型
+            </button>
           </div>
         </div>
 
         <div className="p-4">
           {activeTab === 'params' && renderParamsTab()}
           {activeTab === 'aliases' && <AliasManager aliases={aliases} onUpdate={onUpdateAlias} />}
+          {activeTab === 'elements' && (
+            <CustomElementManager 
+              elements={customElements} 
+              onSave={onSaveCustomElement} 
+              onDelete={onDeleteCustomElement} 
+            />
+          )}
+          {activeTab === 'resultTypes' && (
+            <CustomResultTypeManager 
+              types={customResultTypes} 
+              onSave={onSaveCustomResultType} 
+              onDelete={onDeleteCustomResultType} 
+            />
+          )}
         </div>
 
         <div className="border-t border-gray-200 px-4 py-3 flex justify-end gap-2">

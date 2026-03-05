@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { LotteryData, Settings, FavoriteGroup, VerifyResult, Formula, AliasMapping } from '@/types';
+import { LotteryData, Settings, FavoriteGroup, VerifyResult, Formula, AliasMapping, CustomElement, CustomResultType } from '@/types';
 import { 
   getSettings, 
   saveSettings, 
@@ -13,7 +13,11 @@ import {
   getHistoryData,
   saveHistoryData,
   clearHistoryData,
-  deleteHistoryItem
+  deleteHistoryItem,
+  getCustomElements,
+  saveCustomElements,
+  getCustomResultTypes,
+  saveCustomResultTypes
 } from '@/utils/storage';
 import { precomputeAllElementValues } from '@/utils/calculator';
 import { loadAliases, saveAliases } from '@/utils/alias';
@@ -53,6 +57,17 @@ interface AppState {
   loadAliases: () => void;
   updateAlias: (standardName: string, aliases: string[]) => void;
   
+  // 自定义扩展
+  customElements: CustomElement[];
+  loadCustomElements: () => void;
+  saveCustomElement: (element: CustomElement) => void;
+  deleteCustomElement: (id: string) => void;
+
+  customResultTypes: CustomResultType[];
+  loadCustomResultTypes: () => void;
+  saveCustomResultType: (type: CustomResultType) => void;
+  deleteCustomResultType: (id: string) => void;
+
   // UI状态
   isVerifying: boolean;
   setIsVerifying: (value: boolean) => void;
@@ -175,6 +190,49 @@ export const useAppStore = create<AppState>((set, get) => ({
     };
     saveAliases(updatedAliases);
     set({ aliases: updatedAliases });
+  },
+  
+  // 自定义扩展
+  customElements: getCustomElements(),
+  loadCustomElements: () => {
+    set({ customElements: getCustomElements() });
+  },
+  saveCustomElement: (element) => {
+    const elements = getCustomElements();
+    const index = elements.findIndex(e => e.id === element.id);
+    if (index !== -1) {
+      elements[index] = element;
+    } else {
+      elements.push(element);
+    }
+    saveCustomElements(elements);
+    set({ customElements: elements });
+  },
+  deleteCustomElement: (id) => {
+    const elements = getCustomElements().filter(e => e.id !== id);
+    saveCustomElements(elements);
+    set({ customElements: elements });
+  },
+
+  customResultTypes: getCustomResultTypes(),
+  loadCustomResultTypes: () => {
+    set({ customResultTypes: getCustomResultTypes() });
+  },
+  saveCustomResultType: (type) => {
+    const types = getCustomResultTypes();
+    const index = types.findIndex(t => t.id === type.id);
+    if (index !== -1) {
+      types[index] = type;
+    } else {
+      types.push(type);
+    }
+    saveCustomResultTypes(types);
+    set({ customResultTypes: types });
+  },
+  deleteCustomResultType: (id) => {
+    const types = getCustomResultTypes().filter(t => t.id !== id);
+    saveCustomResultTypes(types);
+    set({ customResultTypes: types });
   },
   
   // UI状态

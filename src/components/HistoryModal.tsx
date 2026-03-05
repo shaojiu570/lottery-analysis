@@ -55,7 +55,13 @@ export function HistoryModal({
 
   const handleExport = () => {
     const text = historyData
-      .map(d => `${d.period},${d.numbers.join(',')}`)
+      .map(d => {
+        const numbersStr = d.numbers.map(n => n.toString().padStart(2, '0')).join(' ');
+        if (d.date) {
+          return `${d.period} ${d.date} ${numbersStr}`;
+        }
+        return `${d.period} ${numbersStr}`;
+      })
       .join('\n');
     navigator.clipboard.writeText(text);
     alert('已复制到剪贴板');
@@ -119,8 +125,10 @@ export function HistoryModal({
                 value={importText}
                 onChange={(e) => setImportText(e.target.value)}
                 placeholder="支持格式：
-期数,号码1,号码2,...号码7
+期数 日期 号码1 号码2...号码7
+期数,日期,号码1,号码2...号码7
 期数 号码1 号码2...号码7
+期数,号码1,号码2...号码7
 期数:号码1,号码2...号码7
 期数;号码1;号码2...号码7
 期数|号码1|号码2...号码7"
@@ -175,9 +183,16 @@ function HistoryItem({ data, onDelete }: HistoryItemProps) {
   return (
     <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-2 sm:p-3">
       <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
-        <span className="text-xs sm:text-sm font-mono text-gray-600 shrink-0">
-          {data.period}
-        </span>
+        <div className="flex flex-col">
+          <span className="text-xs sm:text-sm font-mono text-gray-600 shrink-0">
+            {data.period}
+          </span>
+          {data.date && (
+            <span className="text-[10px] text-gray-400 font-mono">
+              {data.date}
+            </span>
+          )}
+        </div>
         <div className="flex gap-1 sm:gap-1.5 overflow-x-auto pb-1">
           {data.numbers.slice(0, 6).map((num, i) => (
             <NumberBall key={i} number={num} zodiacYear={recordZodiacYear} />

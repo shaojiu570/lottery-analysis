@@ -1,7 +1,13 @@
 import { Formula, ResultType } from '@/types';
 import { chineseToNumber, normalizeSimplifiedExpression } from './elements';
+import { getCustomResultTypes } from './storage';
 
-const RESULT_TYPES: ResultType[] = ['尾数类', '头数类', '合数类', '波色类', '五行类', '肖位类', '单特类', '大小单双类'];
+const BUILTIN_RESULT_TYPES: ResultType[] = ['尾数类', '头数类', '合数类', '波色类', '五行类', '肖位类', '单特类', '大小单双类'];
+
+function getAllResultTypes(): string[] {
+  const customTypes = getCustomResultTypes();
+  return [...BUILTIN_RESULT_TYPES, ...customTypes.map(t => t.name)];
+}
 
 export interface ParsedFormula {
   rule: 'D' | 'L';
@@ -79,7 +85,7 @@ export function parseFormula(input: string): ParsedFormula | null {
     if (fullMatch) {
       const [, rule, resultType, expression, offsetStr, periodsStr, leftStr, rightStr] = fullMatch;
       
-      if (!RESULT_TYPES.includes(resultType as ResultType)) {
+      if (!getAllResultTypes().includes(resultType)) {
         console.log('不支持的类型:', resultType);
         return null;
       }

@@ -1,5 +1,7 @@
 import { LotteryData } from '@/types';
 import { digitSum, getWaveColor, getFiveElement, getZodiacPosition, getSegment } from './mappings';
+import { loadAliases } from './alias';
+import { getCustomElements } from './storage';
 
 // 汉字数字转阿拉伯数字
 const CHINESE_NUMBERS: Record<string, number> = {
@@ -262,6 +264,12 @@ export const ELEMENT_DEFINITIONS = [
   // 外部数据系列 (4个: 星期、天干、地支、干支)
   '星期', '干', '支', '干支'
 ];
+
+// 获取所有可用元素名称
+export function getAllElements(): string[] {
+  const customElements = getCustomElements().map(e => e.name);
+  return [...ELEMENT_DEFINITIONS, ...customElements];
+}
 
 // 计算元素值
 export function calculateElementValue(

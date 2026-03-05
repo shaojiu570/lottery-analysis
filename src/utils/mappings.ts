@@ -1,3 +1,5 @@
+import { getCustomResultTypes } from './storage';
+
 // 波色映射表
 export const WAVE_COLORS: Record<string, number[]> = {
   红: [1, 2, 7, 8, 12, 13, 18, 19, 23, 24, 29, 30, 34, 35, 40, 45, 46],
@@ -293,9 +295,24 @@ export const RESULT_TYPE_CONFIG = {
   大小单双类: { min: 0, max: 3, cycle: 4 },
 };
 
+// 获取所有结果类型（包含自定义）
+export function getResultTypeConfig() {
+  const customTypes = getCustomResultTypes();
+  const config = { ...RESULT_TYPE_CONFIG } as any;
+  
+  for (const ct of customTypes) {
+    const labels = ct.mappings.map(m => m.label);
+    config[ct.name] = { min: 0, max: labels.length - 1, cycle: labels.length };
+  }
+  
+  return config;
+}
+
 // 应用循环规则
-export function applyCycle(value: number, resultType: keyof typeof RESULT_TYPE_CONFIG): number {
-  const config = RESULT_TYPE_CONFIG[resultType];
+export function applyCycle(value: number, resultType: string): number {
+  const config = getResultTypeConfig()[resultType];
+  if (!config) return value;
+  
   if (resultType === '肖位类' || resultType === '单特类' || resultType === '合数类') {
     // 1-based 循环
     return ((value - 1) % config.cycle + config.cycle) % config.cycle + 1;
@@ -309,7 +326,7 @@ export function getExpandedResults(
   baseValue: number,
   leftExpand: number,
   rightExpand: number,
-  resultType: keyof typeof RESULT_TYPE_CONFIG
+  resultType: string
 ): number[] {
   const results: number[] = [];
   
@@ -325,7 +342,7 @@ export function getExpandedResults(
 }
 
 // 结果值转文字
-export function resultToText(value: number, resultType: keyof typeof RESULT_TYPE_CONFIG, zodiacYear?: number): string {
+export function resultToText(value: number, resultType: string, zodiacYear?: number): string {
   switch (resultType) {
     case '尾数类':
       return `${value}尾`;
@@ -345,12 +362,19 @@ export function resultToText(value: number, resultType: keyof typeof RESULT_TYPE
     case '大小单双类':
       return getBigSmallOddEvenName(value);
     default:
+      // 检查是否是自定义类型
+      const customTypes = getCustomResultTypes();
+      const ct = customTypes.find(t => t.name === resultType);
+      if (ct) {
+        const labels = ct.mappings.map(m => m.label);
+        return labels[value % labels.length] || value.toString();
+      }
       return value.toString();
   }
 }
 
 // 根据结果类型获取号码属性值
-export function getNumberAttribute(num: number, resultType: keyof typeof RESULT_TYPE_CONFIG, zodiacYear?: number): number {
+export function getNumberAttribute(num: number, resultType: string, zodiacYear?: number): number {
   switch (resultType) {
     case '尾数类':
       return num % 10;
@@ -369,6 +393,18 @@ export function getNumberAttribute(num: number, resultType: keyof typeof RESULT_
     case '大小单双类':
       return getBigSmallOddEven(num);
     default:
+      // 检查是否是自定义类型
+      const customTypes = getCustomResultTypes();
+      const ct = customTypes.find(t => t.name === resultType);
+      if (ct) {
+        // 在自定义映射中查找该号码对应的索引
+        const labels = ct.mappings.map(m => m.label);
+        for (let i = 0; i < ct.mappings.length; i++) {
+          if (ct.mappings[i].values.includes(num)) {
+            return i;
+          }
+        }
+      }
       return num;
   }
 }
@@ -379,7 +415,7 @@ export function digitSum(num: number): number {
 }
 
 // 根据结果值获取包含的号码
-export function getNumbersByResult(value: number, resultType: keyof typeof RESULT_TYPE_CONFIG, zodiacYear?: number): number[] {
+export function getNumbersByResult(value: number, resultType: string, zodiacYear?: number): number[] {
   const numbers: number[] = [];
   for (let i = 1; i <= 49; i++) {
     if (getNumberAttribute(i, resultType, zodiacYear) === value) {

@@ -1,7 +1,8 @@
 import { LotteryData, ResultType, VerifyResult, PeriodResult } from '@/types';
 import { calculateElementValue, normalizeElementName } from './elements';
-import { applyCycle, getExpandedResults, getNumberAttribute, resultToText, getZodiacMap, getZodiacYearByPeriod } from './mappings';
+import { applyCycle, getExpandedResults, getNumberAttribute, resultToText, getZodiacMap, getZodiacYearByPeriod, convertResultToNumbers } from './mappings';
 import { ParsedFormula } from './formulaParser';
+import { getCustomElements, getCustomResultTypes } from './storage';
 
 // ==================== 预计算系统 ====================
 // 预计算所有元素的数值表
@@ -206,13 +207,45 @@ function processConditionElements(expression: string, data: LotteryData): string
   return result;
 }
 
+// 处理自定义元素：将自定义元素名称替换为它们的公式
+function resolveCustomElements(expression: string, depth = 0): string {
+  if (depth > 5) return expression; // 限制递归深度，防止无限循环
+  
+  const customElements = getCustomElements();
+  if (customElements.length === 0) return expression;
+  
+  let resolved = expression;
+  // 按名称长度降序排列，避免子串匹配问题（如 "前三总合" 匹配到 "前三"）
+  const sortedCustom = [...customElements].sort((a, b) => b.name.length - a.name.length);
+  
+  for (const ce of sortedCustom) {
+    if (resolved.includes(ce.name)) {
+      // 使用正则全局替换，并确保是独立词（或根据需要调整）
+      const regex = new RegExp(ce.name, 'g');
+      resolved = resolved.replace(regex, `(${ce.expression})`);
+    }
+  }
+  
+  // 如果还有自定义元素，继续递归
+  const hasMore = sortedCustom.some(ce => resolved.includes(ce.name));
+  if (hasMore) {
+    return resolveCustomElements(resolved, depth + 1);
+  }
+  
+  return resolved;
+}
+
 // 计算表达式（使用缓存）
 export function evaluateExpression(
   expression: string,
   data: LotteryData,
   useSort: boolean
 ): number {
-  let normalized = normalizeElementName(expression);
+  // 1. 先解析自定义元素
+  let resolvedExpr = resolveCustomElements(expression);
+  
+  // 2. 标准化
+  let normalized = normalizeElementName(resolvedExpr);
   
   // 先处理条件元素
   normalized = processConditionElements(normalized, data);
@@ -691,6 +724,16 @@ function convertResultToNumbers(resultStr: string, resultType: ResultType, zodia
       return getNumbersFromResult(value, resultType, zodiacYear);
     }
     return [];
+  }
+  
+  // 自定义类型
+  const customTypes = getCustomResultTypes();
+  const ct = customTypes.find(t => t.name === resultType);
+  if (ct) {
+    const index = ct.mappings.findIndex(m => m.label === cleanStr);
+    if (index !== -1) {
+      return getNumbersFromResult(index, resultType, zodiacYear);
+    }
   }
   
   // 其他类型：解析数字后转换

@@ -39,6 +39,8 @@ function App() {
     settings,
     updateSettings,
     aliases, loadAliases, updateAlias,
+    customElements, loadCustomElements, saveCustomElement, deleteCustomElement,
+    customResultTypes, loadCustomResultTypes, saveCustomResultType, deleteCustomResultType,
     isVerifying,
     setIsVerifying,
     showFavorites,
@@ -94,8 +96,10 @@ function App() {
     loadHistoryData();
     loadFavorites();
     loadAliases();
+    loadCustomElements();
+    loadCustomResultTypes();
     initOptimization();
-  }, [loadHistoryData, loadFavorites, loadAliases]);
+  }, [loadHistoryData, loadFavorites, loadAliases, loadCustomElements, loadCustomResultTypes]);
 
   // 当 Worker 完成时更新结果
   useEffect(() => {

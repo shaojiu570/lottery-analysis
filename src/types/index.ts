@@ -24,7 +24,7 @@ export interface Formula {
 }
 
 // 结果类型
-export type ResultType = '尾数类' | '头数类' | '合数类' | '波色类' | '五行类' | '肖位类' | '单特类' | '大小单双类';
+export type ResultType = string;
 
 // 验证结果
 export interface VerifyResult {
@@ -110,4 +110,24 @@ export interface FilterCondition {
 
 // 别名映射类型
 export type AliasMapping = Record<string, string[]>;
+
+// 自定义元素
+export interface CustomElement {
+  id: string;
+  name: string;      // 元素名称，如 "前三总合"
+  expression: string; // 基础元素表达式，如 "平1号+平2号+平3号"
+}
+
+// 自定义结果类型映射项
+export interface CustomResultMappingItem {
+  values: number[];  // 命中的原始数值列表，如 [1, 2, 3]
+  label: string;     // 对应的文字，如 "春"
+}
+
+// 自定义结果类型
+export interface CustomResultType {
+  id: string;
+  name: string;      // 类型名称，如 "季节类"
+  mappings: CustomResultMappingItem[];
+}
 

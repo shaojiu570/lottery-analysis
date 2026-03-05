@@ -1,4 +1,4 @@
-import { LotteryData, FavoriteGroup, Settings, SavedVerification } from '@/types';
+import { LotteryData, FavoriteGroup, Settings, SavedVerification, CustomElement, CustomResultType } from '@/types';
 
 const DB_NAME = 'LotteryAnalyzer';
 const DB_VERSION = 1;
@@ -319,4 +319,28 @@ export function deleteVerification(id: string): void {
 
 export function clearAllSavedVerifications(): void {
   localStorage.removeItem(SAVED_VERIFICATIONS_KEY);
+}
+
+// 自定义元素管理
+const CUSTOM_ELEMENTS_KEY = 'lottery_custom_elements';
+
+export function getCustomElements(): CustomElement[] {
+  const data = localStorage.getItem(CUSTOM_ELEMENTS_KEY);
+  return data ? JSON.parse(data) : [];
+}
+
+export function saveCustomElements(elements: CustomElement[]): void {
+  localStorage.setItem(CUSTOM_ELEMENTS_KEY, JSON.stringify(elements));
+}
+
+// 自定义结果类型管理
+const CUSTOM_RESULT_TYPES_KEY = 'lottery_custom_result_types';
+
+export function getCustomResultTypes(): CustomResultType[] {
+  const data = localStorage.getItem(CUSTOM_RESULT_TYPES_KEY);
+  return data ? JSON.parse(data) : [];
+}
+
+export function saveCustomResultTypes(types: CustomResultType[]): void {
+  localStorage.setItem(CUSTOM_RESULT_TYPES_KEY, JSON.stringify(types));
 }
