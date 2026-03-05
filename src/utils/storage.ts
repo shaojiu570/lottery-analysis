@@ -1,4 +1,4 @@
-import { LotteryData, FavoriteGroup, Settings, SavedVerification, CustomElement, CustomResultType } from '@/types';
+import { LotteryData, FavoriteGroup, Settings, SavedVerification, CustomElement, CustomResultType, AliasMapping } from '@/types';
 
 const DB_NAME = 'LotteryAnalyzer';
 const DB_VERSION = 1;
@@ -343,4 +343,27 @@ export function getCustomResultTypes(): CustomResultType[] {
 
 export function saveCustomResultTypes(types: CustomResultType[]): void {
   localStorage.setItem(CUSTOM_RESULT_TYPES_KEY, JSON.stringify(types));
+}
+
+// --- 别名管理 ---
+const ALIAS_STORAGE_KEY = 'formula_aliases';
+
+export function loadAliases(): AliasMapping {
+  try {
+    const stored = localStorage.getItem(ALIAS_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Failed to load aliases from localStorage', error);
+  }
+  return {};
+}
+
+export function saveAliases(aliases: AliasMapping): void {
+  try {
+    localStorage.setItem(ALIAS_STORAGE_KEY, JSON.stringify(aliases));
+  } catch (error) {
+    console.error('Failed to save aliases to localStorage', error);
+  }
 }

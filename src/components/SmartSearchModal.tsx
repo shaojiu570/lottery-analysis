@@ -106,7 +106,6 @@ export function SmartSearchModal({
     setSelectedResults(new Set());
 
     search(
-      historyData,
       hitRate,
       count,
       strategy,

@@ -83,7 +83,7 @@ export function CustomResultTypeManager({ types, onSave, onDelete }: CustomResul
             className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none"
           />
           <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-            <p className="text-[10px] text-gray-400">映射规则：标签 -> 命中数值列表 (用逗号隔开)</p>
+            <p className="text-[10px] text-gray-400">映射规则：标签 &rarr; 命中数值列表 (用逗号隔开)</p>
             {editMappings.map((m, i) => (
               <div key={i} className="flex gap-2 items-start">
                 <input

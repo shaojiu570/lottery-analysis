@@ -1,8 +1,10 @@
-// 优化的智能搜索 Worker - 包含模式学习和改进策略
-import type { LotteryData, ResultType } from '../types';
-import { getAllElements } from '../utils/elements';
-import { parseFormula } from '../utils/formulaParser';
-import { verifyFormula } from '../utils/calculator';
+import type { LotteryData, ResultType, CustomElement, CustomResultType } from '../types';
+import * as shared from '../utils/workerShared';
+
+// 存储自定义数据
+let workerCustomElements: CustomElement[] = [];
+let workerCustomResultTypes: CustomResultType[] = [];
+let workerPrecomputedMap = new Map<number, shared.PrecomputedData[]>();
 
 // ==================== 元素分组定义 ====================
 const ELEMENT_GROUPS = {
@@ -149,11 +151,22 @@ function evaluateSingleElement(
   
   const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
   const formula = `[${rule}${resultType}]${element}${offsetStr}=${periods}`;
-  const parsed = parseFormula(formula);
+  const parsed = parseFormula(formula, workerCustomResultTypes);
   if (!parsed) return 0;
   
-  const result = verifyFormula(parsed, historyData, offset, periods, 0, 0, targetPeriod);
-  const score = result.hitRate;
+  const result = shared.verifyFormula(
+    parsed,
+    historyData,
+    targetPeriod,
+    periods,
+    0,
+    0,
+    offset,
+    workerCustomElements,
+    workerCustomResultTypes,
+    workerPrecomputedMap
+  );
+  const score = result.hitCount / result.totalPeriods;
   
   singleElementCache.set(cacheKey, score);
   return score;
@@ -182,11 +195,22 @@ function evaluateElementPair(
   
   const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
   const formula = `[${rule}${resultType}]${elem1}+${elem2}${offsetStr}=${periods}`;
-  const parsed = parseFormula(formula);
+  const parsed = parseFormula(formula, workerCustomResultTypes);
   if (!parsed) return 0;
   
-  const result = verifyFormula(parsed, historyData, offset, periods, 0, 0, targetPeriod);
-  const score = result.hitRate;
+  const result = shared.verifyFormula(
+    parsed,
+    historyData,
+    targetPeriod,
+    periods,
+    0,
+    0,
+    offset,
+    workerCustomElements,
+    workerCustomResultTypes,
+    workerPrecomputedMap
+  );
+  const score = result.hitCount / result.totalPeriods;
   
   elementPairCache.set(cacheKey, score);
   return score;
@@ -412,6 +436,8 @@ function crossTypeFormulas(
 }
 
 // 验证公式字符串
+import { parseFormula } from '../utils/formulaParser';
+
 function verifyFormulaString(
   formulaStr: string,
   historyData: LotteryData[],
@@ -421,13 +447,25 @@ function verifyFormulaString(
   rightExpand: number,
   targetPeriod: number | null
 ): { formula: string; hitRate: number; hitCount: number; totalPeriods: number } | null {
-  const parsed = parseFormula(formulaStr);
+  const parsed = parseFormula(formulaStr, workerCustomResultTypes);
   if (!parsed) return null;
   
-  const result = verifyFormula(parsed, historyData, offset, periods, leftExpand, rightExpand, targetPeriod);
+  const result = shared.verifyFormula(
+    parsed,
+    historyData,
+    targetPeriod,
+    periods,
+    leftExpand,
+    rightExpand,
+    offset,
+    workerCustomElements,
+    workerCustomResultTypes,
+    workerPrecomputedMap
+  );
+  
   return {
     formula: formulaStr,
-    hitRate: result.hitRate,
+    hitRate: result.hitCount / result.totalPeriods,
     hitCount: result.hitCount,
     totalPeriods: result.totalPeriods,
   };
@@ -687,9 +725,30 @@ function sortAndReturn(
 
 // ==================== Worker 消息处理 ====================
 self.onmessage = (event) => {
-  const { type, historyData, targetHitRate, maxCount, strategy, resultTypes, offset, periods, leftExpand, rightExpand, targetPeriod } = event.data;
+  const { 
+    type, 
+    historyData, 
+    targetHitRate, 
+    maxCount, 
+    strategy, 
+    resultTypes, 
+    offset, 
+    periods, 
+    leftExpand, 
+    rightExpand, 
+    targetPeriod,
+    customElements,
+    customResultTypes
+  } = event.data;
   
   if (type !== 'search') return;
+  
+  // 更新自定义数据
+  if (customElements) workerCustomElements = customElements;
+  if (customResultTypes) workerCustomResultTypes = customResultTypes;
+  
+  // 预计算所有历史数据的元素值
+  workerPrecomputedMap = shared.precomputeAllElementValues(historyData);
   
   try {
     const results = optimizedSearch(
@@ -715,7 +774,7 @@ self.onmessage = (event) => {
     );
     
     self.postMessage({
-      type: 'complete',
+      type: 'complete', 
       results
     });
   } catch (error) {

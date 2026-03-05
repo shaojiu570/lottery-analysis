@@ -3,99 +3,23 @@ import { calculateElementValue, normalizeElementName } from './elements';
 import { applyCycle, getExpandedResults, getNumberAttribute, resultToText, getZodiacMap, getZodiacYearByPeriod, convertResultToNumbers } from './mappings';
 import { ParsedFormula } from './formulaParser';
 import { getCustomElements, getCustomResultTypes } from './storage';
+import * as shared from './workerShared';
 
 // ==================== 预计算系统 ====================
 // 预计算所有元素的数值表
-interface PrecomputedData {
-  period: number;
-  useSort: boolean;
-  elementValues: Record<string, number>;
-}
+export type PrecomputedData = shared.PrecomputedData;
 
 // 预计算数据存储
-const precomputedDataMap = new Map<number, PrecomputedData[]>();
+let precomputedDataMap = new Map<number, PrecomputedData[]>();
 
 // 预计算所有历史数据的元素值
 export function precomputeAllElementValues(historyData: LotteryData[]): void {
-  precomputedDataMap.clear();
-  
-  for (const data of historyData) {
-    const elementValuesD: Record<string, number> = {};
-    const elementValuesL: Record<string, number> = {};
-    
-    // 排序后的平码（D规则）
-    const pingmaD = [...data.numbers.slice(0, 6)].sort((a, b) => a - b);
-    const pingmaL = data.numbers.slice(0, 6);
-    const teNum = data.numbers[6];
-    const totalD = [...pingmaD, teNum].reduce((s, n) => s + n, 0);
-    const totalL = [...pingmaL, teNum].reduce((s, n) => s + n, 0);
-    const periodNum = data.period % 1000;
-    
-    // 期数系列
-    elementValuesD['期数'] = periodNum;
-    elementValuesD['期数尾'] = periodNum % 10;
-    elementValuesD['期数合'] = digitSum(periodNum);
-    elementValuesD['期数合尾'] = digitSum(periodNum) % 10;
-    
-    // 上期数
-    const prevIdx = historyData.indexOf(data) + 1;
-    if (prevIdx < historyData.length) {
-      elementValuesD['上期数'] = historyData[prevIdx].period % 1000;
-    } else {
-      let prevPeriod = periodNum - 1;
-      if (prevPeriod <= 0) prevPeriod = 150;
-      elementValuesD['上期数'] = prevPeriod;
-    }
-    Object.assign(elementValuesL, elementValuesD);
-    
-    // 总分系列
-    elementValuesD['总分'] = totalD;
-    elementValuesD['总分尾'] = totalD % 10;
-    elementValuesD['总分合'] = digitSum(totalD);
-    elementValuesD['总分合尾'] = digitSum(totalD) % 10;
-    elementValuesL['总分'] = totalL;
-    elementValuesL['总分尾'] = totalL % 10;
-    elementValuesL['总分合'] = digitSum(totalL);
-    elementValuesL['总分合尾'] = digitSum(totalL) % 10;
-    
-    // 平码系列
-    for (let i = 0; i < 6; i++) {
-      const numD = pingmaD[i];
-      const numL = pingmaL[i];
-      const attrs = ['号', '头', '尾', '合', '波', '段', '行', '肖位'];
-      attrs.forEach(attr => {
-        const elem = `平${i + 1}${attr}`;
-        elementValuesD[elem] = getNumberAttribute(numD, attr as any, data.zodiacYear);
-        elementValuesL[elem] = getNumberAttribute(numL, attr as any, data.zodiacYear);
-      });
-      // 合头合尾
-      elementValuesD[`平${i + 1}合头`] = Math.floor(elementValuesD[`平${i + 1}合`] / 10);
-      elementValuesD[`平${i + 1}合尾`] = elementValuesD[`平${i + 1}合`] % 10;
-      elementValuesL[`平${i + 1}合头`] = Math.floor(elementValuesL[`平${i + 1}合`] / 10);
-      elementValuesL[`平${i + 1}合尾`] = elementValuesL[`平${i + 1}合`] % 10;
-    }
-    
-    // 特码系列
-    const teAttrs = ['号', '头', '尾', '合', '波', '段', '行', '肖位'];
-    teAttrs.forEach(attr => {
-      elementValuesD[`特${attr}`] = getNumberAttribute(teNum, attr as any, data.zodiacYear);
-      elementValuesL[`特${attr}`] = elementValuesD[`特${attr}`];
-    });
-    elementValuesD['特合头'] = Math.floor(elementValuesD['特合'] / 10);
-    elementValuesD['特合尾'] = elementValuesD['特合'] % 10;
-    elementValuesL['特合头'] = elementValuesD['特合头'];
-    elementValuesL['特合尾'] = elementValuesD['特合尾'];
-    
-    precomputedDataMap.set(data.period, [
-      { period: data.period, useSort: true, elementValues: elementValuesD },
-      { period: data.period, useSort: false, elementValues: elementValuesL }
-    ]);
-  }
+  precomputedDataMap = shared.precomputeAllElementValues(historyData);
 }
 
 // 辅助函数：数字各位和
 function digitSum(n: number): number {
-  return n.toString().split('').reduce((s, d) => s + parseInt(d), 0);
+  return shared.digitSum(n);
 }
 
 // 获取预计算的元素值
@@ -207,255 +131,45 @@ function processConditionElements(expression: string, data: LotteryData): string
   return result;
 }
 
-// 处理自定义元素：将自定义元素名称替换为它们的公式
-function resolveCustomElements(expression: string, depth = 0): string {
-  if (depth > 5) return expression; // 限制递归深度，防止无限循环
-  
-  const customElements = getCustomElements();
-  if (customElements.length === 0) return expression;
-  
-  let resolved = expression;
-  // 按名称长度降序排列，避免子串匹配问题（如 "前三总合" 匹配到 "前三"）
-  const sortedCustom = [...customElements].sort((a, b) => b.name.length - a.name.length);
-  
-  for (const ce of sortedCustom) {
-    if (resolved.includes(ce.name)) {
-      // 使用正则全局替换，并确保是独立词（或根据需要调整）
-      const regex = new RegExp(ce.name, 'g');
-      resolved = resolved.replace(regex, `(${ce.expression})`);
-    }
-  }
-  
-  // 如果还有自定义元素，继续递归
-  const hasMore = sortedCustom.some(ce => resolved.includes(ce.name));
-  if (hasMore) {
-    return resolveCustomElements(resolved, depth + 1);
-  }
-  
-  return resolved;
-}
-
 // 计算表达式（使用缓存）
 export function evaluateExpression(
   expression: string,
   data: LotteryData,
   useSort: boolean
 ): number {
-  // 1. 先解析自定义元素
-  let resolvedExpr = resolveCustomElements(expression);
+  // 1. 先标准化
+  let normalized = normalizeElementName(expression);
   
-  // 2. 标准化
-  let normalized = normalizeElementName(resolvedExpr);
+  // 2. 尝试从预计算缓存中获取元素值
+  const precomputed = precomputedDataMap.get(data.period);
+  const cache = precomputed?.find(p => p.useSort === useSort)?.elementValues;
   
-  // 先处理条件元素
-  normalized = processConditionElements(normalized, data);
-  
-  // 将其他运算符替换为空或移除（允许加减号）
-  normalized = normalized.replace(/[×\*÷\/%]/g, '');
-  
-  // 替换元素为数值（使用缓存）
-  // 期数系列（按长度优先）
-  const periodElements = ['期数合尾', '期数合', '期数尾', '上期数', '期数'];
-  for (const elem of periodElements) {
-    const value = getCachedElementValue(elem, data, useSort);
-    normalized = normalized.replace(new RegExp(elem, 'g'), value.toString());
-  }
-  
-  // 总分系列（按长度优先）
-  const totalElements = ['总分合尾', '总分合', '总分尾', '总分'];
-  for (const elem of totalElements) {
-    const value = getCachedElementValue(elem, data, useSort);
-    normalized = normalized.replace(new RegExp(elem, 'g'), value.toString());
-  }
-  
-  // 平码系列（按属性长度优先）
-  const pingAttrs = ['合头', '合尾', '肖位', '号', '头', '尾', '合', '波', '段', '行'];
-  for (let i = 1; i <= 6; i++) {
-    for (const attr of pingAttrs) {
-      const elem = `平${i}${attr}`;
-      const value = getCachedElementValue(elem, data, useSort);
-      normalized = normalized.replace(new RegExp(elem, 'g'), value.toString());
-    }
-  }
-  
-  // 特码系列（按属性长度优先）
-  const teAttrs = ['合头', '合尾', '肖位', '号', '头', '尾', '合', '波', '段', '行'];
-  for (const attr of teAttrs) {
-    const elem = `特${attr}`;
-    const value = getCachedElementValue(elem, data, useSort);
-    normalized = normalized.replace(new RegExp(elem, 'g'), value.toString());
-  }
-  
-  // 处理单独的"特"字（视为特号）
-  const teValue = calculateElementValue('特号', data, useSort);
-  normalized = normalized.replace(/特(?!合|头|尾|肖|号|波|段|行)/g, teValue.toString());
-  
-  // 安全计算表达式 - 允许加减号
-  try {
-    // 允许数字、加减号和括号
-    if (!/^[\d+\-().\s]+$/.test(normalized)) {
-      console.error('Invalid expression (only + and - allowed):', normalized);
-      return 0;
-    }
-    // eslint-disable-next-line no-eval
-    return Math.floor(eval(normalized));
-  } catch (e) {
-    console.error('Expression evaluation error:', e);
-    return 0;
-  }
+  // 3. 使用共享的评估逻辑
+  return shared.evaluateExpression(normalized, data, useSort, getCustomElements(), cache);
 }
 
-// 验证公式
+// 验证单条公式
 export function verifyFormula(
   parsed: ParsedFormula,
   historyData: LotteryData[],
-  overrideOffset?: number,
-  overridePeriods?: number,
-  overrideLeft?: number,
-  overrideRight?: number,
-  targetPeriod?: number | null
+  targetPeriod: number | null,
+  periods: number,
+  leftExpand: number,
+  rightExpand: number,
+  offset: number
 ): VerifyResult {
-  const offset = overrideOffset ?? parsed.offset;
-  const periods = overridePeriods ?? parsed.periods;
-  const leftExpand = overrideLeft ?? parsed.leftExpand;
-  const rightExpand = overrideRight ?? parsed.rightExpand;
-  
-  let dataToVerify: LotteryData[];
-  
-  if (targetPeriod) {
-    // 找到目标期数的索引
-    const targetIndex = historyData.findIndex(d => d.period === targetPeriod);
-    if (targetIndex === -1) {
-      // 未找到目标期数，使用最新期数
-      dataToVerify = historyData.slice(0, periods);
-    } else {
-      // 从目标期数开始取N期（包括目标期及之后的期数）
-      // 例如目标期2026043，取[2026043, 2026042, 2026041...]
-      dataToVerify = historyData.slice(targetIndex, targetIndex + periods);
-    }
-  } else {
-    // 取最近N期数据
-    dataToVerify = historyData.slice(0, periods);
-  }
-  const useSort = parsed.rule === 'D';
-  
-  const periodResults: PeriodResult[] = [];
-  const hits: boolean[] = [];
-  const allResults = new Set<number>();
-  
-    for (let i = 0; i < dataToVerify.length; i++) {
-      const verifyData = dataToVerify[i];
-      
-      // 找到验证期数在历史数据中的索引
-      const verifyIndex = historyData.findIndex(d => d.period === verifyData.period);
-      
-      // 计算数据的选择逻辑：
-      // 预测/验证某一期时，应该用该期的"上一期"数据来计算
-      // 例如：预测/验证062期，应该用061期的数据
-      let calcData: LotteryData;
-      
-      if (verifyIndex >= 0 && verifyIndex < historyData.length - 1) {
-        // 有上一期数据，使用上一期数据计算
-        // historyData是降序排列，verifyIndex+1是更旧的一期
-        calcData = historyData[verifyIndex + 1];
-      } else {
-        // 没有上一期数据（已经是最旧的一期），使用当前期数据
-        calcData = verifyData;
-      }
-    
-    // 计算表达式值
-    const rawResult = evaluateExpression(parsed.expression, calcData, useSort);
-    // 加补偿值
-    const withOffset = rawResult + offset;
-    // 应用循环规则
-    const cycledResult = applyCycle(withOffset, parsed.resultType);
-    
-    // 获取扩展结果
-    const expandedResults = getExpandedResults(cycledResult, leftExpand, rightExpand, parsed.resultType);
-    
-    // 获取特码的属性值（用验证期的特码来判断命中，而不是计算期）
-    const teNum = verifyData.numbers[6];
-    const targetValue = getNumberAttribute(teNum, parsed.resultType, verifyData.zodiacYear);
-    
-    // 判断是否命中
-    const hit = expandedResults.includes(targetValue);
-    
-    periodResults.push({
-      period: verifyData.period,
-      result: cycledResult,
-      expandedResults,
-      targetValue,
-      hit,
-    });
-    
-    hits.push(hit);
-    expandedResults.forEach(r => allResults.add(r));
-  }
-  
-  const hitCount = hits.filter(h => h).length;
-  
-  // 确定显示用的结果集合（Summary results）
-  let latestResultsForSummary: number[] = [];
-  let latestPeriodForSummary = 0;
-
-  if (targetPeriod) {
-    const targetIdx = historyData.findIndex(d => d.period === targetPeriod);
-    if (targetIdx !== -1) {
-      // 目标期在历史中，从 periodResults 中找到它
-      const targetRes = periodResults.find(pr => pr.period === targetPeriod);
-      latestResultsForSummary = targetRes ? targetRes.expandedResults : [];
-      latestPeriodForSummary = targetPeriod;
-    } else {
-      // 目标期不在历史中，用最新历史数据预测它
-      const calcData = historyData[0];
-      if (calcData) {
-        const rawResult = evaluateExpression(parsed.expression, calcData, useSort);
-        const withOffset = rawResult + offset;
-        const cycledResult = applyCycle(withOffset, parsed.resultType);
-        latestResultsForSummary = getExpandedResults(cycledResult, leftExpand, rightExpand, parsed.resultType);
-      }
-      latestPeriodForSummary = targetPeriod;
-    }
-  } else {
-    // 预测模式，用最新历史数据预测下一期
-    const calcData = historyData[0];
-    if (calcData) {
-      const rawResult = evaluateExpression(parsed.expression, calcData, useSort);
-      const withOffset = rawResult + offset;
-      const cycledResult = applyCycle(withOffset, parsed.resultType);
-      latestResultsForSummary = getExpandedResults(cycledResult, leftExpand, rightExpand, parsed.resultType);
-      latestPeriodForSummary = calcData.period + 1;
-    }
-  }
-
-  // 反转数组，使顺序变为从旧到新（最旧期在前，最新期在后）
-  hits.reverse();
-  periodResults.reverse();
-  
-  // 转换文字结果
-  const latestZodiacYear = getZodiacYearByPeriod(latestPeriodForSummary);
-  const results = Array.from(latestResultsForSummary).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType, latestZodiacYear));
-  
-  return {
-    formula: {
-      id: `f_${Date.now()}`,
-      expression: parsed.rawExpression,
-      rule: parsed.rule,
-      resultType: parsed.resultType,
-      offset,
-      periods,
-      leftExpand,
-      rightExpand,
-    },
-    hits,
-    hitCount,
-    totalPeriods: dataToVerify.length,
-    hitRate: dataToVerify.length > 0 ? hitCount / dataToVerify.length : 0,
-    results,
-    periodResults,
-    originalLineIndex: (parsed as { originalLineIndex?: number }).originalLineIndex ?? 0,
-    targetPeriod: targetPeriod || null,
-  };
+  return shared.verifyFormula(
+    parsed,
+    historyData,
+    targetPeriod,
+    periods,
+    leftExpand,
+    rightExpand,
+    offset,
+    getCustomElements(),
+    getCustomResultTypes(),
+    precomputedDataMap
+  );
 }
 
 // 批量验证公式

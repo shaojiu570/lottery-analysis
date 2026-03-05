@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { LotteryData, ResultType, SearchStrategy } from '@/types';
+import { useAppStore } from '@/stores/appStore';
 
 export interface SearchResult {
   formula: string;
@@ -14,7 +15,6 @@ interface UseSearchWorkerReturn {
   isSearching: boolean;
   progress: { current: number; total: number; found: number } | null;
   search: (
-    historyData: LotteryData[],
     targetHitRate: number,
     maxCount: number,
     strategy: SearchStrategy,
@@ -30,6 +30,7 @@ interface UseSearchWorkerReturn {
 }
 
 export function useSearchWorker(): UseSearchWorkerReturn {
+  const { historyData, customElements, customResultTypes } = useAppStore();
   const [results, setResults] = useState<SearchResult[]>([]);
   const [intermediateResults, setIntermediateResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -86,7 +87,6 @@ export function useSearchWorker(): UseSearchWorkerReturn {
   }, [createWorker]);
 
   const search = useCallback((
-    historyData: LotteryData[],
     targetHitRate: number,
     maxCount: number,
     strategy: SearchStrategy,
@@ -97,7 +97,7 @@ export function useSearchWorker(): UseSearchWorkerReturn {
     rightExpand: number,
     targetPeriod: number | null
   ) => {
-    if (historyData.length === 0 || resultTypes.length === 0) return;
+    if (!historyData || historyData.length === 0 || resultTypes.length === 0) return;
 
     // 如果有旧的worker在运行，先终止它
     if (workerRef.current) {
@@ -123,9 +123,11 @@ export function useSearchWorker(): UseSearchWorkerReturn {
       periods,
       leftExpand,
       rightExpand,
-      targetPeriod
+      targetPeriod,
+      customElements,
+      customResultTypes
     });
-  }, [createWorker]);
+  }, [createWorker, historyData, customElements, customResultTypes]);
 
   const cancel = useCallback(() => {
     // 不立即终止worker，让它继续运行直到完成

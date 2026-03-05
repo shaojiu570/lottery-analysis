@@ -17,10 +17,11 @@ import {
   getCustomElements,
   saveCustomElements,
   getCustomResultTypes,
-  saveCustomResultTypes
+  saveCustomResultTypes,
+  loadAliases,
+  saveAliases
 } from '@/utils/storage';
 import { precomputeAllElementValues } from '@/utils/calculator';
-import { loadAliases, saveAliases } from '@/utils/alias';
 
 interface AppState {
   // 公式输入

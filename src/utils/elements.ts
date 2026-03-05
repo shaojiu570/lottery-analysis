@@ -1,37 +1,7 @@
 import { LotteryData } from '@/types';
 import { digitSum, getWaveColor, getFiveElement, getZodiacPosition, getSegment } from './mappings';
-import { loadAliases } from './alias';
-import { getCustomElements } from './storage';
-
-// 汉字数字转阿拉伯数字
-const CHINESE_NUMBERS: Record<string, number> = {
-  '一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
-  '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
-};
-
-export function chineseToNumber(str: string): string {
-  let result = str;
-  
-  // 处理 "十一" 到 "十九" (11-19)
-  result = result.replace(/十([一二三四五六七八九])/g, (_, d) => `1${CHINESE_NUMBERS[d]}`);
-  
-  // 处理 "二十一" 到 "九十九" (21-99)
-  result = result.replace(/([一二三四五六七八九])十([一二三四五六七八九]?)/g, (_, tens, ones) => {
-    const tenVal = CHINESE_NUMBERS[tens];
-    const oneVal = ones ? CHINESE_NUMBERS[ones] : 0;
-    return (tenVal * 10 + oneVal).toString();
-  });
-  
-  // 处理 "十" 开头 (10-19 的另一种表示)
-  result = result.replace(/^十/g, '10');
-  result = result.replace(/([^\d])十/g, '$110');
-  
-  // 替换单个汉字数字
-  for (const [cn, num] of Object.entries(CHINESE_NUMBERS)) {
-    result = result.replace(new RegExp(cn, 'g'), num.toString());
-  }
-  return result;
-}
+import { loadAliases, getCustomElements } from './storage';
+import { chineseToNumber, calculateElementValue as sharedCalculateElementValue } from './workerShared';
 
 // 元素别名映射表
 const ELEMENT_ALIASES: Record<string, string> = {
@@ -134,6 +104,23 @@ export function normalizeElementName(name: string): string {
   for (const [alias, standard] of sortedBuiltInAliases) {
     normalized = normalized.replace(new RegExp(alias, 'g'), standard);
   }
+
+  // 特殊处理：平码属性（支持中文数字和阿拉伯数字混合，以及合头/合尾）
+  // 1. 处理合尾/合头
+  const pingHeAttrPattern = /平([一二三四五六1-6])?合(头|尾)/g;
+  normalized = normalized.replace(pingHeAttrPattern, (_match, num, attr) => {
+    const cnMap: Record<string, string> = { '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' };
+    const finalNum = cnMap[num] || num || '1';
+    return `平${finalNum}合${attr}`;
+  });
+
+  // 2. 处理其他单字属性
+  const pingAttrPattern = /平([一二三四五六1-6])?(波|头|尾|合|肖位|段|行|号)/g;
+  normalized = normalized.replace(pingAttrPattern, (_match, num, attr) => {
+    const cnMap: Record<string, string> = { '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' };
+    const finalNum = cnMap[num] || num || '1';
+    return `平${finalNum}${attr}`;
+  });
   
   // 简化格式处理
   // "四五行" -> "平4行"
@@ -142,12 +129,18 @@ export function normalizeElementName(name: string): string {
   normalized = normalized.replace(/^(\d)肖位$/, '平$1肖位');
   // "二波" -> "平2波"
   normalized = normalized.replace(/^(\d)波$/, '平$1波');
-  // "平六波" -> "平6波"（处理中文数字）
-  // 只匹配"平"+"数字"+"属性"的情况，避免把"五行类"错误替换
-  normalized = normalized.replace(/平([一二三四五六])(波|头|尾|合|肖位|段|行|号)/, (_, cn, attr) => {
-    const map: Record<string, string> = { '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' };
-    return '平' + (map[cn] || cn) + attr;
-  });
+
+  // 处理简化表达式（如"6波" -> "平6波"）
+  // 使用从长到短的顺序匹配，避免"一肖位"被错误匹配为"一平肖位"
+  // 只替换独立的简化表达式（前面不是"平"或"特"，且后面不是已有的属性尾字）
+  const sortedKeys = Object.keys(SIMPLIFIED_EXPRESSIONS).sort((a, b) => b.length - a.length);
+  
+  for (const simplified of sortedKeys) {
+    const standard = SIMPLIFIED_EXPRESSIONS[simplified];
+    // 使用负向前瞻和负向后顾，确保不会重复替换已完整的形式
+    const pattern = new RegExp(`(?<![平特])${simplified}(?![位头尾合波行号段])`, 'g');
+    normalized = normalized.replace(pattern, standard);
+  }
   
   // 还原结果类型
   for (let i = 0; i < rtList.length; i++) {
@@ -192,61 +185,6 @@ const SIMPLIFIED_EXPRESSIONS: Record<string, string> = {
   '特肖': '特肖位',
 };
 
-// 扩展表达式标准化函数
-export function normalizeSimplifiedExpression(expression: string): string {
-  let normalized = expression;
-  
-  // 保护结果类型不被替换
-  const rtList: string[] = [];
-  const resultTypes = ['五行类', '肖位类', '波色类', '尾数类', '头数类', '合数类', '单特类', '大小单双类'];
-  for (const rt of resultTypes) {
-    const placeholder = `__TYP${rtList.length}__`;
-    normalized = normalized.replace(new RegExp(rt, 'g'), placeholder);
-    rtList.push(rt);
-  }
-  
-  // 先保护完整的元素名称，避免被chineseToNumber错误转换
-  normalized = normalized.replace(/期数合尾/g, '__QISHU_HEWEI__');
-  normalized = normalized.replace(/期数合/g, '__QISHU_HE__');
-  normalized = normalized.replace(/期数尾/g, '__QISHU_WEI__');
-  normalized = normalized.replace(/期数/g, '__QISHU__');
-  normalized = normalized.replace(/总分合尾/g, '__ZONGFEN_HEWEI__');
-  normalized = normalized.replace(/总分合/g, '__ZONGFEN_HE__');
-  normalized = normalized.replace(/总分尾/g, '__ZONGFEN_WEI__');
-  normalized = normalized.replace(/总分/g, '__ZONGFEN__');
-  
-  normalized = chineseToNumber(normalized);
-  
-  // 还原元素名称
-  normalized = normalized.replace(/__QISHU__/g, '期数');
-  normalized = normalized.replace(/__QISHU_WEI__/g, '期数尾');
-  normalized = normalized.replace(/__QISHU_HE__/g, '期数合');
-  normalized = normalized.replace(/__QISHU_HEWEI__/g, '期数合尾');
-  normalized = normalized.replace(/__ZONGFEN__/g, '总分');
-  normalized = normalized.replace(/__ZONGFEN_WEI__/g, '总分尾');
-  normalized = normalized.replace(/__ZONGFEN_HE__/g, '总分合');
-  normalized = normalized.replace(/__ZONGFEN_HEWEI__/g, '总分合尾');
-  
-  // 处理简化表达式（如"6波" -> "平6波"）
-  // 使用从长到短的顺序匹配，避免"一肖位"被错误匹配为"一平肖位"
-  // 只替换独立的简化表达式（前面不是"平"或"特"，且后面不是已有的属性尾字）
-  const sortedKeys = Object.keys(SIMPLIFIED_EXPRESSIONS).sort((a, b) => b.length - a.length);
-  
-  for (const simplified of sortedKeys) {
-    const standard = SIMPLIFIED_EXPRESSIONS[simplified];
-    // 使用负向前瞻和负向后顾，确保不会重复替换已完整的形式
-    const pattern = new RegExp(`(?<![平特])${simplified}(?![位头尾合波行号段])`, 'g');
-    normalized = normalized.replace(pattern, standard);
-  }
-
-  // 还原结果类型
-  for (let i = 0; i < rtList.length; i++) {
-    normalized = normalized.replace(`__TYP${i}__`, rtList[i]);
-  }
-  
-  return normalized;
-}
-
 // 83个固定元素定义（包含外部数据）
 export const ELEMENT_DEFINITIONS = [
   // 期数系列 (5个)
@@ -279,108 +217,34 @@ export function calculateElementValue(
   prevData?: LotteryData
 ): number {
   const normalized = normalizeElementName(elementName);
+  
   // D规则：平码按大小排序，特码位置不变
   const pingma = useSort ? [...data.numbers.slice(0, 6)].sort((a, b) => a - b) : data.numbers.slice(0, 6);
   const te = data.numbers[6];
   const numbers = [...pingma, te];
-  
-  // 期数系列 - 只取后3位计算
-  const periodNum = data.period % 1000;
-  if (normalized === '期数') return periodNum;
-  if (normalized === '期数尾') return periodNum % 10;
-  if (normalized === '期数合') return digitSum(periodNum);
-  if (normalized === '期数合尾') return digitSum(periodNum) % 10;
-  
-  // 上期数 - 计算期数的上一期期号（后3位）
+  const combinedData = { ...data, numbers };
+
+  // 特殊处理：上期数
   if (normalized === '上期数') {
     if (prevData) {
       return prevData.period % 1000;
     }
-    // 如果没有上一期数据，尝试推算（减1，处理跨年情况）
+    const periodNum = data.period % 1000;
     let prevPeriod = periodNum - 1;
-    if (prevPeriod <= 0) prevPeriod = 150; // 假设去年最后一期是150
+    if (prevPeriod <= 0) prevPeriod = 150;
     return prevPeriod;
   }
   
-  // 外部数据系列
-  if (normalized === '星期') return data.weekday ?? 0;
-  if (normalized === '干') {
-    const ganzhi = data.ganzhi || '甲子';
-    return '甲乙丙丁戊己庚辛壬癸'.indexOf(ganzhi[0]);
-  }
-  if (normalized === '支') {
-    const ganzhi = data.ganzhi || '甲子';
-    return '子丑寅卯辰巳午未申酉戌亥'.indexOf(ganzhi[1]);
-  }
-  if (normalized === '干支') {
-    const ganzhi = data.ganzhi || '甲子';
-    const stemIndex = '甲乙丙丁戊己庚辛壬癸'.indexOf(ganzhi[0]);
-    const branchIndex = '子丑寅卯辰巳午未申酉戌亥'.indexOf(ganzhi[1]);
-    return stemIndex + branchIndex * 10;
-  }
-  
-  // 总分系列
-  const totalSum = numbers.reduce((sum, n) => sum + n, 0);
-  if (normalized === '总分') return totalSum;
-  if (normalized === '总分尾') return totalSum % 10;
-  if (normalized === '总分合') return digitSum(totalSum);
-  if (normalized === '总分合尾') return digitSum(totalSum) % 10;
-  
-  // 平码系列
-  const pingMatch = normalized.match(/^平(\d)(.+)$/);
-  if (pingMatch) {
-    const index = parseInt(pingMatch[1]) - 1;
-    const attr = pingMatch[2];
-    if (index >= 0 && index < 6) {
-      return getNumberAttributeValue(numbers[index], attr, data.zodiacYear);
-    }
-  }
-  
-  // 特码系列
-  const teMatch = normalized.match(/^特(.+)$/);
-  if (teMatch) {
-    const attr = teMatch[1];
-    return getNumberAttributeValue(numbers[6], attr, data.zodiacYear);
-  }
-  
-  return 0;
+  return sharedCalculateElementValue(normalized, combinedData);
 }
 
 // 获取号码的属性值
 function getNumberAttributeValue(num: number, attr: string, zodiacYear?: number): number {
-  switch (attr) {
-    case '号':
-      return num;
-    case '头':
-      return Math.floor(num / 10);
-    case '尾':
-      return num % 10;
-    case '合':
-      return digitSum(num);
-    case '合头':
-      return Math.floor(digitSum(num) / 10);
-    case '合尾':
-      return digitSum(num) % 10;
-    case '波':
-      return getWaveColor(num);
-    case '段':
-      return getSegment(num);
-    case '行':
-      return getFiveElement(num, zodiacYear);
-    case '肖位':
-      return getZodiacPosition(num, zodiacYear);
-    default:
-      return num;
-  }
+  return sharedCalculateElementValue(`特${attr}`, { numbers: Array(7).fill(num), zodiacYear: zodiacYear || 7, period: 0 });
 }
 
 // 检查是否为有效元素
 export function isValidElement(name: string): boolean {
   const normalized = normalizeElementName(name);
   return ELEMENT_DEFINITIONS.includes(normalized);
-}
-
-// 获取所有元素名称（用于搜索）
-export function getAllElements(): string[] {
-  return [...ELEMENT_DEFINITIONS];
 }

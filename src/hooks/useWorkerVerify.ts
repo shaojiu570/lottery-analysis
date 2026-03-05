@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useAppStore } from '@/stores/appStore';
 import type { VerifyResult, LotteryData } from '@/types';
 import type { ParsedFormula } from '@/utils/formulaParser';
 
@@ -8,7 +9,6 @@ interface UseWorkerVerifyReturn {
   progress: { current: number; total: number } | null;
   verify: (
     formulas: ParsedFormula[],
-    historyData: LotteryData[],
     targetPeriod: number | null,
     periods?: number,
     leftExpand?: number,
@@ -19,6 +19,7 @@ interface UseWorkerVerifyReturn {
 }
 
 export function useWorkerVerify(): UseWorkerVerifyReturn {
+  const { historyData, customElements, customResultTypes } = useAppStore();
   const [results, setResults] = useState<VerifyResult[]>([]);
   const [isVerifying, setIsVerifying] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
@@ -64,7 +65,6 @@ export function useWorkerVerify(): UseWorkerVerifyReturn {
 
   const verify = useCallback((
     formulas: ParsedFormula[],
-    historyData: LotteryData[],
     targetPeriod: number | null,
     periods?: number,
     leftExpand?: number,
@@ -87,9 +87,11 @@ export function useWorkerVerify(): UseWorkerVerifyReturn {
       periods,
       leftExpand,
       rightExpand,
-      offset
+      offset,
+      customElements,
+      customResultTypes
     });
-  }, []);
+  }, [historyData, customElements, customResultTypes]);
 
   const cancel = useCallback(() => {
     if (workerRef.current) {

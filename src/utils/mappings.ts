@@ -1,74 +1,31 @@
 import { getCustomResultTypes } from './storage';
+import * as shared from './workerShared';
 
 // 波色映射表
-export const WAVE_COLORS: Record<string, number[]> = {
-  红: [1, 2, 7, 8, 12, 13, 18, 19, 23, 24, 29, 30, 34, 35, 40, 45, 46],
-  蓝: [3, 4, 9, 10, 14, 15, 20, 25, 26, 31, 36, 37, 41, 42, 47, 48],
-  绿: [5, 6, 11, 16, 17, 21, 22, 27, 28, 32, 33, 38, 39, 43, 44, 49],
-};
+export const WAVE_COLORS = shared.WAVE_COLORS;
 
 // 波色映射：号码 -> 波色值 (0=红, 1=蓝, 2=绿)
-export function getWaveColor(num: number): number {
-  if (WAVE_COLORS.红.includes(num)) return 0;
-  if (WAVE_COLORS.蓝.includes(num)) return 1;
-  if (WAVE_COLORS.绿.includes(num)) return 2;
-  return 0;
-}
+export const getWaveColor = shared.getWaveColor;
 
 // 波色名称
-export function getWaveColorName(value: number): string {
-  const names = ['红波', '蓝波', '绿波'];
-  return names[value % 3];
-}
+export const getWaveColorName = shared.getWaveColorName || ((value: number) => ['红波', '蓝波', '绿波'][value % 3]);
 
 // 五行映射表 - 默认（马年）
-export const FIVE_ELEMENTS: Record<string, number[]> = {
-  金: [4, 5, 12, 13, 26, 27, 34, 35, 42, 43],
-  木: [8, 9, 16, 17, 24, 25, 38, 39, 46, 47],
-  水: [1, 14, 15, 22, 23, 30, 31, 44, 45],
-  火: [2, 3, 10, 11, 18, 19, 32, 33, 40, 41, 48, 49],
-  土: [6, 7, 20, 21, 28, 29, 36, 37],
-};
+export const FIVE_ELEMENTS = shared.FIVE_ELEMENTS;
 
-// 各生肖年的五行映射（只保留蛇年和马年）
-// key: zodiacYear (6=蛇, 7=马)
-const FIVE_ELEMENTS_BY_YEAR: Record<number, Record<string, number[]>> = {
-  // 蛇年(6)
-  6: {
-    金: [3, 4, 11, 12, 25, 26, 33, 34, 41, 42],
-    木: [7, 8, 15, 16, 23, 24, 37, 38, 45, 46],
-    水: [13, 14, 21, 22, 29, 30, 43, 44],
-    火: [1, 2, 9, 10, 17, 18, 31, 32, 39, 40, 47, 48],
-    土: [5, 6, 19, 20, 27, 28, 35, 36, 49],
-  },
-  // 马年(7) - 默认
-  7: {
-    金: [4, 5, 12, 13, 26, 27, 34, 35, 42, 43],
-    木: [8, 9, 16, 17, 24, 25, 38, 39, 46, 47],
-    水: [1, 14, 15, 22, 23, 30, 31, 44, 45],
-    火: [2, 3, 10, 11, 18, 19, 32, 33, 40, 41, 48, 49],
-    土: [6, 7, 20, 21, 28, 29, 36, 37],
-  },
-};
+// 各生肖年的五行映射
+export const FIVE_ELEMENTS_BY_YEAR = shared.FIVE_ELEMENTS_BY_YEAR;
 
 // 获取指定年份的五行映射
-function getFiveElementsByYear(zodiacYear?: number): Record<string, number[]> {
+function getFiveElementsByYear(zodiacYear?: number) {
   if (zodiacYear && FIVE_ELEMENTS_BY_YEAR[zodiacYear]) {
     return FIVE_ELEMENTS_BY_YEAR[zodiacYear];
   }
-  return FIVE_ELEMENTS; // 默认返回马年映射
+  return FIVE_ELEMENTS;
 }
 
-// 五行映射：号码 -> 五行值 (0=金, 1=木, 2=水, 3=火, 4=土)
-export function getFiveElement(num: number, zodiacYear?: number): number {
-  const elements = getFiveElementsByYear(zodiacYear);
-  if (elements.金.includes(num)) return 0;
-  if (elements.木.includes(num)) return 1;
-  if (elements.水.includes(num)) return 2;
-  if (elements.火.includes(num)) return 3;
-  if (elements.土.includes(num)) return 4;
-  return 0;
-}
+// 五行映射：号码 -> 五行值
+export const getFiveElement = shared.getFiveElement;
 
 // 五行名称
 export function getFiveElementName(value: number): string {
@@ -76,29 +33,11 @@ export function getFiveElementName(value: number): string {
   return names[value % 5];
 }
 
-// 基础生肖号码表（固定不变）
-// 鼠=1, 牛=2, 虎=3, 兔=4, 龙=5, 蛇=6, 马=7, 羊=8, 猴=9, 鸡=10, 狗=11, 猪=12
-const BASE_ZODIAC_NUMBERS: Record<number, number[]> = {
-  1: [1, 13, 25, 37, 49],   // 鼠
-  2: [2, 14, 26, 38],       // 牛
-  3: [3, 15, 27, 39],       // 虎
-  4: [4, 16, 28, 40],       // 兔
-  5: [5, 17, 29, 41],       // 龙
-  6: [6, 18, 30, 42],       // 蛇
-  7: [7, 19, 31, 43],       // 马
-  8: [8, 20, 32, 44],       // 羊
-  9: [9, 21, 33, 45],       // 猴
-  10: [10, 22, 34, 46],     // 鸡
-  11: [11, 23, 35, 47],     // 狗
-  12: [12, 24, 36, 48],     // 猪
-};
+// 基础生肖号码表
+export const BASE_ZODIAC_NUMBERS = shared.BASE_ZODIAC_NUMBERS;
 
 // 生肖名称
-const ZODIAC_NAMES: Record<number, string> = {
-  1: '鼠', 2: '牛', 3: '虎', 4: '兔',
-  5: '龙', 6: '蛇', 7: '马', 8: '羊',
-  9: '猴', 10: '鸡', 11: '狗', 12: '猪'
-};
+export const ZODIAC_NAMES = shared.ZODIAC_NAMES;
 
 // 基准年份：2020年 = 鼠年 = 1
 const BASE_YEAR = 2020;
@@ -310,15 +249,7 @@ export function getResultTypeConfig() {
 
 // 应用循环规则
 export function applyCycle(value: number, resultType: string): number {
-  const config = getResultTypeConfig()[resultType];
-  if (!config) return value;
-  
-  if (resultType === '肖位类' || resultType === '单特类' || resultType === '合数类') {
-    // 1-based 循环
-    return ((value - 1) % config.cycle + config.cycle) % config.cycle + 1;
-  }
-  // 0-based 循环
-  return ((value % config.cycle) + config.cycle) % config.cycle;
+  return shared.applyCycle(value, resultType, getCustomResultTypes());
 }
 
 // 获取扩展结果
@@ -328,85 +259,17 @@ export function getExpandedResults(
   rightExpand: number,
   resultType: string
 ): number[] {
-  const results: number[] = [];
-  
-  for (let i = -leftExpand; i <= rightExpand; i++) {
-    const value = baseValue + i;
-    const cycledValue = applyCycle(value, resultType);
-    if (!results.includes(cycledValue)) {
-      results.push(cycledValue);
-    }
-  }
-  
-  return results.sort((a, b) => a - b);
+  return shared.getExpandedResults(baseValue, leftExpand, rightExpand, resultType, getCustomResultTypes());
 }
 
 // 结果值转文字
 export function resultToText(value: number, resultType: string, zodiacYear?: number): string {
-  switch (resultType) {
-    case '尾数类':
-      return `${value}尾`;
-    case '头数类':
-      return `${value}头`;
-    case '合数类':
-      return `${value}合`;
-    case '波色类':
-      return getWaveColorName(value);
-    case '五行类':
-      return getFiveElementName(value);
-    case '肖位类':
-      // value 是肖位（1-12），直接用固定生肖名
-      return getZodiacName(value);
-    case '单特类':
-      return value.toString().padStart(2, '0');
-    case '大小单双类':
-      return getBigSmallOddEvenName(value);
-    default:
-      // 检查是否是自定义类型
-      const customTypes = getCustomResultTypes();
-      const ct = customTypes.find(t => t.name === resultType);
-      if (ct) {
-        const labels = ct.mappings.map(m => m.label);
-        return labels[value % labels.length] || value.toString();
-      }
-      return value.toString();
-  }
+  return shared.resultToText(value, resultType, zodiacYear || 7, getCustomResultTypes());
 }
 
 // 根据结果类型获取号码属性值
 export function getNumberAttribute(num: number, resultType: string, zodiacYear?: number): number {
-  switch (resultType) {
-    case '尾数类':
-      return num % 10;
-    case '头数类':
-      return Math.floor(num / 10);
-    case '合数类':
-      return digitSum(num);
-    case '波色类':
-      return getWaveColor(num);
-    case '五行类':
-      return getFiveElement(num, zodiacYear);
-    case '肖位类':
-      return getZodiacPosition(num, zodiacYear);
-    case '单特类':
-      return num;
-    case '大小单双类':
-      return getBigSmallOddEven(num);
-    default:
-      // 检查是否是自定义类型
-      const customTypes = getCustomResultTypes();
-      const ct = customTypes.find(t => t.name === resultType);
-      if (ct) {
-        // 在自定义映射中查找该号码对应的索引
-        const labels = ct.mappings.map(m => m.label);
-        for (let i = 0; i < ct.mappings.length; i++) {
-          if (ct.mappings[i].values.includes(num)) {
-            return i;
-          }
-        }
-      }
-      return num;
-  }
+  return shared.getNumberAttribute(num, resultType, zodiacYear || 7, getCustomResultTypes());
 }
 
 // 数字各位之和

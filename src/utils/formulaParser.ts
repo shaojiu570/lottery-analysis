@@ -1,13 +1,9 @@
 import { Formula, ResultType } from '@/types';
-import { chineseToNumber, normalizeSimplifiedExpression } from './elements';
+import { normalizeElementName } from './elements';
 import { getCustomResultTypes } from './storage';
+import { chineseToNumber } from './workerShared';
 
 const BUILTIN_RESULT_TYPES: ResultType[] = ['尾数类', '头数类', '合数类', '波色类', '五行类', '肖位类', '单特类', '大小单双类'];
-
-function getAllResultTypes(): string[] {
-  const customTypes = getCustomResultTypes();
-  return [...BUILTIN_RESULT_TYPES, ...customTypes.map(t => t.name)];
-}
 
 export interface ParsedFormula {
   rule: 'D' | 'L';
@@ -21,7 +17,10 @@ export interface ParsedFormula {
 }
 
 // 解析公式
-export function parseFormula(input: string): ParsedFormula | null {
+export function parseFormula(
+  input: string,
+  customResultTypes: any[] = getCustomResultTypes()
+): ParsedFormula | null {
   try {
     // 标准化输入
     let formula = input.trim();
@@ -69,7 +68,7 @@ export function parseFormula(input: string): ParsedFormula | null {
     formula = formula.replace(/__ZONGFEN_HEWEI__/g, '总分合尾');
     
     // 处理元素别名（如"特码波" -> "特波"）
-    formula = normalizeElementNamesInExpression(formula);
+    formula = normalizeElementName(formula);
     
     // 清理补偿值格式（如 +00 -> +0）
     formula = formula.replace(/([+-])0+(\d+)/g, '$1$2');
@@ -79,13 +78,14 @@ export function parseFormula(input: string): ParsedFormula | null {
     // 匹配格式: [规则结果类型]表达式+补偿值=期数左左扩展右右扩展
     // 或简化格式: [规则结果类型]表达式=期数
     const fullMatch = formula.match(
-      /^\[([DL])(.+类)\](.+?)(?:([+-]\d+))?=(\d+)(?:左(\d+))?(?:右(\d+))?$/
+      /^\[([DL])([^\]]+)\](.+?)(?:([+-]\d+))?=(\d+)(?:左(\d+))?(?:右(\d+))?$/
     );
     
     if (fullMatch) {
       const [, rule, resultType, expression, offsetStr, periodsStr, leftStr, rightStr] = fullMatch;
       
-      if (!getAllResultTypes().includes(resultType)) {
+      const allTypes = [...BUILTIN_RESULT_TYPES, ...customResultTypes.map(t => t.name)];
+      if (!allTypes.includes(resultType as ResultType)) {
         console.log('不支持的类型:', resultType);
         return null;
       }
@@ -116,73 +116,6 @@ export function parseFormula(input: string): ParsedFormula | null {
     console.error('公式解析错误:', input, error);
     return null;
   }
-}
-
-// 标准化表达式中的元素名称
-function normalizeElementNamesInExpression(expression: string): string {
-  let normalized = expression;
-  
-  // 先处理简化表达式（如"6波"、"一码"）
-  normalized = normalizeSimplifiedExpression(normalized);
-  
-  // 先处理特殊的"合尾"、"合头"属性（避免被后续正则错误匹配）
-  // 处理"平六合尾"、"平6合尾"等格式（平码的合尾属性）
-  const pingHeTailPattern = /平([一二三四五六])?(\d)?合尾/g;
-  normalized = normalized.replace(pingHeTailPattern, (_match, cn, num) => {
-    const cnMap: Record<string, string> = { 
-      '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' 
-    };
-    const finalNum = num || cnMap[cn] || '1';
-    return `__PING${finalNum}HETAIL__`;
-  });
-  
-  // 处理"平六合头"、"平6合头"等格式（平码的合头属性）
-  const pingHeHeadPattern = /平([一二三四五六])?(\d)?合头/g;
-  normalized = normalized.replace(pingHeHeadPattern, (_match, cn, num) => {
-    const cnMap: Record<string, string> = { 
-      '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' 
-    };
-    const finalNum = num || cnMap[cn] || '1';
-    return `__PING${finalNum}HEHEAD__`;
-  });
-  
-  // 处理"平六波"、"平6波"等格式统一为"平6波"（不包括合尾、合头）
-  // 属性列表排除了"合"，因为合尾和合头已单独处理
-  const pingPattern = /平([一二三四五六])?(\d)?([波头尾肖位段行])/g;
-  normalized = normalized.replace(pingPattern, (_match, cn, num, attr) => {
-    const cnMap: Record<string, string> = { 
-      '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' 
-    };
-    const finalNum = num || cnMap[cn] || '1';
-    return `平${finalNum}${attr}`;
-  });
-  
-  // 处理"平六合"（平码的合属性，不是合尾也不是合头）
-  const pingHePattern = /平([一二三四五六])?(\d)?合(?!头|尾)/g;
-  normalized = normalized.replace(pingHePattern, (_match, cn, num) => {
-    const cnMap: Record<string, string> = { 
-      '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' 
-    };
-    const finalNum = num || cnMap[cn] || '1';
-    return `平${finalNum}合`;
-  });
-  
-  // 还原合尾和合头的占位符
-  normalized = normalized.replace(/__PING(\d)HETAIL__/g, '平$1合尾');
-  normalized = normalized.replace(/__PING(\d)HEHEAD__/g, '平$1合头');
-  
-  // 处理特码相关别名
-  // 特码 -> 特号（完整的特码号码元素）
-  normalized = normalized.replace(/特码/g, '特号');
-  // 注意：不处理单独的"特"，必须使用完整格式如"特波"、"特头"等
-  
-  // 处理总分相关别名
-  normalized = normalized.replace(/总分数/g, '总分');
-  
-  // 处理期数相关别名
-  normalized = normalized.replace(/期数/g, '期数');
-  
-  return normalized;
 }
 
 // 将解析的公式转为Formula对象
@@ -232,7 +165,10 @@ export interface ParsedFormulaWithIndex extends ParsedFormula {
 }
 
 // 批量解析公式
-export function parseFormulas(input: string): { formulas: ParsedFormulaWithIndex[]; errors: ParseError[] } {
+export function parseFormulas(
+  input: string,
+  customResultTypes: any[] = getCustomResultTypes()
+): { formulas: ParsedFormulaWithIndex[]; errors: ParseError[] } {
   const allLines = input.split('\n');
   const nonEmptyLineIndices: number[] = [];
   const lines: string[] = [];
@@ -268,7 +204,7 @@ export function parseFormulas(input: string): { formulas: ParsedFormulaWithIndex
       continue;
     }
     
-    const parsed = parseFormula(cleanLine);
+    const parsed = parseFormula(cleanLine, customResultTypes);
     
     if (!parsed) {
       console.error(`第 ${i + 1} 行解析失败:`, cleanLine);
