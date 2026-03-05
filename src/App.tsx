@@ -297,7 +297,6 @@ function App() {
       <Header 
         onShowHistory={() => setShowHistory(true)}
         onShowSearch={() => setShowSearch(true)}
-        onShowSettings={() => setShowSettings(true)}
         currentZodiac={settings.zodiacYear}
         onZodiacChange={handleZodiacChange}
         onSaveVerification={handleSaveVerification}

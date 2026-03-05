@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react';
 interface HeaderProps {
   onShowHistory: () => void;
   onShowSearch: () => void;
-  onShowSettings: () => void;
   currentZodiac: number;
   onZodiacChange: (zodiac: number) => void;
   onSaveVerification?: () => void;
@@ -30,7 +29,6 @@ const ZODIAC_LIST = [
 export function Header({ 
   onShowHistory, 
   onShowSearch, 
-  onShowSettings, 
   currentZodiac,
   onZodiacChange,
   onSaveVerification,
@@ -114,9 +112,6 @@ export function Header({
             </HeaderButton>
             <HeaderButton onClick={onShowHistory} icon="📋">
               <span className="hidden sm:inline">记录</span>
-            </HeaderButton>
-            <HeaderButton onClick={onShowSettings} icon="⚙️">
-              <span className="hidden sm:inline">设置</span>
             </HeaderButton>
           </nav>
         </div>
