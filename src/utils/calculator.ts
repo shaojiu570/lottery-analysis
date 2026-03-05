@@ -316,20 +316,18 @@ export function verifyFormula(
       // 找到验证期数在历史数据中的索引
       const verifyIndex = historyData.findIndex(d => d.period === verifyData.period);
       
-      // 判断是否为预测模式（没有指定targetPeriod）
-      const isPredictMode = targetPeriod === null || targetPeriod === undefined;
-      const isLatestPeriod = verifyIndex === 0;
-      
+      // 计算数据的选择逻辑：
+      // 预测/验证某一期时，应该用该期的"上一期"数据来计算
+      // 例如：预测/验证062期，应该用061期的数据
       let calcData: LotteryData;
-      if (isPredictMode && isLatestPeriod) {
-        // 预测下一期：用最新期数据计算
-        calcData = verifyData;
+      
+      if (verifyIndex >= 0 && verifyIndex < historyData.length - 1) {
+        // 有上一期数据，使用上一期数据计算
+        // historyData是降序排列，verifyIndex+1是更旧的一期
+        calcData = historyData[verifyIndex + 1];
       } else {
-        // 验证历史期（包括指定的最新期）：用上一期数据计算
-        // 历史数据是降序排列（最新在前），所以用 verifyIndex + 1 获取上一期（更旧的一期）
-        calcData = (verifyIndex >= 0 && verifyIndex < historyData.length - 1) 
-          ? historyData[verifyIndex + 1] 
-          : verifyData;
+        // 没有上一期数据（已经是最旧的一期），使用当前期数据
+        calcData = verifyData;
       }
     
     // 计算表达式值
@@ -371,7 +369,13 @@ export function verifyFormula(
   const latestResults = periodResults.length > 0 
     ? periodResults[periodResults.length - 1].expandedResults 
     : [];
-  const latestZodiacYear = historyData.length > 0 ? historyData[0].zodiacYear : undefined;
+  
+  // 使用最新期对应的生肖年份（而不是historyData[0]）
+  const latestPeriod = periodResults.length > 0 
+    ? periodResults[periodResults.length - 1].period 
+    : 0;
+  const latestZodiacYear = getZodiacYearByPeriod(latestPeriod);
+  
   const results = Array.from(latestResults).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType, latestZodiacYear));
   
   return {
