@@ -2,7 +2,7 @@ import { useEffect, useCallback, useState, useRef } from 'react';
 import { useAppStore } from '@/stores/appStore';
 import { Header } from '@/components/Header';
 import { FormulaInput } from '@/components/FormulaInput';
-import { ResultDisplay } from '@/components/ResultDisplay';
+import { ResultDisplay, ResultDisplayRef } from '@/components/ResultDisplay';
 import { HistoryModal } from '@/components/HistoryModal';
 import { FavoritesModal } from '@/components/FavoritesModal';
 import { SmartSearchModal } from '@/components/SmartSearchModal';
@@ -16,6 +16,7 @@ import { useSearchWorker } from '@/hooks/useSearchWorker';
 import { getSavedVerifications, saveVerification, deleteVerification, clearAllSavedVerifications } from '@/utils/storage';
 import { SavedVerification } from '@/types';
 import { initOptimization } from '@/utils/wasm';
+import { Star, ChevronsDownUp, Copy, Trash2 } from 'lucide-react';
 
 function App() {
   const {
@@ -37,6 +38,7 @@ function App() {
     removeFromFavorites,
     settings,
     updateSettings,
+    aliases, loadAliases, updateAlias,
     isVerifying,
     setIsVerifying,
     showFavorites,
@@ -49,6 +51,8 @@ function App() {
     setShowSettings,
     latestPeriod,
   } = useAppStore();
+
+  const resultDisplayRef = useRef<ResultDisplayRef>(null);
 
   // 筛选状态
   const [showFilter, setShowFilter] = useState(false);
@@ -89,8 +93,9 @@ function App() {
   useEffect(() => {
     loadHistoryData();
     loadFavorites();
+    loadAliases();
     initOptimization();
-  }, []);
+  }, [loadHistoryData, loadFavorites, loadAliases]);
 
   // 当 Worker 完成时更新结果
   useEffect(() => {
@@ -250,12 +255,49 @@ function App() {
     setShowSettings(false);
   }, [formulaInput, settings, updateSettings, setShowSettings, setFormulaInput]);
 
+  const renderActionBar = () => (
+    <div className="bg-white shadow-sm px-4 py-2 flex items-center justify-between gap-2 border-t border-b border-gray-200">
+      <div className="flex items-center gap-2">
+        <button 
+          onClick={() => setShowFavorites(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+        >
+          <Star size={14} className="text-amber-500" />
+          我的收藏
+        </button>
+      </div>
+      <div className="flex items-center gap-2">
+        <button 
+          onClick={() => resultDisplayRef.current?.toggleScroll()}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors min-w-[70px] justify-center"
+        >
+          <ChevronsDownUp size={14} />
+          {resultDisplayRef.current?.isAtBottom ? '到顶部' : '到底部'}
+        </button>
+        <button 
+          onClick={() => resultDisplayRef.current?.copyResults()}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+        >
+          <Copy size={14} />
+          复制
+        </button>
+        <button 
+          onClick={handleClearResults}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+        >
+          <Trash2 size={14} />
+          清空
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="h-screen flex flex-col bg-gray-100">
       <Header 
-        onOpenFavorites={() => setShowFavorites(true)}
-        onOpenSearch={() => setShowSearch(true)}
-        onOpenHistory={() => setShowHistory(true)}
+        onShowHistory={() => setShowHistory(true)}
+        onShowSearch={() => setShowSearch(true)}
+        onShowSettings={() => setShowSettings(true)}
         currentZodiac={settings.zodiacYear}
         onZodiacChange={handleZodiacChange}
         onSaveVerification={handleSaveVerification}
@@ -265,6 +307,7 @@ function App() {
 
       <main className="flex-1 flex flex-col overflow-hidden">
         <ResultDisplay 
+          ref={resultDisplayRef}
           results={isUsingFilter ? filteredResults : verifyResults}
           latestPeriod={latestPeriod}
           targetPeriod={settings.targetPeriod}
@@ -273,6 +316,8 @@ function App() {
           onCopy={handleCopyResults}
           parseErrors={parseErrors}
         />
+
+        {renderActionBar()}
 
         <FormulaInput
           value={formulaInput}
@@ -360,7 +405,7 @@ function App() {
           });
           const group = favoriteGroups.find(g => g.id === groupId);
           if (group) {
-            alert(`已添加 ${formulas.length} 个公式到"${group.name}"分组`);
+            alert(`已添加 ${formulas.length} 个公式到“${group.name}”分组`);
           }
         }}
         onAddGroup={(name) => {

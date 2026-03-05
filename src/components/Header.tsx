@@ -109,9 +109,6 @@ export function Header({
                 <span className="hidden xs:inline">记录</span>
               </HeaderButton>
             )}
-            <HeaderButton onClick={onOpenFavorites} icon="📚">
-              <span className="hidden xs:inline">收藏</span>
-            </HeaderButton>
             <HeaderButton onClick={onOpenSearch} icon="🎯">
               <span className="hidden xs:inline">搜索</span>
             </HeaderButton>
