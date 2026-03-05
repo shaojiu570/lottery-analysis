@@ -83,10 +83,10 @@ export function CustomElementManager({ elements, onSave, onDelete }: CustomEleme
       )}
 
       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-        {elements.length === 0 && !isAdding && (
+        {(!elements || elements.length === 0) && !isAdding && (
           <p className="text-center text-xs text-gray-400 py-4">暂无自定义元素</p>
         )}
-        {elements.map(el => (
+        {elements?.map(el => (
           <div key={el.id} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200 hover:border-emerald-200 transition-colors">
             <div className="flex-1 min-w-0">
               <div className="text-xs font-bold text-gray-700">{el.name}</div>

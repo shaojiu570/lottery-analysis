@@ -24,7 +24,7 @@ export function FavoritesModal({
   onRemoveFormula,
 }: FavoritesModalProps) {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(
-    groups.length > 0 ? groups[0].id : null
+    (groups && groups.length > 0) ? groups[0].id : null
   );
   const [newGroupName, setNewGroupName] = useState('');
   const [showAddGroup, setShowAddGroup] = useState(false);
@@ -87,7 +87,7 @@ export function FavoritesModal({
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-1.5 sm:p-2 space-y-1">
-              {groups.map(group => (
+              {groups?.map(group => (
                 <div
                   key={group.id}
                   className={cn(

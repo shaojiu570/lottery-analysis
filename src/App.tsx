@@ -194,11 +194,11 @@ function App() {
       return;
     }
     
-    if (verifyResults.length === 0) return;
+    if (!verifyResults || verifyResults.length === 0) return;
     
     const textContent = verifyResults.map((r, i) => {
-      const stars = r.hits.map(h => h ? '★' : '☆').join('');
-      return `[${(i + 1).toString().padStart(3, '0')}]${stars}≡${r.totalPeriods}中${r.hitCount}次=${r.results.join(',')}`;
+      const stars = r.hits?.map(h => h ? '★' : '☆').join('') || '';
+      return `[${(i + 1).toString().padStart(3, '0')}]${stars}≡${r.totalPeriods}中${r.hitCount}次=${r.results?.join(',') || ''}`;
     }).join('\n');
     
     navigator.clipboard.writeText(textContent);

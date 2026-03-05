@@ -118,10 +118,10 @@ export function CustomResultTypeManager({ types, onSave, onDelete }: CustomResul
       )}
 
       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-        {types.length === 0 && !isAdding && (
+        {(!types || types.length === 0) && !isAdding && (
           <p className="text-center text-xs text-gray-400 py-4">暂无自定义结果类型</p>
         )}
-        {types.map(t => (
+        {types?.map(t => (
           <div key={t.id} className="p-2 bg-gray-50 rounded border border-gray-200 hover:border-emerald-200 transition-colors">
             <div className="flex items-center justify-between mb-1">
               <div className="text-xs font-bold text-gray-700">{t.name}</div>

@@ -84,7 +84,7 @@ self.onmessage = async (event) => {
     }
     
     self.postMessage({
-      type: 'results',
+      type: 'complete',
       results
     });
   } catch (error) {

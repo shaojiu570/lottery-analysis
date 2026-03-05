@@ -52,7 +52,7 @@ export function SettingsModal({
   const [replaceType, setReplaceType] = useState<string>('肖位类');
   const [replaceCount, setReplaceCount] = useState(0);
 
-  const allResultTypes = [...BUILTIN_RESULT_TYPES, ...customResultTypes.map(t => t.name)];
+  const allResultTypes = [...BUILTIN_RESULT_TYPES, ...(customResultTypes?.map(t => t.name) || [])];
   
   // 标记哪个按钮触发的保存，避免不必要的状态重置
   let isApplyingTargetPeriod = false;

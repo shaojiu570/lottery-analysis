@@ -90,19 +90,25 @@ export async function deleteHistoryItem(period: number): Promise<void> {
 const FAVORITES_KEY = 'lottery_favorites';
 
 export function getFavoriteGroups(): FavoriteGroup[] {
-  const data = localStorage.getItem(FAVORITES_KEY);
-  if (!data) {
-    // 创建默认分组
-    const defaultGroup: FavoriteGroup = {
-      id: 'default',
-      name: '常用',
-      formulas: [],
-      createdAt: Date.now(),
-    };
-    saveFavoriteGroups([defaultGroup]);
-    return [defaultGroup];
+  try {
+    const data = localStorage.getItem(FAVORITES_KEY);
+    if (!data) {
+      // 创建默认分组
+      const defaultGroup: FavoriteGroup = {
+        id: 'default',
+        name: '常用',
+        formulas: [],
+        createdAt: Date.now(),
+      };
+      saveFavoriteGroups([defaultGroup]);
+      return [defaultGroup];
+    }
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Failed to parse favorite groups:', e);
+    return [];
   }
-  return JSON.parse(data);
 }
 
 export function saveFavoriteGroups(groups: FavoriteGroup[]): void {
@@ -325,8 +331,14 @@ export function clearAllSavedVerifications(): void {
 const CUSTOM_ELEMENTS_KEY = 'lottery_custom_elements';
 
 export function getCustomElements(): CustomElement[] {
-  const data = localStorage.getItem(CUSTOM_ELEMENTS_KEY);
-  return data ? JSON.parse(data) : [];
+  try {
+    const data = localStorage.getItem(CUSTOM_ELEMENTS_KEY);
+    const parsed = data ? JSON.parse(data) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Failed to parse custom elements:', e);
+    return [];
+  }
 }
 
 export function saveCustomElements(elements: CustomElement[]): void {
@@ -337,8 +349,14 @@ export function saveCustomElements(elements: CustomElement[]): void {
 const CUSTOM_RESULT_TYPES_KEY = 'lottery_custom_result_types';
 
 export function getCustomResultTypes(): CustomResultType[] {
-  const data = localStorage.getItem(CUSTOM_RESULT_TYPES_KEY);
-  return data ? JSON.parse(data) : [];
+  try {
+    const data = localStorage.getItem(CUSTOM_RESULT_TYPES_KEY);
+    const parsed = data ? JSON.parse(data) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Failed to parse custom result types:', e);
+    return [];
+  }
 }
 
 export function saveCustomResultTypes(types: CustomResultType[]): void {

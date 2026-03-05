@@ -10,8 +10,10 @@ export interface VerifyResult {
     leftExpand: number;
     rightExpand: number;
   };
+  hits: boolean[];
   hitCount: number;
   totalPeriods: number;
+  hitRate: number;
   results: string[];
   periodResults: Array<{
     period: number;
@@ -20,6 +22,7 @@ export interface VerifyResult {
     targetValue: number;
     hit: boolean;
   }>;
+  targetPeriod: number | null;
 }
 
 export function verifyFormula(
@@ -86,17 +89,22 @@ export function verifyFormula(
     }
   }
 
-  hits.reverse();
-  periodResults.reverse();
+  // 为 UI 保持原始顺序（最新在后）或按 UI 期望的反转
+  // 注意：hits.reverse() 会影响后续使用，所以我们先克隆或直接在返回时处理
+  const hitsForReturn = [...hits].reverse();
+  const periodResultsForReturn = [...periodResults].reverse();
   
   const results = Array.from(latestResultsForSummary).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType, 7, customResultTypes));
   
   return {
     formula: parsed,
+    hits: hitsForReturn,
     hitCount,
     totalPeriods: hits.length,
+    hitRate: hits.length > 0 ? hitCount / hits.length : 0,
     results,
-    periodResults,
+    periodResults: periodResultsForReturn,
+    targetPeriod,
   };
 }
 
