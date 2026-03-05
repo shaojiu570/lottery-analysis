@@ -22,7 +22,8 @@ interface UseSearchWorkerReturn {
     offset: number,
     periods: number,
     leftExpand: number,
-    rightExpand: number
+    rightExpand: number,
+    targetPeriod: number | null
   ) => void;
   cancel: () => void;
   clearResults: () => void;

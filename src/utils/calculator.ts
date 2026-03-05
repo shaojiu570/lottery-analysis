@@ -359,24 +359,49 @@ export function verifyFormula(
     expandedResults.forEach(r => allResults.add(r));
   }
   
-    const hitCount = hits.filter(h => h).length;
+  const hitCount = hits.filter(h => h).length;
   
+  // 确定显示用的结果集合（Summary results）
+  let latestResultsForSummary: number[] = [];
+  let latestPeriodForSummary = 0;
+
+  if (targetPeriod) {
+    const targetIdx = historyData.findIndex(d => d.period === targetPeriod);
+    if (targetIdx !== -1) {
+      // 目标期在历史中，从 periodResults 中找到它
+      const targetRes = periodResults.find(pr => pr.period === targetPeriod);
+      latestResultsForSummary = targetRes ? targetRes.expandedResults : [];
+      latestPeriodForSummary = targetPeriod;
+    } else {
+      // 目标期不在历史中，用最新历史数据预测它
+      const calcData = historyData[0];
+      if (calcData) {
+        const rawResult = evaluateExpression(parsed.expression, calcData, useSort);
+        const withOffset = rawResult + offset;
+        const cycledResult = applyCycle(withOffset, parsed.resultType);
+        latestResultsForSummary = getExpandedResults(cycledResult, leftExpand, rightExpand, parsed.resultType);
+      }
+      latestPeriodForSummary = targetPeriod;
+    }
+  } else {
+    // 预测模式，用最新历史数据预测下一期
+    const calcData = historyData[0];
+    if (calcData) {
+      const rawResult = evaluateExpression(parsed.expression, calcData, useSort);
+      const withOffset = rawResult + offset;
+      const cycledResult = applyCycle(withOffset, parsed.resultType);
+      latestResultsForSummary = getExpandedResults(cycledResult, leftExpand, rightExpand, parsed.resultType);
+      latestPeriodForSummary = calcData.period + 1;
+    }
+  }
+
   // 反转数组，使顺序变为从旧到新（最旧期在前，最新期在后）
   hits.reverse();
   periodResults.reverse();
   
-  // 只取最新一期的结果（反转后periodResults[length-1]是最新的）
-  const latestResults = periodResults.length > 0 
-    ? periodResults[periodResults.length - 1].expandedResults 
-    : [];
-  
-  // 使用最新期对应的生肖年份（而不是historyData[0]）
-  const latestPeriod = periodResults.length > 0 
-    ? periodResults[periodResults.length - 1].period 
-    : 0;
-  const latestZodiacYear = getZodiacYearByPeriod(latestPeriod);
-  
-  const results = Array.from(latestResults).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType, latestZodiacYear));
+  // 转换文字结果
+  const latestZodiacYear = getZodiacYearByPeriod(latestPeriodForSummary);
+  const results = Array.from(latestResultsForSummary).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType, latestZodiacYear));
   
   return {
     formula: {

@@ -634,16 +634,44 @@ function verifyFormula(
     });
   }
   
+  // 确定显示用的结果集合（Summary results）
+  let latestResultsForSummary: number[] = [];
+  let latestPeriodForSummary = 0;
+
+  if (targetPeriodVal) {
+    const targetIdx = historyData.findIndex(d => d.period === targetPeriodVal);
+    if (targetIdx !== -1) {
+      const targetRes = periodResults.find(pr => pr.period === targetPeriodVal);
+      latestResultsForSummary = targetRes ? targetRes.expandedResults : [];
+      latestPeriodForSummary = targetPeriodVal;
+    } else {
+      const calcData = historyData[0];
+      if (calcData) {
+        const rawResult = evaluateExpression(parsed.expression, calcData, useSort);
+        const withOffset = rawResult + parsed.offset;
+        const cycledResult = applyCycle(withOffset, parsed.resultType);
+        latestResultsForSummary = getExpandedResults(cycledResult, leftExpand, rightExpand, parsed.resultType);
+      }
+      latestPeriodForSummary = targetPeriodVal;
+    }
+  } else {
+    const calcData = historyData[0];
+    if (calcData) {
+      const rawResult = evaluateExpression(parsed.expression, calcData, useSort);
+      const withOffset = rawResult + parsed.offset;
+      const cycledResult = applyCycle(withOffset, parsed.resultType);
+      latestResultsForSummary = getExpandedResults(cycledResult, leftExpand, rightExpand, parsed.resultType);
+      latestPeriodForSummary = calcData.period + 1;
+    }
+  }
+
   // 反转数组，使顺序变为从旧到新（最旧期在前，最新期在后）
   hits.reverse();
   periodResults.reverse();
   
-  // 只取最新一期的结果（反转后periodResults[periodResults.length-1]是最新的）
-  const latestResults = periodResults.length > 0 
-    ? (periodResults[periodResults.length - 1] as { expandedResults: number[] }).expandedResults 
-    : [];
+  // 转换文字结果
   const latestZodiacYear = dataToVerify.length > 0 ? dataToVerify[0].zodiacYear : undefined;
-  const results = Array.from(latestResults).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType, latestZodiacYear));
+  const results = Array.from(latestResultsForSummary).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType, latestZodiacYear));
   
   return {
     hitRate: dataToVerify.length > 0 ? hitCount / dataToVerify.length : 0,
