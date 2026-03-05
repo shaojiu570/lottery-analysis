@@ -2,9 +2,9 @@ import { cn } from '@/utils/cn';
 import { useState, useRef, useEffect } from 'react';
 
 interface HeaderProps {
-  onOpenFavorites: () => void;
-  onOpenSearch: () => void;
-  onOpenHistory: () => void;
+  onShowHistory: () => void;
+  onShowSearch: () => void;
+  onShowSettings: () => void;
   currentZodiac: number;
   onZodiacChange: (zodiac: number) => void;
   onSaveVerification?: () => void;
@@ -28,9 +28,9 @@ const ZODIAC_LIST = [
 ];
 
 export function Header({ 
-  onOpenFavorites, 
-  onOpenSearch, 
-  onOpenHistory, 
+  onShowHistory, 
+  onShowSearch, 
+  onShowSettings, 
   currentZodiac,
   onZodiacChange,
   onSaveVerification,
