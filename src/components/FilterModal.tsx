@@ -10,16 +10,7 @@ interface FilterModalProps {
   onUpdateFormulas: (newFormulaInput: string) => void;
 }
 
-type HitRateCondition = 'gt' | 'lt' | 'eq' | 'between' | 'none';
-type LastPeriodCondition = 'hit' | 'miss' | 'none';
-
 export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, onUpdateFormulas }: FilterModalProps) {
-  const [hitRateCondition, setHitRateCondition] = useState<HitRateCondition>('none');
-  const [hitRateValue, setHitRateValue] = useState(80);
-  const [hitRateMin, setHitRateMin] = useState(70);
-  const [hitRateMax, setHitRateMax] = useState(90);
-  const [lastPeriodCondition, setLastPeriodCondition] = useState<LastPeriodCondition>('none');
-  
   const [hitCountCondition, setHitCountCondition] = useState<'gt' | 'lt' | 'eq' | 'none'>('none');
   const [hitCountValue, setHitCountValue] = useState(15);
   const [missCountCondition, setMissCountCondition] = useState<'gt' | 'lt' | 'eq' | 'none'>('none');
@@ -29,35 +20,6 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
 
   const getFilteredResults = () => {
     let filtered = [...results];
-
-    // 命中率筛选
-    if (hitRateCondition !== 'none') {
-      filtered = filtered.filter(r => {
-        const rate = r.hitRate * 100;
-        switch (hitRateCondition) {
-          case 'gt':
-            return rate > hitRateValue;
-          case 'lt':
-            return rate < hitRateValue;
-          case 'eq':
-            return Math.abs(rate - hitRateValue) < 1;
-          case 'between':
-            return rate >= hitRateMin && rate <= hitRateMax;
-          default:
-            return true;
-        }
-      });
-    }
-
-    // 上期结果筛选
-    if (lastPeriodCondition !== 'none') {
-      filtered = filtered.filter(r => {
-        const lastHit = r.hits.length > 0 ? r.hits[r.hits.length - 1] : false;
-        if (lastPeriodCondition === 'hit') return lastHit;
-        if (lastPeriodCondition === 'miss') return !lastHit;
-        return true;
-      });
-    }
 
     // 命中总数筛选
     if (hitCountCondition !== 'none') {
@@ -235,76 +197,6 @@ export function FilterModal({ isOpen, onClose, results, formulaInput, onFilter, 
         </div>
 
         <div className="p-4 space-y-4 overflow-y-auto">
-          {/* 命中率和上期结果在一行 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">命中率</label>
-              <select
-                value={hitRateCondition}
-                onChange={(e) => setHitRateCondition(e.target.value as HitRateCondition)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none"
-              >
-                <option value="none">不限</option>
-                <option value="gt">大于</option>
-                <option value="lt">小于</option>
-                <option value="eq">等于</option>
-                <option value="between">范围</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">上期结果</label>
-              <select
-                value={lastPeriodCondition}
-                onChange={(e) => setLastPeriodCondition(e.target.value as LastPeriodCondition)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none"
-              >
-                <option value="none">不限</option>
-                <option value="hit">命中</option>
-                <option value="miss">未命中</option>
-              </select>
-            </div>
-          </div>
-          
-          {/* 命中率数值输入 */}
-          {hitRateCondition !== 'none' && (
-            <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-100 animate-in fade-in slide-in-from-top-1">
-              {hitRateCondition === 'between' ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={hitRateMin}
-                    onChange={(e) => setHitRateMin(parseInt(e.target.value) || 0)}
-                    className="flex-1 px-2 py-1.5 text-sm border border-emerald-200 rounded bg-white"
-                    placeholder="最小%"
-                  />
-                  <span className="text-emerald-400">至</span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={hitRateMax}
-                    onChange={(e) => setHitRateMax(parseInt(e.target.value) || 0)}
-                    className="flex-1 px-2 py-1.5 text-sm border border-emerald-200 rounded bg-white"
-                    placeholder="最大%"
-                  />
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-emerald-700 font-medium">数值:</span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={hitRateValue}
-                    onChange={(e) => setHitRateValue(parseInt(e.target.value) || 0)}
-                    className="flex-1 px-2 py-1.5 text-sm border border-emerald-200 rounded bg-white"
-                    placeholder="命中率%"
-                  />
-                  <span className="text-emerald-700">%</span>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* 命中总数筛选 */}
           <div className="border-t border-gray-100 pt-3">
             <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">命中总数</label>
