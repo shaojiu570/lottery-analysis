@@ -139,14 +139,27 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
 
   useEffect(() => {
     scrollToTop();
-  }, [results]);
+    // 强制触发滚动检查
+    setTimeout(handleScroll, 100);
+  }, [results, handleScroll]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.addEventListener('scroll', handleScroll);
+      // 初始检查
       handleScroll();
-      return () => textarea.removeEventListener('scroll', handleScroll);
+      
+      // 使用 ResizeObserver 监听内容变化
+      const observer = new ResizeObserver(() => {
+        handleScroll();
+      });
+      observer.observe(textarea);
+      
+      return () => {
+        textarea.removeEventListener('scroll', handleScroll);
+        observer.disconnect();
+      };
     }
   }, [handleScroll]);
 

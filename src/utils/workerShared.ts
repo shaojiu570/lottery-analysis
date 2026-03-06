@@ -43,25 +43,51 @@ export function verifyFormula(
   
   // 确定验证范围
   let dataToVerify: LotteryData[] = [];
+  // startIdx 用于在计算target对应的下一期时定位历史数组索引
+  let startIdx = 0;
   if (targetPeriod) {
     const idx = historyData.findIndex(d => d.period === targetPeriod);
     if (idx !== -1) {
-      dataToVerify = historyData.slice(idx, idx + periods);
+      // 回溯验证时只使用目标期之前的数据（上一期及其前面的几期）
+      // 比如验证062期时，periods=1应该只取061期用于计算。
+      startIdx = Math.max(0, idx - periods);
+      dataToVerify = historyData.slice(startIdx, idx);
     }
   } else {
+    // 没有指定目标期时保留原来的行为
     dataToVerify = historyData.slice(0, periods);
   }
   
-  for (const verifyData of dataToVerify) {
+  // 根据是否指定了targetPeriod, 如果需要将预测值与下一期的数据比较
+  for (let i = 0; i < dataToVerify.length; i++) {
+    const verifyData = dataToVerify[i];
     const cache = precomputedMap.get(verifyData.period)?.find(p => p.useSort === useSort)?.elementValues;
     const rawResult = evaluateExpression(parsed.expression, verifyData, useSort, customElements, cache);
     const withOffset = rawResult + offset;
-    
+
     const cycledResult = applyCycle(withOffset, parsed.resultType, customResultTypes);
     const expandedResults = getExpandedResults(cycledResult, leftExpand, rightExpand, parsed.resultType, customResultTypes);
-    const targetValue = getNumberAttribute(verifyData.numbers[6], parsed.resultType, verifyData.zodiacYear, customResultTypes);
-    const hit = expandedResults.includes(targetValue);
-    
+
+    let targetValue: number;
+    let hit: boolean;
+
+    if (targetPeriod) {
+      // 目标期存在时，用当前条目的下一期作为真实值
+      const actualData = historyData[startIdx + i + 1];
+      // 如果下一期不存在（可能回溯范围不足），则默认未命中且targetValue为NaN
+      if (actualData) {
+        targetValue = getNumberAttribute(actualData.numbers[6], parsed.resultType, actualData.zodiacYear, customResultTypes);
+        hit = expandedResults.includes(targetValue);
+      } else {
+        targetValue = NaN;
+        hit = false;
+      }
+    } else {
+      // 未指定目标期时保持原有行为：与本期比较
+      targetValue = getNumberAttribute(verifyData.numbers[6], parsed.resultType, verifyData.zodiacYear, customResultTypes);
+      hit = expandedResults.includes(targetValue);
+    }
+
     periodResults.push({
       period: verifyData.period,
       result: cycledResult,
@@ -77,8 +103,12 @@ export function verifyFormula(
   // 确定显示用的结果集合
   let latestResultsForSummary: number[] = [];
   if (targetPeriod) {
-    const targetRes = periodResults.find(pr => pr.period === targetPeriod);
-    latestResultsForSummary = targetRes ? targetRes.expandedResults : [];
+    // 预测或回溯有目标期时，summary使用最后一次计算的 expandedResults
+    if (periodResults.length > 0) {
+      latestResultsForSummary = periodResults[periodResults.length - 1].expandedResults;
+    } else {
+      latestResultsForSummary = [];
+    }
   } else {
     const calcData = historyData[0];
     if (calcData) {

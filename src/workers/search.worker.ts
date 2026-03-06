@@ -46,7 +46,10 @@ function getRecommendedElements(resultType: ResultType): string[] {
 // 获取所有可用元素（包括推荐和其他元素）
 function getAllAvailableElements(resultType: ResultType): string[] {
   const recommended = getRecommendedElements(resultType);
-  const allElements = getAllElements();
+  // 直接从 ELEMENT_GROUPS 中获取所有内置元素名，并加上自定义元素
+  const allBuiltInElements = Object.values(ELEMENT_GROUPS).flat();
+  const customElements = workerCustomElements.map(e => e.name);
+  const allElements = [...new Set([...allBuiltInElements, ...customElements])];
   
   // 推荐元素在前，其他元素在后
   const otherElements = allElements.filter(e => !recommended.includes(e));
