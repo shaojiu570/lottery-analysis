@@ -428,6 +428,47 @@ export function groupFormulaResults(
   for (const [type, typeResults] of byType) {
     const typeMap = new Map<string, number>();
 
+    // 初始化所有可能的结果值为0（包括0次的）
+    const allPossibleValues: string[] = [];
+    if (type === '肖位类') {
+      for (let i = 1; i <= 12; i++) {
+        allPossibleValues.push(shared.resultToText(i, type, 1)); // 使用默认生肖年份
+      }
+    } else if (type === '单特类') {
+      for (let i = 1; i <= 49; i++) {
+        allPossibleValues.push(shared.resultToText(i, type, 1));
+      }
+    } else if (type === '波色类') {
+      for (let i = 0; i < 3; i++) {
+        allPossibleValues.push(shared.resultToText(i, type, 1));
+      }
+    } else if (type === '五行类') {
+      for (let i = 0; i < 5; i++) {
+        allPossibleValues.push(shared.resultToText(i, type, 1));
+      }
+    } else if (type === '头数类') {
+      for (let i = 0; i < 5; i++) {
+        allPossibleValues.push(shared.resultToText(i, type, 1));
+      }
+    } else if (type === '合数类') {
+      for (let i = 1; i <= 13; i++) {
+        allPossibleValues.push(shared.resultToText(i, type, 1));
+      }
+    } else if (type === '尾数类') {
+      for (let i = 0; i < 10; i++) {
+        allPossibleValues.push(shared.resultToText(i, type, 1));
+      }
+    } else if (type === '大小单双类') {
+      for (let i = 0; i < 4; i++) {
+        allPossibleValues.push(shared.resultToText(i, type, 1));
+      }
+    }
+
+    // 初始化计数为0
+    for (const val of allPossibleValues) {
+      typeMap.set(val, 0);
+    }
+
     // 统计该类型所有公式的结果
     for (const result of typeResults) {
       // 确定要统计的期数（验证模式：目标期，预测模式：最新期）
@@ -451,7 +492,9 @@ export function groupFormulaResults(
         // 将该期的所有扩展结果转换为文字结果
         for (const value of periodResult.expandedResults) {
           const resultText = shared.resultToText(value, type, zodiacYear);
-          typeMap.set(resultText, (typeMap.get(resultText) || 0) + 1);
+          if (typeMap.has(resultText)) {
+            typeMap.set(resultText, typeMap.get(resultText)! + 1);
+          }
         }
       }
     }
