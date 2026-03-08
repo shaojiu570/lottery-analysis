@@ -41,26 +41,42 @@ export function verifyFormula(
   const hits = [];
   const useSort = parsed.rule === 'D';
   
-  // 确定验证范围
-  let dataToVerify: LotteryData[] = [];
-  // startIdx 用于在计算target对应的下一期时定位历史数组索引
-  let startIdx = 0;
+  // 确定是否为降序历史（新期在前）
+  const descending = historyData.length > 1 && historyData[0].period > historyData[1].period;
+
+  // 构建用于计算的索引列表
+  const verifyIndices: number[] = [];
   if (targetPeriod) {
     const idx = historyData.findIndex(d => d.period === targetPeriod);
     if (idx !== -1) {
-      // 回溯验证时只使用目标期之前的数据（上一期及其前面的几期）
-      // 比如验证062期时，periods=1应该只取061期用于计算。
-      startIdx = Math.max(0, idx - periods);
-      dataToVerify = historyData.slice(startIdx, idx);
+      if (descending) {
+        // 目标期在开头，后面的元素是之前的期数
+        for (let k = idx + 1; k < historyData.length && verifyIndices.length < periods; k++) {
+          verifyIndices.push(k);
+        }
+      } else {
+        // 升序历史：目标期在末尾，前面的元素是之前的期数
+        for (let k = idx - 1; k >= 0 && verifyIndices.length < periods; k--) {
+          verifyIndices.push(k);
+        }
+      }
     }
   } else {
-    // 没有指定目标期时保留原来的行为
-    dataToVerify = historyData.slice(0, periods);
+    // 预测模式：直接取前几个（最新）的记录
+    if (descending) {
+      for (let k = 0; k < periods && k < historyData.length; k++) {
+        verifyIndices.push(k);
+      }
+    } else {
+      for (let k = 0; k < periods && k < historyData.length; k++) {
+        verifyIndices.push(k);
+      }
+    }
   }
-  
-  // 根据是否指定了targetPeriod, 如果需要将预测值与下一期的数据比较
-  for (let i = 0; i < dataToVerify.length; i++) {
-    const verifyData = dataToVerify[i];
+
+  // 执行验证计算
+  for (const verifyIdx of verifyIndices) {
+    const verifyData = historyData[verifyIdx];
     const cache = precomputedMap.get(verifyData.period)?.find(p => p.useSort === useSort)?.elementValues;
     const rawResult = evaluateExpression(parsed.expression, verifyData, useSort, customElements, cache);
     const withOffset = rawResult + offset;
@@ -70,15 +86,18 @@ export function verifyFormula(
 
     let targetValue: number;
     let hit: boolean;
+    let recordedPeriod = verifyData.period; // 默认使用当前期作为展示
 
     if (targetPeriod) {
-      // 目标期存在时，用当前条目的下一期作为真实值
-      const actualData = historyData[startIdx + i + 1];
-      // 如果下一期不存在（可能回溯范围不足），则默认未命中且targetValue为NaN
-      if (actualData) {
+      // 预测下一期：向前取一位（降序情况下为 idx-1，升序为 idx+1）
+      const predictedIdx = descending ? verifyIdx - 1 : verifyIdx + 1;
+      if (predictedIdx >= 0 && predictedIdx < historyData.length) {
+        const actualData = historyData[predictedIdx];
+        recordedPeriod = actualData.period; // 用预测期作为记录
         targetValue = getNumberAttribute(actualData.numbers[6], parsed.resultType, actualData.zodiacYear, customResultTypes);
         hit = expandedResults.includes(targetValue);
       } else {
+        // 没有可比较的下一期
         targetValue = NaN;
         hit = false;
       }
@@ -89,7 +108,7 @@ export function verifyFormula(
     }
 
     periodResults.push({
-      period: verifyData.period,
+      period: recordedPeriod,
       result: cycledResult,
       expandedResults,
       targetValue,
@@ -100,11 +119,18 @@ export function verifyFormula(
   
   const hitCount = hits.filter(h => h).length;
   
+  // 总期数使用公式定义的periods，避免预测/回溯由于数据不足出现不同
+  const totalPeriodsUsed = parsed.periods || periods;
+
   // 确定显示用的结果集合
   let latestResultsForSummary: number[] = [];
   if (targetPeriod) {
-    // 预测或回溯有目标期时，summary使用最后一次计算的 expandedResults
-    if (periodResults.length > 0) {
+    // 找到以目标期为记录的条目（预测的那一期）
+    const targetRes = periodResults.find(pr => pr.period === targetPeriod);
+    if (targetRes) {
+      latestResultsForSummary = targetRes.expandedResults;
+    } else if (periodResults.length > 0) {
+      // 兜底：取最后一条
       latestResultsForSummary = periodResults[periodResults.length - 1].expandedResults;
     } else {
       latestResultsForSummary = [];
@@ -130,8 +156,8 @@ export function verifyFormula(
     formula: parsed,
     hits: hitsForReturn,
     hitCount,
-    totalPeriods: hits.length,
-    hitRate: hits.length > 0 ? hitCount / hits.length : 0,
+    totalPeriods: totalPeriodsUsed,
+    hitRate: totalPeriodsUsed > 0 ? hitCount / totalPeriodsUsed : 0,
     results,
     periodResults: periodResultsForReturn,
     targetPeriod,
