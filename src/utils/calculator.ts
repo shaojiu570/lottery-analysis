@@ -192,116 +192,38 @@ export function verifyFormulas(
 export function countHitsPerPeriod(results: VerifyResult[], historyData: LotteryData[]): number[] {
   if (results.length === 0 || historyData.length === 0) return [];
   
-  // 获取目标期数（从第一个结果中获取，所有公式应该使用相同的目标期数）
+  // 获取要展示的期数范围（最新10期，或目标期及之前的10期）
   const targetPeriod = results[0]?.targetPeriod;
-  const periods = results[0]?.totalPeriods || 10;
-  
-  // 获取要统计的期数（最多10期用于显示）
-  const displayCount = Math.min(periods, 10);
+  const displayCount = 10;
   let periodsToCount: number[] = [];
   
-  if (targetPeriod !== null && targetPeriod !== undefined) {
-    // 回溯模式：从目标期数开始向后取periods期
-    let startIndex = 0;
+  if (targetPeriod) {
     const targetIdx = historyData.findIndex(d => d.period === targetPeriod);
     if (targetIdx !== -1) {
-      startIndex = targetIdx;
+      // 从目标期开始取
+      periodsToCount = historyData.slice(targetIdx, targetIdx + displayCount).map(d => d.period);
     }
-    
-    for (let i = 0; i < displayCount && startIndex + i < historyData.length; i++) {
-      periodsToCount.push(historyData[startIndex + i].period);
-    }
-  } else {
-    // 预测模式：统计最近10期历史数据的命中次数
-    // 从历史数据中取最新的10期
-    const recentHistory = historyData.slice(0, displayCount);
-    periodsToCount = recentHistory.map(d => d.period);
   }
   
-  // 初始化计数数组
-  const counts: number[] = [];
+  // 如果没找到或预测模式，取最新10期
+  if (periodsToCount.length === 0) {
+    periodsToCount = historyData.slice(0, displayCount).map(d => d.period);
+  }
   
-  // 对每个期数，统计所有公式命中特码的总次数
+  // 统计命中次数
+  const counts: number[] = [];
   for (const period of periodsToCount) {
-    // 找到该期的开奖数据
-    const periodData = historyData.find(d => d.period === period);
-    if (!periodData) {
-      counts.push(0);
-      continue;
-    }
-    
-    // 获取该期的实际特码
-    const actualTeNum = periodData.numbers[6];
-    
-    // 统计所有公式在该期的结果转换为号码后，命中特码的总次数
     let hitCount = 0;
     for (const result of results) {
-      // 预测模式：重新计算公式在该期的结果
-      if (targetPeriod === null || targetPeriod === undefined) {
-        // 使用该期的历史数据重新验证公式
-        const tempResult = shared.verifyFormula(
-          result.formula,
-          historyData,
-          period, // 使用当前统计的期数作为目标期数
-          result.formula.periods,
-          result.formula.leftExpand,
-          result.formula.rightExpand,
-          result.formula.offset,
-          [], // customElements
-          [], // customResultTypes
-          new Map() // precomputedMap
-        );
-        
-        if (tempResult && tempResult.periodResults.length > 0) {
-          const tempPeriodResult = tempResult.periodResults.find(pr => pr.period === period);
-          if (tempPeriodResult) {
-            // 使用该期数的期数计算对应的生肖年份
-            const zodiacYear = getZodiacYearByPeriod(period);
-            
-            // 将该期的所有扩展结果转换为号码，统计命中特码的次数
-            for (const value of tempPeriodResult.expandedResults) {
-              const numbers = convertResultToNumbers(
-                resultToText(value, result.formula.resultType, zodiacYear),
-                result.formula.resultType,
-                zodiacYear
-              );
-              for (const num of numbers) {
-                if (num === actualTeNum) {
-                  hitCount++;
-                }
-              }
-            }
-          }
-        }
-      } else {
-        // 回溯模式：使用已有的计算结果
-        const periodResult = result.periodResults.find(pr => pr.period === period);
-        if (periodResult) {
-          // 每条公式用自己对应期的period计算生肖年份（与aggregateAllNumbers一致）
-          const formulaPeriod = periodResult.period;
-          const zodiacYear = getZodiacYearByPeriod(formulaPeriod);
-          
-          // 将该期的所有扩展结果转换为号码，统计命中特码的次数
-          for (const value of periodResult.expandedResults) {
-            const numbers = convertResultToNumbers(
-              resultToText(value, result.formula.resultType, zodiacYear),
-              result.formula.resultType,
-              zodiacYear
-            );
-            for (const num of numbers) {
-              if (num === actualTeNum) {
-                hitCount++;
-              }
-            }
-          }
-        }
+      const periodRes = result.periodResults.find(pr => pr.period === period);
+      if (periodRes && periodRes.hit) {
+        hitCount++;
       }
     }
-    
     counts.push(hitCount);
   }
   
-  // 反转数组，让最右边是最新的一期（在指定范围内）
+  // 返回顺序：从左到右对应从旧到新
   return counts.reverse();
 }
 
@@ -471,30 +393,13 @@ export function groupFormulaResults(
 
     // 统计该类型所有公式的结果
     for (const result of typeResults) {
-      // 确定要统计的期数（验证模式：目标期，预测模式：最新期）
-      const targetPeriod = result.targetPeriod;
-      let periodsToCount: any[] = [];
-      
-      if (targetPeriod !== null && targetPeriod !== undefined) {
-        // 验证模式：只统计目标期的结果
-        periodsToCount = result.periodResults.filter(pr => pr.period === targetPeriod);
-      } else {
-        // 预测模式：只统计最新期的结果（第一个periodResult）
-        if (result.periodResults.length > 0) {
-          periodsToCount = [result.periodResults[0]];
-        }
-      }
-
-      // 统计选定期数的结果
-      for (const periodResult of periodsToCount) {
-        const zodiacYear = getZodiacYearByPeriod(periodResult.period);
-        
-        // 将该期的所有扩展结果转换为文字结果
-        for (const value of periodResult.expandedResults) {
-          const resultText = shared.resultToText(value, type, zodiacYear);
-          if (typeMap.has(resultText)) {
-            typeMap.set(resultText, typeMap.get(resultText)! + 1);
-          }
+      // 直接使用 VerifyResult.results，它已经包含了正确的预测结果（字符串形式）
+      // 这样可以确保汇总统计与单条公式显示的内容完全一致
+      for (const resText of result.results) {
+        // 去掉可能的命中标记
+        const cleanText = resText.replace('★', '');
+        if (typeMap.has(cleanText)) {
+          typeMap.set(cleanText, typeMap.get(cleanText)! + 1);
         }
       }
     }
@@ -535,35 +440,26 @@ export function aggregateAllNumbers(results: VerifyResult[]): Map<number, number
   for (const result of results) {
     const type = result.formula.resultType;
     
-    // 根据模式选择要统计的期数结果
-    let periodsToCount: any[] = [];
-    
-    if (isVerifyMode) {
-      // 验证模式：只统计目标期的结果
-      periodsToCount = result.periodResults.filter(pr => pr.period === targetPeriod);
-    } else {
-      // 预测模式：只统计最新期的结果（第一个periodResult）
-      if (result.periodResults.length > 0) {
-        periodsToCount = [result.periodResults[0]];
-      }
-    }
-    
-    // 统计选定期数的结果
-    for (const periodResult of periodsToCount) {
-      // 使用该期数的期数计算对应的生肖年份
-      const zodiacYear = getZodiacYearByPeriod(periodResult.period);
+    // 直接从 VerifyResult.results 中转换号码
+    // VerifyResult.results 已经包含了正确的、按期数计算好的文字结果
+    for (const resText of result.results) {
+      // 这里的 zodiacYear 其实在 convertResultToNumbers 内部用于处理肖位类
+      // 我们需要从 VerifyResult 中推断当时使用的 summaryZodiacYear
+      // 或者更简单地，既然 resText 已经是文字（如"牛"），convertResultToNumbers 可以直接处理
       
-      // 使用第四层的扩展结果来转换号码（与countHitsPerPeriod保持一致）
-      for (const value of periodResult.expandedResults) {
-        // 将结果字符串转换为号码（使用该期数对应的生肖年份）
-        const numbers = convertResultToNumbers(
-          resultToText(value, type, zodiacYear),
-          type,
-          zodiacYear
-        );
-        for (const num of numbers) {
-          numberCounts.set(num, (numberCounts.get(num) || 0) + 1);
-        }
+      // 寻找对应的 zodiacYear：如果是预测模式，使用最新期+1
+      let evalZodiacYear = 7;
+      if (result.targetPeriod) {
+        evalZodiacYear = getZodiacYearByPeriod(result.targetPeriod);
+      } else if (result.periodResults.length > 0) {
+        // 预测模式，取最新一条记录的期数+1
+        const latestRecorded = result.periodResults[result.periodResults.length - 1].period;
+        evalZodiacYear = getZodiacYearByPeriod(latestRecorded);
+      }
+
+      const numbers = convertResultToNumbers(resText, type, evalZodiacYear);
+      for (const num of numbers) {
+        numberCounts.set(num, (numberCounts.get(num) || 0) + 1);
       }
     }
   }

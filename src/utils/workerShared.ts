@@ -110,16 +110,23 @@ export function verifyFormula(
       // 预测模式：使用该期数据预测下一期
       const predictedIdx = descending ? verifyIdx - 1 : verifyIdx + 1;
       if (predictedIdx >= 0 && predictedIdx < historyData.length) {
+        // 预测的是已存在的期数（回溯验证）
         const actualData = historyData[predictedIdx];
-        recordedPeriod = actualData.period; // 用预测期作为记录
+        recordedPeriod = actualData.period;
         targetValue = getNumberAttribute(actualData.numbers[6], parsed.resultType, actualData.zodiacYear, customResultTypes);
         hit = expandedResults.includes(targetValue);
       } else {
-        // 没有可预测的下一期，保持原有行为：与本期比较
-        targetValue = getNumberAttribute(verifyData.numbers[6], parsed.resultType, verifyData.zodiacYear, customResultTypes);
-        hit = expandedResults.includes(targetValue);
-        recordedPeriod = verifyData.period;
+        // 预测的是未来期（即真正的预测）
+        // 获取下一期的期数（假设+1）
+        const latestPeriod = verifyData.period;
+        recordedPeriod = latestPeriod + 1;
+        targetValue = NaN;
+        hit = false; // 未来期尚未开奖，命中未知
       }
+    }
+
+    if (targetValue !== undefined && !isNaN(targetValue)) {
+      hits.push(hit);
     }
 
     periodResults.push({
@@ -129,7 +136,6 @@ export function verifyFormula(
       targetValue,
       hit,
     });
-    hits.push(hit);
   }
   
   const hitCount = hits.filter(h => h).length;
@@ -139,16 +145,21 @@ export function verifyFormula(
 
   // 确定显示用的结果集合
   let latestResultsForSummary: number[] = [];
+  let summaryZodiacYear = 7; // 默认
+
   if (targetPeriod) {
     // 找到以目标期为记录的条目（预测的那一期）
     const targetRes = periodResults.find(pr => pr.period === targetPeriod);
     if (targetRes) {
       latestResultsForSummary = targetRes.expandedResults;
+      // 使用目标期的开奖数据中的生肖年份，如果没有（未来期），则推算
+      const targetData = historyData.find(d => d.period === targetPeriod);
+      summaryZodiacYear = targetData?.zodiacYear || getZodiacYearByPeriod(targetPeriod);
     } else if (periodResults.length > 0) {
       // 兜底：取最后一条
-      latestResultsForSummary = periodResults[periodResults.length - 1].expandedResults;
-    } else {
-      latestResultsForSummary = [];
+      const lastRes = periodResults[periodResults.length - 1];
+      latestResultsForSummary = lastRes.expandedResults;
+      summaryZodiacYear = getZodiacYearByPeriod(lastRes.period);
     }
   } else {
     const calcData = historyData[0];
@@ -157,6 +168,8 @@ export function verifyFormula(
       const rawResult = evaluateExpression(parsed.expression, calcData, useSort, customElements, cache);
       const cycledResult = applyCycle(rawResult + offset, parsed.resultType, customResultTypes);
       latestResultsForSummary = getExpandedResults(cycledResult, leftExpand, rightExpand, parsed.resultType, customResultTypes);
+      // 预测最新期+1
+      summaryZodiacYear = getZodiacYearByPeriod(calcData.period + 1);
     }
   }
 
@@ -165,7 +178,7 @@ export function verifyFormula(
   const hitsForReturn = [...hits].reverse();
   const periodResultsForReturn = [...periodResults].reverse();
   
-  const results = Array.from(latestResultsForSummary).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType, 7, customResultTypes));
+  const results = Array.from(latestResultsForSummary).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType, summaryZodiacYear, customResultTypes));
   
   return {
     formula: parsed,
