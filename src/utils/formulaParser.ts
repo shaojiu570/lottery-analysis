@@ -38,11 +38,12 @@ export function parseFormula(
     formula = formula.replace(/合数类/g, '__HESHU_LEI__');
     
     // 期数系列 - 使用更安全的占位符，避免被chineseToNumber影响
+    // 按长度从长到短替换，避免部分匹配问题
     formula = formula.replace(/期数合尾/g, '<<QISHU_HEWEI>>');
     formula = formula.replace(/期数合/g, '<<QISHU_HE>>');
     formula = formula.replace(/期数尾/g, '<<QISHU_WEI>>');
     formula = formula.replace(/期数/g, '<<QISHU>>');
-    // 总分系列
+    // 总分系列 - 按长度从长到短替换
     formula = formula.replace(/总分合尾/g, '<<ZONGFEN_HEWEI>>');
     formula = formula.replace(/总分合/g, '<<ZONGFEN_HE>>');
     formula = formula.replace(/总分尾/g, '<<ZONGFEN_WEI>>');
