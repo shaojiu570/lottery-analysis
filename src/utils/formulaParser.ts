@@ -37,16 +37,16 @@ export function parseFormula(
     formula = formula.replace(/尾数类/g, '__WEISHU_LEI__');
     formula = formula.replace(/合数类/g, '__HESHU_LEI__');
     
-    // 期数系列
-    formula = formula.replace(/期数合尾/g, '__QISHU_HEWEI__');
-    formula = formula.replace(/期数合/g, '__QISHU_HE__');
-    formula = formula.replace(/期数尾/g, '__QISHU_WEI__');
-    formula = formula.replace(/期数/g, '__QISHU__');
+    // 期数系列 - 使用更安全的占位符，避免被chineseToNumber影响
+    formula = formula.replace(/期数合尾/g, '<<QISHU_HEWEI>>');
+    formula = formula.replace(/期数合/g, '<<QISHU_HE>>');
+    formula = formula.replace(/期数尾/g, '<<QISHU_WEI>>');
+    formula = formula.replace(/期数/g, '<<QISHU>>');
     // 总分系列
-    formula = formula.replace(/总分合尾/g, '__ZONGFEN_HEWEI__');
-    formula = formula.replace(/总分合/g, '__ZONGFEN_HE__');
-    formula = formula.replace(/总分尾/g, '__ZONGFEN_WEI__');
-    formula = formula.replace(/总分/g, '__ZONGFEN__');
+    formula = formula.replace(/总分合尾/g, '<<ZONGFEN_HEWEI>>');
+    formula = formula.replace(/总分合/g, '<<ZONGFEN_HE>>');
+    formula = formula.replace(/总分尾/g, '<<ZONGFEN_WEI>>');
+    formula = formula.replace(/总分/g, '<<ZONGFEN>>');
     
     // 转换中文数字为阿拉伯数字
     formula = chineseToNumber(formula);
@@ -58,14 +58,14 @@ export function parseFormula(
     formula = formula.replace(/__WEISHU_LEI__/g, '尾数类');
     formula = formula.replace(/__HESHU_LEI__/g, '合数类');
     
-    formula = formula.replace(/__QISHU__/g, '期数');
-    formula = formula.replace(/__QISHU_WEI__/g, '期数尾');
-    formula = formula.replace(/__QISHU_HE__/g, '期数合');
-    formula = formula.replace(/__QISHU_HEWEI__/g, '期数合尾');
-    formula = formula.replace(/__ZONGFEN__/g, '总分');
-    formula = formula.replace(/__ZONGFEN_WEI__/g, '总分尾');
-    formula = formula.replace(/__ZONGFEN_HE__/g, '总分合');
-    formula = formula.replace(/__ZONGFEN_HEWEI__/g, '总分合尾');
+    formula = formula.replace(/<<QISHU>>/g, '期数');
+    formula = formula.replace(/<<QISHU_WEI>>/g, '期数尾');
+    formula = formula.replace(/<<QISHU_HE>>/g, '期数合');
+    formula = formula.replace(/<<QISHU_HEWEI>>/g, '期数合尾');
+    formula = formula.replace(/<<ZONGFEN>>/g, '总分');
+    formula = formula.replace(/<<ZONGFEN_WEI>>/g, '总分尾');
+    formula = formula.replace(/<<ZONGFEN_HE>>/g, '总分合');
+    formula = formula.replace(/<<ZONGFEN_HEWEI>>/g, '总分合尾');
     
     // 处理元素别名（如"特码波" -> "特波"）
     formula = normalizeElementName(formula);
