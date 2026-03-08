@@ -377,7 +377,7 @@ function convertTextToValue(text: string, resultType: ResultType, zodiacYear: nu
 }
 
 // 全码类结果汇总（使用第四层扩展结果转换号码）
-// 每条公式根据自己对应期的期数计算对应的生肖年份，统计所有期的结果
+// 验证模式：只统计目标期的结果；预测模式：统计最新期的结果
 export function aggregateAllNumbers(results: VerifyResult[]): Map<number, number> {
   const numberCounts = new Map<number, number>();
   
@@ -386,11 +386,28 @@ export function aggregateAllNumbers(results: VerifyResult[]): Map<number, number
     numberCounts.set(i, 0);
   }
   
+  // 获取目标期数（验证模式）或使用最新期数（预测模式）
+  const targetPeriod = results[0]?.targetPeriod;
+  const isVerifyMode = targetPeriod !== null && targetPeriod !== undefined;
+  
   for (const result of results) {
     const type = result.formula.resultType;
     
-    // 遍历该公式的所有期数结果
-    for (const periodResult of result.periodResults) {
+    // 根据模式选择要统计的期数结果
+    let periodsToCount: any[] = [];
+    
+    if (isVerifyMode) {
+      // 验证模式：只统计目标期的结果
+      periodsToCount = result.periodResults.filter(pr => pr.period === targetPeriod);
+    } else {
+      // 预测模式：只统计最新期的结果（第一个periodResult）
+      if (result.periodResults.length > 0) {
+        periodsToCount = [result.periodResults[0]];
+      }
+    }
+    
+    // 统计选定期数的结果
+    for (const periodResult of periodsToCount) {
       // 使用该期数的期数计算对应的生肖年份
       const zodiacYear = getZodiacYearByPeriod(periodResult.period);
       
