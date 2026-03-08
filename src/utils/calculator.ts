@@ -1,6 +1,6 @@
 import { LotteryData, ResultType, VerifyResult, PeriodResult } from '@/types';
 import { calculateElementValue, normalizeElementName } from './elements';
-import { applyCycle, getExpandedResults, getNumberAttribute, resultToText, getZodiacMap, getZodiacYearByPeriod, convertResultToNumbers } from './mappings';
+import { applyCycle, getExpandedResults, getNumberAttribute, resultToText, getZodiacMap, getZodiacYearByPeriod } from './mappings';
 import { ParsedFormula } from './formulaParser';
 import { getCustomElements, getCustomResultTypes } from './storage';
 import * as shared from './workerShared';
@@ -196,20 +196,26 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
   const targetPeriod = results[0]?.targetPeriod;
   const periods = results[0]?.totalPeriods || 10;
   
-  // 确定统计范围：从目标期数开始向后取periods期
-  let startIndex = 0;
-  if (targetPeriod) {
+  // 获取要统计的期数（最多10期用于显示）
+  const displayCount = Math.min(periods, 10);
+  let periodsToCount: number[] = [];
+  
+  if (targetPeriod !== null && targetPeriod !== undefined) {
+    // 回溯模式：从目标期数开始向后取periods期
+    let startIndex = 0;
     const targetIdx = historyData.findIndex(d => d.period === targetPeriod);
     if (targetIdx !== -1) {
       startIndex = targetIdx;
     }
-  }
-  
-  // 获取要统计的期数（最多10期用于显示）
-  const displayCount = Math.min(periods, 10);
-  const periodsToCount: number[] = [];
-  for (let i = 0; i < displayCount && startIndex + i < historyData.length; i++) {
-    periodsToCount.push(historyData[startIndex + i].period);
+    
+    for (let i = 0; i < displayCount && startIndex + i < historyData.length; i++) {
+      periodsToCount.push(historyData[startIndex + i].period);
+    }
+  } else {
+    // 预测模式：统计最近10期历史数据的命中次数
+    // 从历史数据中取最新的10期
+    const recentHistory = historyData.slice(0, displayCount);
+    periodsToCount = recentHistory.map(d => d.period);
   }
   
   // 初始化计数数组

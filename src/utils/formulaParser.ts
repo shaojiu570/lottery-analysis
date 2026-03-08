@@ -146,11 +146,17 @@ function normalizeExpressionForDedup(expression: string): string {
     return expression;
   }
   
-  // 分割元素并排序
+  // 分割元素并排序 - 使用与buildFormula相同的排序逻辑
   const elements = expression.split('+').map(e => e.trim()).filter(e => e);
-  elements.sort();
+  elements.sort((a, b) => a.localeCompare(b, 'zh-CN')); // 使用中文排序确保一致性
   
   return elements.join('+');
+}
+
+// 生成标准化的公式键用于去重
+export function generateFormulaKey(parsed: ParsedFormula): string {
+  const normalizedExpression = normalizeExpressionForDedup(parsed.expression);
+  return `${parsed.rule}_${parsed.resultType}_${normalizedExpression}_${parsed.periods}_${parsed.offset}_${parsed.leftExpand}_${parsed.rightExpand}`;
 }
 
 // 解析错误信息
@@ -218,10 +224,7 @@ export function parseFormulas(
     
     // 标准化表达式用于去重：将元素排序
     // 例如 "平3号+特尾" 和 "特尾+平3号" 应该被视为同一个公式
-    const normalizedExpression = normalizeExpressionForDedup(parsed.expression);
-    
-    // 使用标准化后的表达式去重
-    const formulaKey = `${parsed.rule}_${parsed.resultType}_${normalizedExpression}_${parsed.periods}_${parsed.offset}_${parsed.leftExpand}_${parsed.rightExpand}`;
+    const formulaKey = generateFormulaKey(parsed);
     
     if (!seen.has(formulaKey)) {
       seen.add(formulaKey);

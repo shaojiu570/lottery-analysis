@@ -47,6 +47,7 @@ export function verifyFormula(
   // 构建用于计算的索引列表
   const verifyIndices: number[] = [];
   if (targetPeriod) {
+    // 回溯模式：使用目标期之前的数据来预测目标期
     const idx = historyData.findIndex(d => d.period === targetPeriod);
     if (idx !== -1) {
       if (descending) {
@@ -62,20 +63,24 @@ export function verifyFormula(
       }
     }
   } else {
-    // 预测模式：直接取前几个（最新）的记录
+    // 预测模式：使用最新的历史数据来预测未来期
+    // 取最新的 periods 期数据用于计算预测
     if (descending) {
+      // 降序：最新的在前面
       for (let k = 0; k < periods && k < historyData.length; k++) {
         verifyIndices.push(k);
       }
     } else {
-      for (let k = 0; k < periods && k < historyData.length; k++) {
+      // 升序：最新的在后面
+      for (let k = historyData.length - periods; k < historyData.length && k >= 0; k++) {
         verifyIndices.push(k);
       }
     }
   }
 
   // 执行验证计算
-  for (const verifyIdx of verifyIndices) {
+  for (let i = 0; i < verifyIndices.length; i++) {
+    const verifyIdx = verifyIndices[i];
     const verifyData = historyData[verifyIdx];
     const cache = precomputedMap.get(verifyData.period)?.find(p => p.useSort === useSort)?.elementValues;
     const rawResult = evaluateExpression(parsed.expression, verifyData, useSort, customElements, cache);
@@ -89,7 +94,7 @@ export function verifyFormula(
     let recordedPeriod = verifyData.period; // 默认使用当前期作为展示
 
     if (targetPeriod) {
-      // 预测下一期：向前取一位（降序情况下为 idx-1，升序为 idx+1）
+      // 回溯模式：预测下一期（目标期）
       const predictedIdx = descending ? verifyIdx - 1 : verifyIdx + 1;
       if (predictedIdx >= 0 && predictedIdx < historyData.length) {
         const actualData = historyData[predictedIdx];
@@ -102,9 +107,19 @@ export function verifyFormula(
         hit = false;
       }
     } else {
-      // 未指定目标期时保持原有行为：与本期比较
-      targetValue = getNumberAttribute(verifyData.numbers[6], parsed.resultType, verifyData.zodiacYear, customResultTypes);
-      hit = expandedResults.includes(targetValue);
+      // 预测模式：使用该期数据预测下一期
+      const predictedIdx = descending ? verifyIdx - 1 : verifyIdx + 1;
+      if (predictedIdx >= 0 && predictedIdx < historyData.length) {
+        const actualData = historyData[predictedIdx];
+        recordedPeriod = actualData.period; // 用预测期作为记录
+        targetValue = getNumberAttribute(actualData.numbers[6], parsed.resultType, actualData.zodiacYear, customResultTypes);
+        hit = expandedResults.includes(targetValue);
+      } else {
+        // 没有可预测的下一期，保持原有行为：与本期比较
+        targetValue = getNumberAttribute(verifyData.numbers[6], parsed.resultType, verifyData.zodiacYear, customResultTypes);
+        hit = expandedResults.includes(targetValue);
+        recordedPeriod = verifyData.period;
+      }
     }
 
     periodResults.push({

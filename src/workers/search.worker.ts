@@ -56,12 +56,66 @@ function getAllAvailableElements(resultType: ResultType): string[] {
   return [...recommended, ...otherElements];
 }
 
-// ==================== 模式学习系统 ====================
+// 智能元素选择器
+function selectSmartElements(
+  resultType: ResultType,
+  count: number,
+  pattern?: FormulaPattern,
+  historyData?: LotteryData[]
+): string[] {
+  const allElements = getAllAvailableElements(resultType);
+  if (allElements.length === 0) return [];
+  
+  // 如果有模式学习结果，使用智能选择
+  if (pattern && historyData) {
+    const elementScores = new Map<string, number>();
+    
+    for (const element of allElements) {
+      let score = 0;
+      
+      // 基础频率分数
+      const freqIndex = pattern.commonElements.indexOf(element);
+      if (freqIndex !== -1) {
+        score += (10 - freqIndex) * 0.3; // 排名越靠前分数越高
+      }
+      
+      // 协同效应分数
+      for (const [pair, pairFreq] of pattern.elementPairs.entries()) {
+        if (pair.includes(element)) {
+          score += Math.log(pairFreq + 1) * 0.2;
+        }
+      }
+      
+      // 性能趋势分数
+      const performance = analyzeElementPerformance(element, [], historyData);
+      score += performance.recentHitRate * 0.3;
+      score += performance.consistencyScore * 0.1;
+      score += performance.synergyScore * 0.1;
+      
+      elementScores.set(element, score);
+    }
+    
+    // 按分数排序并选择
+    return Array.from(elementScores.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, count)
+      .map(([element]) => element);
+  }
+  
+  // 回退到随机选择
+  const shuffled = [...allElements].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
+
+// ==================== 增强模式学习系统 ====================
 interface ElementPattern {
   element: string;
   avgHitRate: number;
   frequency: number;
   bestPairs: string[];
+  timeDecayScore: number;  // 新增：时间衰减分数
+  typeSpecificScore: Map<ResultType, number>;  // 新增：类型特定分数
+  volatilityScore: number;  // 新增：波动性分数
 }
 
 interface FormulaPattern {
@@ -69,10 +123,130 @@ interface FormulaPattern {
   avgHitRate: number;
   commonElements: string[];
   elementPairs: Map<string, number>;
+  successfulStructures: string[];  // 新增：成功的结构模式
+  optimalPeriods: Map<number, number>;  // 新增：最优期数配置
 }
 
-// 模式学习缓存
+interface ElementPerformance {
+  element: string;
+  recentHitRate: number;  // 最近10期命中率
+  overallHitRate: number;  // 总体命中率
+  trendDirection: 'up' | 'down' | 'stable';  // 趋势方向
+  consistencyScore: number;  // 一致性分数
+  synergyScore: number;  // 协同效应分数
+}
+
+// 增强的模式学习缓存
 const patternCache = new Map<string, FormulaPattern>();
+const elementPerformanceCache = new Map<string, ElementPerformance>();
+const successfulFormulasCache = new Map<string, Array<{ formula: string; hitRate: number; timestamp: number }>>();
+
+// 计算元素的时间衰减分数
+function calculateTimeDecayScore(elementFreq: Map<string, number>, totalElements: number): Map<string, number> {
+  const decayScores = new Map<string, number>();
+  const now = Date.now();
+  
+  for (const [element, freq] of elementFreq.entries()) {
+    // 基础分数 + 时间衰减
+    const baseScore = freq / totalElements;
+    const timeFactor = Math.exp(-Math.log(0.5) * (now % 86400000) / 86400000); // 24小时衰减
+    decayScores.set(element, baseScore * timeFactor);
+  }
+  
+  return decayScores;
+}
+
+// 分析元素性能趋势
+function analyzeElementPerformance(
+  element: string,
+  results: Array<{ formula: string; hitRate: number; timestamp?: number }>,
+  historyData: LotteryData[]
+): ElementPerformance {
+  const cacheKey = `${element}_${historyData.length}`;
+  if (elementPerformanceCache.has(cacheKey)) {
+    return elementPerformanceCache.get(cacheKey)!;
+  }
+  
+  // 提取包含该元素的所有公式
+  const elementFormulas = results.filter(r => 
+    parseFormula(r.formula)?.expression.includes(element)
+  );
+  
+  if (elementFormulas.length === 0) {
+    return {
+      element,
+      recentHitRate: 0,
+      overallHitRate: 0,
+      trendDirection: 'stable',
+      consistencyScore: 0,
+      synergyScore: 0
+    };
+  }
+  
+  // 计算最近表现和总体表现
+  const recentFormulas = elementFormulas.slice(-10);
+  const recentHitRate = recentFormulas.reduce((sum, f) => sum + f.hitRate, 0) / recentFormulas.length;
+  const overallHitRate = elementFormulas.reduce((sum, f) => sum + f.hitRate, 0) / elementFormulas.length;
+  
+  // 计算趋势方向
+  const recentAvg = recentFormulas.slice(-5).reduce((sum, f) => sum + f.hitRate, 0) / Math.min(5, recentFormulas.length);
+  const olderAvg = recentFormulas.slice(0, 5).reduce((sum, f) => sum + f.hitRate, 0) / Math.min(5, recentFormulas.length);
+  const trendDirection = recentAvg > olderAvg + 0.05 ? 'up' : 
+                        recentAvg < olderAvg - 0.05 ? 'down' : 'stable';
+  
+  // 计算一致性分数（命中率的方差）
+  const variance = elementFormulas.reduce((sum, f) => {
+    return sum + Math.pow(f.hitRate - overallHitRate, 2);
+  }, 0) / elementFormulas.length;
+  const consistencyScore = Math.max(0, 1 - variance);
+  
+  // 计算协同效应分数（与其他元素的组合效果）
+  const synergyScore = calculateSynergyScore(element, elementFormulas);
+  
+  const performance: ElementPerformance = {
+    element,
+    recentHitRate,
+    overallHitRate,
+    trendDirection,
+    consistencyScore,
+    synergyScore
+  };
+  
+  elementPerformanceCache.set(cacheKey, performance);
+  return performance;
+}
+
+// 计算协同效应分数
+function calculateSynergyScore(element: string, elementFormulas: Array<{ formula: string; hitRate: number }>): number {
+  const coElements = new Map<string, number[]>();
+  
+  for (const formula of elementFormulas) {
+    const parsed = parseFormula(formula.formula);
+    if (!parsed) continue;
+    
+    const elements = parsed.expression.split(/[+\-*/]/).filter(e => e.trim() && e !== element);
+    for (const coElement of elements) {
+      if (!coElements.has(coElement)) {
+        coElements.set(coElement, []);
+      }
+      coElements.get(coElement)!.push(formula.hitRate);
+    }
+  }
+  
+  // 计算平均协同效应
+  let totalSynergy = 0;
+  let count = 0;
+  
+  for (const [coElement, hitRates] of coElements.entries()) {
+    if (hitRates.length >= 3) {
+      const avgHitRate = hitRates.reduce((sum, rate) => sum + rate, 0) / hitRates.length;
+      totalSynergy += avgHitRate;
+      count++;
+    }
+  }
+  
+  return count > 0 ? totalSynergy / count : 0;
+}
 
 // 学习历史公式的模式
 function learnPatterns(
@@ -87,11 +261,15 @@ function learnPatterns(
       avgHitRate: 0,
       commonElements: [],
       elementPairs: new Map(),
+      successfulStructures: [],
+      optimalPeriods: new Map(),
     };
   }
   
   const elementFreq = new Map<string, number>();
   const pairFreq = new Map<string, number>();
+  const structureFreq = new Map<string, number>();
+  const periodPerformance = new Map<number, number[]>();
   let totalElements = 0;
   let totalHitRate = 0;
   
@@ -99,8 +277,7 @@ function learnPatterns(
     const parsed = parseFormula(result.formula);
     if (!parsed) continue;
     
-    // 提取元素
-    const elements = parsed.expression.split(/[+\-]/).filter(e => e.trim());
+    const elements = parsed.expression.split(/[+\-*/]/).filter(e => e.trim());
     totalElements += elements.length;
     totalHitRate += result.hitRate;
     
@@ -112,24 +289,65 @@ function learnPatterns(
     // 统计元素对频率
     for (let i = 0; i < elements.length; i++) {
       for (let j = i + 1; j < elements.length; j++) {
-        const pair = [elements[i], elements[j]].sort().join('+');
+        const pair = `${elements[i]}+${elements[j]}`;
         pairFreq.set(pair, (pairFreq.get(pair) || 0) + 1);
       }
     }
+    
+    // 统计结构模式
+    const structure = extractStructure(parsed.expression);
+    structureFreq.set(structure, (structureFreq.get(structure) || 0) + 1);
+    
+    // 统计期数性能
+    const periodKey = parsed.periods || 10;
+    if (!periodPerformance.has(periodKey)) {
+      periodPerformance.set(periodKey, []);
+    }
+    periodPerformance.get(periodKey)!.push(result.hitRate);
   }
   
-  // 找出高频元素
-  const sortedElements = Array.from(elementFreq.entries())
+  // 提取最常见的元素
+  const commonElements = Array.from(elementFreq.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
-    .map(e => e[0]);
+    .map(([elem]) => elem);
+  
+  // 提取最成功的结构
+  const successfulStructures = Array.from(structureFreq.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([structure]) => structure);
+  
+  // 计算最优期数配置
+  const optimalPeriods = new Map<number, number>();
+  for (const [period, hitRates] of periodPerformance.entries()) {
+    const avgHitRate = hitRates.reduce((sum, rate) => sum + rate, 0) / hitRates.length;
+    optimalPeriods.set(period, avgHitRate);
+  }
   
   return {
     elementCount: Math.round(totalElements / highHitFormulas.length),
     avgHitRate: totalHitRate / highHitFormulas.length,
-    commonElements: sortedElements,
+    commonElements,
     elementPairs: pairFreq,
+    successfulStructures,
+    optimalPeriods,
   };
+}
+
+// 提取公式结构模式
+function extractStructure(expression: string): string {
+  // 将具体元素替换为类型标识符
+  return expression
+    .replace(/\b(期数|总分|平[1-6]号|特号)\b/g, 'NUM')
+    .replace(/\b(平[1-6]头|特头)\b/g, 'HEAD')
+    .replace(/\b(平[1-6]尾|特尾)\b/g, 'TAIL')
+    .replace(/\b(平[1-6]合|特合)\b/g, 'SUM')
+    .replace(/\b(平[1-6]波|特波)\b/g, 'WAVE')
+    .replace(/\b(平[1-6]行|特行)\b/g, 'ROW')
+    .replace(/\b(平[1-6]段|特段)\b/g, 'SEG')
+    .replace(/\b(平[1-6]肖位|特肖位)\b/g, 'ZODIAC')
+    .replace(/\d+/g, 'N');
 }
 
 // ==================== 智能评分系统 ====================
@@ -294,6 +512,7 @@ function buildComplexFormulas(
 ): Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> {
   const results: Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> = [];
   const seenFormulas = new Set<string>();
+  const seenFormulaKeys = new Set<string>(); // 新增：标准化公式键集合
   
   // 使用模式学习的元素数量建议
   const suggestedCount = pattern?.elementCount || 3;
@@ -326,6 +545,7 @@ function buildComplexFormulas(
         targetHitRate,
         tolerance,
         seenFormulas,
+        seenFormulaKeys,
         targetPeriod
       );
       results.push(...crossResults);
@@ -396,7 +616,8 @@ function buildFormula(
   if (elements.length === 0) return null;
   
   // 对元素排序，确保相同元素组合生成相同的公式
-  const sortedElements = [...elements].sort();
+  // 使用与normalizeExpressionForDedup相同的排序逻辑
+  const sortedElements = [...elements].sort((a, b) => a.localeCompare(b, 'zh-CN'));
   const expression = sortedElements.join('+');
   const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
   const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
@@ -418,6 +639,7 @@ function crossTypeFormulas(
   targetHitRate: number,
   tolerance: number,
   seenFormulas: Set<string>,
+  seenFormulaKeys: Set<string>, // 新增参数
   targetPeriod: number | null
 ): Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> {
   const results: Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> = [];
@@ -425,9 +647,14 @@ function crossTypeFormulas(
   // 对每个结果类型都尝试这组元素
   for (const resultType of resultTypes) {
     const formula = buildFormula(elements, resultType, rule, periods, offset, leftExpand, rightExpand);
-    if (!formula || seenFormulas.has(formula)) continue;
+    if (!formula) continue;
+    
+    // 双重重复检测
+    const formulaKey = generateSearchFormulaKey(formula);
+    if (seenFormulas.has(formula) || seenFormulaKeys.has(formulaKey)) continue;
     
     seenFormulas.add(formula);
+    seenFormulaKeys.add(formulaKey);
     const result = verifyFormulaString(formula, historyData, offset, periods, leftExpand, rightExpand, targetPeriod);
     
     if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance) {
@@ -439,7 +666,7 @@ function crossTypeFormulas(
 }
 
 // 验证公式字符串
-import { parseFormula } from '../utils/formulaParser';
+import { parseFormula, generateFormulaKey } from '../utils/formulaParser';
 
 function verifyFormulaString(
   formulaStr: string,
@@ -474,6 +701,13 @@ function verifyFormulaString(
   };
 }
 
+// 生成标准化的公式键用于去重
+function generateSearchFormulaKey(formulaStr: string): string {
+  const parsed = parseFormula(formulaStr, workerCustomResultTypes);
+  if (!parsed) return formulaStr; // 如果解析失败，返回原字符串作为键
+  return generateFormulaKey(parsed);
+}
+
 // 随机生成公式（补充多样性，使用所有元素）
 function generateRandomFormula(
   resultType: ResultType,
@@ -493,10 +727,6 @@ function generateRandomFormula(
   } else {
     // 使用所有可用元素，确保充分利用
     candidateElements = getAllAvailableElements(resultType);
-  }
-  
-  if (candidateElements.length === 0) {
-    candidateElements = getAllElements();
   }
   
   const shuffled = [...candidateElements].sort(() => Math.random() - 0.5);
@@ -523,6 +753,7 @@ function optimizedSearch(
 ): Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> {
   const allResults: Array<{ formula: string; hitRate: number; hitCount: number; totalPeriods: number }> = [];
   const seenFormulas = new Set<string>();
+  const seenFormulaKeys = new Set<string>(); // 新增：标准化公式键集合
   
   // 动态容差
   const tolerance = periods <= 15 ? 2 : periods <= 30 ? 3 : periods <= 50 ? 5 : 8;
@@ -598,8 +829,11 @@ function optimizedSearch(
       }
       
       for (const r of results) {
-        if (!seenFormulas.has(r.formula)) {
+        // 双重重复检测：原始字符串 + 标准化键
+        const formulaKey = generateSearchFormulaKey(r.formula);
+        if (!seenFormulas.has(r.formula) && !seenFormulaKeys.has(formulaKey)) {
           seenFormulas.add(r.formula);
+          seenFormulaKeys.add(formulaKey);
           allResults.push(r);
         }
       }
@@ -624,9 +858,14 @@ function optimizedSearch(
     const pattern = patternCache.get(cacheKey);
     
     const formulaStr = generateRandomFormula(resultType, rule, periods, offset, leftExpand, rightExpand, elementCount, pattern);
-    if (!formulaStr || seenFormulas.has(formulaStr)) continue;
+    if (!formulaStr) continue;
+    
+    // 双重重复检测
+    const formulaKey = generateSearchFormulaKey(formulaStr);
+    if (seenFormulas.has(formulaStr) || seenFormulaKeys.has(formulaKey)) continue;
     
     seenFormulas.add(formulaStr);
+    seenFormulaKeys.add(formulaKey);
     const result = verifyFormulaString(formulaStr, historyData, offset, periods, leftExpand, rightExpand, targetPeriod);
     
     if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance) {
@@ -641,22 +880,27 @@ function optimizedSearch(
   
   // 阶段3：全元素探索（确保所有元素都被使用）
   if (allResults.length < maxCount && strategy !== 'fast') {
-    const allElements = getAllElements();
     const explorationCount = strategy === 'deep' ? 500 : 200;
     
     for (let i = 0; i < explorationCount && allResults.length < maxCount; i++) {
-      const resultType = resultTypes[Math.floor(Math.random() * resultTypes.length)];
-      const rule = Math.random() < 0.5 ? 'D' : 'L' as const;
+      const currentResultType = resultTypes[Math.floor(Math.random() * resultTypes.length)];
+      const currentRule = Math.random() < 0.5 ? 'D' : 'L' as const;
       
-      // 随机选择2-5个元素，确保包含一些不常用的元素
-      const elementCount = 2 + Math.floor(Math.random() * 4);
-      const shuffled = [...allElements].sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, elementCount);
+      // 使用智能元素选择
+      const allAvailableElements = getAllAvailableElements(currentResultType);
+      const currentElementCount = 2 + Math.floor(Math.random() * 4);
+      const shuffled = [...allAvailableElements].sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, currentElementCount);
       
-      const formulaStr = buildFormula(selected, resultType, rule, periods, offset, leftExpand, rightExpand);
-      if (!formulaStr || seenFormulas.has(formulaStr)) continue;
+      const formulaStr = buildFormula(selected, currentResultType, currentRule, periods, offset, leftExpand, rightExpand);
+      if (!formulaStr) continue;
+      
+      // 双重重复检测
+      const formulaKey = generateSearchFormulaKey(formulaStr);
+      if (seenFormulas.has(formulaStr) || seenFormulaKeys.has(formulaKey)) continue;
       
       seenFormulas.add(formulaStr);
+      seenFormulaKeys.add(formulaKey);
       const result = verifyFormulaString(formulaStr, historyData, offset, periods, leftExpand, rightExpand, targetPeriod);
       
       if (result && Math.abs(result.hitRate * 100 - targetHitRate) <= tolerance * 1.5) {
@@ -699,6 +943,7 @@ function optimizedSearch(
           targetHitRate,
           tolerance,
           seenFormulas,
+          seenFormulaKeys,
           targetPeriod
         );
         
