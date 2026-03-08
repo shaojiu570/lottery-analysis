@@ -89,6 +89,11 @@ export function normalizeElementName(name: string): string {
   normalized = normalized.replace(/__ZONGFEN_HE__/g, '总分合');
   normalized = normalized.replace(/__ZONGFEN_HEWEI__/g, '总分合尾');
   
+  // helper: escape regex special chars
+  function escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   // 首先应用用户自定义别名
   const userAliases = loadAliases();
   const sortedUserAliases = Object.entries(userAliases).flatMap(([standard, aliasList]) => 
@@ -96,13 +101,16 @@ export function normalizeElementName(name: string): string {
   ).sort((a, b) => b[0].length - a[0].length);
 
   for (const [alias, standard] of sortedUserAliases) {
-    normalized = normalized.replace(new RegExp(alias, 'g'), standard);
+    // only replace when not already prefixed by 平 or 特
+    const pattern = new RegExp(`(?<![平特])${escapeRegex(alias)}`, 'g');
+    normalized = normalized.replace(pattern, standard);
   }
 
   // 然后处理内置别名
   const sortedBuiltInAliases = Object.entries(ELEMENT_ALIASES).sort((a, b) => b[0].length - a[0].length);
   for (const [alias, standard] of sortedBuiltInAliases) {
-    normalized = normalized.replace(new RegExp(alias, 'g'), standard);
+    const pattern = new RegExp(`(?<![平特])${escapeRegex(alias)}`, 'g');
+    normalized = normalized.replace(pattern, standard);
   }
 
   // 特殊处理：平码属性（支持中文数字和阿拉伯数字混合，以及合头/合尾）
