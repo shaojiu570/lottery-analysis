@@ -94,6 +94,28 @@ export function normalizeElementName(name: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
+  // helper to create a regex that handles doubling of standard name suffix
+  function applyAlias(str: string, alias: string, standard: string): string {
+    let patternStr = `(?<![平特])${escapeRegex(alias)}`;
+    
+    // Case 1: Standard ends with alias or standard starts with alias (e.g., 期 -> 期数, 总 -> 总分)
+    // We want to match the alias followed by any number of the standard name's suffix
+    if (standard.startsWith(alias) && standard.length > alias.length) {
+      const suffix = standard.slice(alias.length);
+      // Only handle simple character suffixes to avoid complex regex
+      if (/^[\u4e00-\u9fa5a-zA-Z0-9]+$/.test(suffix)) {
+        patternStr += `(?:${escapeRegex(suffix)})*`;
+      }
+    } 
+    // Case 2: Standard is the same as alias, allow matching repeated alias (e.g., 特 -> 特)
+    else if (alias === standard) {
+      patternStr = `(?<![平特])${escapeRegex(alias)}+`;
+    }
+    
+    const pattern = new RegExp(patternStr, 'g');
+    return str.replace(pattern, standard);
+  }
+
   // 首先应用用户自定义别名
   const userAliases = loadAliases();
   const sortedUserAliases = Object.entries(userAliases).flatMap(([standard, aliasList]) => 
@@ -101,16 +123,13 @@ export function normalizeElementName(name: string): string {
   ).sort((a, b) => b[0].length - a[0].length);
 
   for (const [alias, standard] of sortedUserAliases) {
-    // only replace when not already prefixed by 平 or 特
-    const pattern = new RegExp(`(?<![平特])${escapeRegex(alias)}`, 'g');
-    normalized = normalized.replace(pattern, standard);
+    normalized = applyAlias(normalized, alias, standard);
   }
 
   // 然后处理内置别名
   const sortedBuiltInAliases = Object.entries(ELEMENT_ALIASES).sort((a, b) => b[0].length - a[0].length);
   for (const [alias, standard] of sortedBuiltInAliases) {
-    const pattern = new RegExp(`(?<![平特])${escapeRegex(alias)}`, 'g');
-    normalized = normalized.replace(pattern, standard);
+    normalized = applyAlias(normalized, alias, standard);
   }
 
   // 特殊处理：平码属性（支持中文数字和阿拉伯数字混合，以及合头/合尾）
