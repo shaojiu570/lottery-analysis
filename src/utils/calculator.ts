@@ -260,15 +260,16 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
   return counts.reverse();
 }
 
-// 按结果类型分组统计（只统计同类公式的最新一期结果）
-// 每条公式根据自己最新一期的期数计算对应的生肖年份
+// 按结果类型分组统计（基于历史开奖记录的固定统计）
+// 统计历史数据中各结果类型的实际分布情况
 export function groupByResultType(
-  results: VerifyResult[]
+  results: VerifyResult[],
+  historyData: LotteryData[] = []
 ): { countsMap: Map<ResultType, Map<string, number>>, formulaCountByType: Map<ResultType, number> } {
   const grouped = new Map<ResultType, Map<string, number>>();
   const formulaCountByType = new Map<ResultType, number>();
-  
-  // 按类型分组
+
+  // 按类型分组公式数量
   const byType = new Map<ResultType, VerifyResult[]>();
   for (const result of results) {
     const type = result.formula.resultType;
@@ -277,75 +278,82 @@ export function groupByResultType(
     }
     byType.get(type)!.push(result);
   }
-  
-  // 对每个类型统计
+
+  // 对每个类型统计公式数量
   byType.forEach((typeResults, type) => {
     formulaCountByType.set(type, typeResults.length);
-    
+  });
+
+  // 如果没有历史数据，返回空统计
+  if (historyData.length === 0) {
+    return { countsMap: grouped, formulaCountByType };
+  }
+
+  // 确定统计范围：取最近的验证期数或默认最近10期
+  const periodsToAnalyze = results.length > 0 ? results[0].totalPeriods : 10;
+  const dataToAnalyze = historyData.slice(0, Math.min(periodsToAnalyze, historyData.length));
+
+  // 对每种结果类型，统计历史开奖记录的分布
+  const allTypes = Array.from(byType.keys());
+  for (const type of allTypes) {
     const typeMap = new Map<string, number>();
-    
-    // 生成该类型所有可能结果值时使用的生肖年份
-    // 使用第一条公式的期数作为代表（用于生成所有可能值）
-    const sampleResult = typeResults[0];
-    const samplePeriod = sampleResult.periodResults[sampleResult.periodResults.length - 1]?.period || 0;
-    const sampleZodiacYear = getZodiacYearByPeriod(samplePeriod);
-    
-    // 获取该类型的所有可能结果值
+
+    // 初始化所有可能的结果值为0
     const allPossibleValues: string[] = [];
     if (type === '肖位类') {
       for (let i = 1; i <= 12; i++) {
-        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
+        allPossibleValues.push(resultToText(i, type, 1)); // 使用默认生肖年份
       }
     } else if (type === '单特类') {
       for (let i = 1; i <= 49; i++) {
-        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
+        allPossibleValues.push(resultToText(i, type, 1));
       }
     } else if (type === '波色类') {
       for (let i = 0; i < 3; i++) {
-        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
+        allPossibleValues.push(resultToText(i, type, 1));
       }
     } else if (type === '五行类') {
       for (let i = 0; i < 5; i++) {
-        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
+        allPossibleValues.push(resultToText(i, type, 1));
       }
     } else if (type === '头数类') {
       for (let i = 0; i < 5; i++) {
-        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
+        allPossibleValues.push(resultToText(i, type, 1));
       }
     } else if (type === '合数类') {
       for (let i = 1; i <= 13; i++) {
-        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
+        allPossibleValues.push(resultToText(i, type, 1));
       }
     } else if (type === '尾数类') {
       for (let i = 0; i < 10; i++) {
-        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
+        allPossibleValues.push(resultToText(i, type, 1));
       }
     } else if (type === '大小单双类') {
       for (let i = 0; i < 4; i++) {
-        allPossibleValues.push(resultToText(i, type, sampleZodiacYear));
+        allPossibleValues.push(resultToText(i, type, 1));
       }
     }
-    
-    // 统计每个结果在同类公式中出现的次数
-    // 每条公式根据自己最新一期的期数计算生肖年份
+
+    // 初始化计数
     for (const val of allPossibleValues) {
-      let count = 0;
-      for (const r of typeResults) {
-        // 获取该公式最新一期的期数，计算对应的生肖年份
-        const period = r.periodResults[r.periodResults.length - 1]?.period || 0;
-        const zodiacYear = getZodiacYearByPeriod(period);
-        
-        // 直接比较，因为 allPossibleValues 和 r.results 都是用同样的逻辑生成的
-        if (r.results.includes(val)) {
-          count++;
-        }
-      }
-      typeMap.set(val, count);
+      typeMap.set(val, 0);
     }
-    
+
+    // 统计历史数据中该类型的结果分布
+    for (const data of dataToAnalyze) {
+      const teNum = data.numbers[6];
+      const zodiacYear = data.zodiacYear;
+      const attrValue = getNumberAttribute(teNum, type, zodiacYear);
+      const attrText = resultToText(attrValue, type, zodiacYear);
+
+      if (typeMap.has(attrText)) {
+        typeMap.set(attrText, typeMap.get(attrText)! + 1);
+      }
+    }
+
     grouped.set(type, typeMap);
-  });
-  
+  }
+
   return { countsMap: grouped, formulaCountByType };
 }
 

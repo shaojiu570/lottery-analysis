@@ -54,7 +54,7 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
     if (results.length === 0) {
       return { hitsPerPeriod: [], groupedResults: new Map(), formulaCountByType: new Map(), allNumberCounts: new Map() };
     }
-    const { countsMap, formulaCountByType } = groupByResultType(results);
+    const { countsMap, formulaCountByType } = groupByResultType(results, historyData);
     return {
       hitsPerPeriod: countHitsPerPeriod(results, historyData),
       groupedResults: countsMap,
