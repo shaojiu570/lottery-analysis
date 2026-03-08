@@ -409,20 +409,6 @@ export function calculateElementValue(name: string, data: LotteryData): number {
   if (name === '期数合尾') return digitSum(periodNum) % 10;
   
   if (name === '星期') return data.weekday || 0;
-  if (name === '干') {
-    const ganzhi = data.ganzhi || '甲子';
-    return '甲乙丙丁戊己庚辛壬癸'.indexOf(ganzhi[0]);
-  }
-  if (name === '支') {
-    const ganzhi = data.ganzhi || '甲子';
-    return '子丑寅卯辰巳午未申酉戌亥'.indexOf(ganzhi[1]);
-  }
-  if (name === '干支') {
-    const ganzhi = data.ganzhi || '甲子';
-    const stemIndex = '甲乙丙丁戊己庚辛壬癸'.indexOf(ganzhi[0]);
-    const branchIndex = '子丑寅卯辰巳午未申酉戌亥'.indexOf(ganzhi[1]);
-    return stemIndex + branchIndex * 10;
-  }
   
   const totalSum = numbers.reduce((sum, n) => sum + n, 0);
   if (name === '总分') return totalSum;
@@ -536,38 +522,6 @@ export function evaluateExpression(
   }
 }
 
-// 获取指定年份的干支
-function getGanzhiOfYear(zodiacYear: number): string {
-  const stemNames = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
-  const branchNames = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-  
-  // 基准年份：2020年是庚子年
-  const baseYear = 2020;
-  const baseStem = 6;  // 庚
-  const baseBranch = 0; // 子
-  
-  const yearDiff = zodiacYear - baseYear;
-  const stemIndex = (baseStem + yearDiff) % 10;
-  const branchIndex = (baseBranch + yearDiff) % 12;
-  
-  return stemNames[stemIndex] + branchNames[branchIndex];
-}
-
-// 计算号码对应的干支
-function getGanzhiOfNumber(num: number, yearGanzhi: string): string {
-  const stemNames = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
-  const branchNames = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-  
-  const yearStemIndex = stemNames.indexOf(yearGanzhi[0]);
-  const yearBranchIndex = branchNames.indexOf(yearGanzhi[1]);
-  
-  // 号码1对应当年的干支，号码2对应下一个干支，以此类推
-  const stemIndex = (yearStemIndex + num - 1) % 10;
-  const branchIndex = (yearBranchIndex + num - 1) % 12;
-  
-  return stemNames[stemIndex] + branchNames[branchIndex];
-}
-
 export function getNumberAttribute(num: number, resultType: string, zodiacYear: number, customTypes: CustomResultType[] = []): number {
   switch (resultType) {
     case '尾数类': return num % 10;
@@ -578,26 +532,6 @@ export function getNumberAttribute(num: number, resultType: string, zodiacYear: 
     case '肖位类': return getZodiacPosition(num, zodiacYear);
     case '单特类': return num;
     case '大小单双类': return getBigSmallOddEven(num);
-    case '干': {
-      // 计算号码对应的天干
-      const ganzhiOfYear = getGanzhiOfYear(zodiacYear);
-      const ganzhiOfNum = getGanzhiOfNumber(num, ganzhiOfYear);
-      return '甲乙丙丁戊己庚辛壬癸'.indexOf(ganzhiOfNum[0]);
-    }
-    case '支': {
-      // 计算号码对应的地支
-      const ganzhiOfYear = getGanzhiOfYear(zodiacYear);
-      const ganzhiOfNum = getGanzhiOfNumber(num, ganzhiOfYear);
-      return '子丑寅卯辰巳午未申酉戌亥'.indexOf(ganzhiOfNum[1]);
-    }
-    case '干支': {
-      // 计算号码对应的干支组合值
-      const ganzhiOfYear = getGanzhiOfYear(zodiacYear);
-      const ganzhiOfNum = getGanzhiOfNumber(num, ganzhiOfYear);
-      const stemIndex = '甲乙丙丁戊己庚辛壬癸'.indexOf(ganzhiOfNum[0]);
-      const branchIndex = '子丑寅卯辰巳午未申酉戌亥'.indexOf(ganzhiOfNum[1]);
-      return stemIndex + branchIndex * 10;
-    }
     default:
       const ct = customTypes.find(t => t.name === resultType);
       if (ct) {
