@@ -187,8 +187,8 @@ export function verifyFormulas(
   );
 }
 
-// 统计每期全码类结果中各号码出现的次数
-// 读取第四层全码类结果的命中次数来同步统计
+// 统计近10期中每期的命中次数
+// 以全码类结果为依据，统计在验证大量不同类型公式时，每期有多少组公式命中特码
 export function countHitsPerPeriod(results: VerifyResult[], historyData: LotteryData[]): number[] {
   if (results.length === 0 || historyData.length === 0) return [];
   
@@ -221,7 +221,7 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
   // 初始化计数数组
   const counts: number[] = [];
   
-  // 对每个期数，统计全码类结果中特码出现的次数
+  // 对每个期数，统计所有公式命中特码的总次数
   for (const period of periodsToCount) {
     // 找到该期的开奖数据
     const periodData = historyData.find(d => d.period === period);
@@ -233,7 +233,7 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
     // 获取该期的实际特码
     const actualTeNum = periodData.numbers[6];
     
-    // 统计所有公式在该期的结果转换为号码后，特码出现的总次数
+    // 统计所有公式在该期的结果转换为号码后，命中特码的总次数
     let hitCount = 0;
     for (const result of results) {
       // 找到该公式在该期的计算结果
@@ -243,7 +243,7 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
         const formulaPeriod = periodResult.period;
         const zodiacYear = getZodiacYearByPeriod(formulaPeriod);
         
-        // 将该期的所有扩展结果转换为号码，统计特码出现次数
+        // 将该期的所有扩展结果转换为号码，统计命中特码的次数
         for (const value of periodResult.expandedResults) {
           const numbers = convertResultToNumbers(
             resultToText(value, result.formula.resultType, zodiacYear),
@@ -376,8 +376,8 @@ function convertTextToValue(text: string, resultType: ResultType, zodiacYear: nu
   return text;
 }
 
-// 全码类结果汇总（直接使用第三层结果转换号码）
-// 每条公式根据自己最新一期的期数计算对应的生肖年份
+// 全码类结果汇总（使用第四层扩展结果转换号码）
+// 每条公式根据自己对应期的期数计算对应的生肖年份，统计所有期的结果
 export function aggregateAllNumbers(results: VerifyResult[]): Map<number, number> {
   const numberCounts = new Map<number, number>();
   
@@ -389,16 +389,22 @@ export function aggregateAllNumbers(results: VerifyResult[]): Map<number, number
   for (const result of results) {
     const type = result.formula.resultType;
     
-    // 获取该公式最新一期的期数，计算对应的生肖年份
-    const period = result.periodResults[result.periodResults.length - 1]?.period || 0;
-    const zodiacYear = getZodiacYearByPeriod(period);
-    
-    // 直接使用第三层的结果字符串来转换号码
-    for (const resultStr of result.results) {
-      // 将结果字符串转换为号码（使用该公式对应期的生肖年份）
-      const numbers = convertResultToNumbers(resultStr, type, zodiacYear);
-      for (const num of numbers) {
-        numberCounts.set(num, (numberCounts.get(num) || 0) + 1);
+    // 遍历该公式的所有期数结果
+    for (const periodResult of result.periodResults) {
+      // 使用该期数的期数计算对应的生肖年份
+      const zodiacYear = getZodiacYearByPeriod(periodResult.period);
+      
+      // 使用第四层的扩展结果来转换号码（与countHitsPerPeriod保持一致）
+      for (const value of periodResult.expandedResults) {
+        // 将结果字符串转换为号码（使用该期数对应的生肖年份）
+        const numbers = convertResultToNumbers(
+          resultToText(value, type, zodiacYear),
+          type,
+          zodiacYear
+        );
+        for (const num of numbers) {
+          numberCounts.set(num, (numberCounts.get(num) || 0) + 1);
+        }
       }
     }
   }
