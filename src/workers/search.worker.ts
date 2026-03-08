@@ -1,9 +1,11 @@
-import type { LotteryData, ResultType, CustomElement, CustomResultType } from '../types';
+import type { LotteryData, ResultType, CustomElement, CustomResultType, AliasMapping } from '../types';
 import * as shared from '../utils/workerShared';
+import { parseFormula } from '../utils/formulaParser';
 
 // 存储自定义数据
 let workerCustomElements: CustomElement[] = [];
 let workerCustomResultTypes: CustomResultType[] = [];
+let workerAliases: AliasMapping = {};
 let workerPrecomputedMap = new Map<number, shared.PrecomputedData[]>();
 
 // ==================== 元素分组定义 ====================
@@ -169,7 +171,7 @@ function analyzeElementPerformance(
   
   // 提取包含该元素的所有公式
   const elementFormulas = results.filter(r => 
-    parseFormula(r.formula)?.expression.includes(element)
+    parseFormula(r.formula, workerCustomResultTypes, workerAliases)?.expression.includes(element)
   );
   
   if (elementFormulas.length === 0) {
@@ -221,7 +223,7 @@ function calculateSynergyScore(element: string, elementFormulas: Array<{ formula
   const coElements = new Map<string, number[]>();
   
   for (const formula of elementFormulas) {
-    const parsed = parseFormula(formula.formula);
+    const parsed = parseFormula(formula.formula, workerCustomResultTypes, workerAliases);
     if (!parsed) continue;
     
     const elements = parsed.expression.split(/[+\-*/]/).filter(e => e.trim() && e !== element);
@@ -274,7 +276,7 @@ function learnPatterns(
   let totalHitRate = 0;
   
   for (const result of highHitFormulas) {
-    const parsed = parseFormula(result.formula);
+    const parsed = parseFormula(result.formula, workerCustomResultTypes, workerAliases);
     if (!parsed) continue;
     
     const elements = parsed.expression.split(/[+\-*/]/).filter(e => e.trim());
@@ -372,7 +374,7 @@ function evaluateSingleElement(
   
   const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
   const formula = `[${rule}${resultType}]${element}${offsetStr}=${periods}`;
-  const parsed = parseFormula(formula, workerCustomResultTypes);
+  const parsed = parseFormula(formula, workerCustomResultTypes, workerAliases);
   if (!parsed) return 0;
   
   const result = shared.verifyFormula(
@@ -416,7 +418,7 @@ function evaluateElementPair(
   
   const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
   const formula = `[${rule}${resultType}]${elem1}+${elem2}${offsetStr}=${periods}`;
-  const parsed = parseFormula(formula, workerCustomResultTypes);
+  const parsed = parseFormula(formula, workerCustomResultTypes, workerAliases);
   if (!parsed) return 0;
   
   const result = shared.verifyFormula(
@@ -677,7 +679,7 @@ function verifyFormulaString(
   rightExpand: number,
   targetPeriod: number | null
 ): { formula: string; hitRate: number; hitCount: number; totalPeriods: number } | null {
-  const parsed = parseFormula(formulaStr, workerCustomResultTypes);
+  const parsed = parseFormula(formulaStr, workerCustomResultTypes, workerAliases);
   if (!parsed) return null;
   
   const result = shared.verifyFormula(
@@ -703,7 +705,7 @@ function verifyFormulaString(
 
 // 生成标准化的公式键用于去重
 function generateSearchFormulaKey(formulaStr: string): string {
-  const parsed = parseFormula(formulaStr, workerCustomResultTypes);
+  const parsed = parseFormula(formulaStr, workerCustomResultTypes, workerAliases);
   if (!parsed) return formulaStr; // 如果解析失败，返回原字符串作为键
   return generateFormulaKey(parsed);
 }
@@ -919,7 +921,7 @@ function optimizedSearch(
     for (const topFormula of topFormulas) {
       if (allResults.length >= maxCount) break;
       
-      const parsed = parseFormula(topFormula.formula);
+      const parsed = parseFormula(topFormula.formula, workerCustomResultTypes, workerAliases);
       if (!parsed) continue;
       
       // 提取元素
@@ -986,7 +988,8 @@ self.onmessage = (event) => {
     rightExpand, 
     targetPeriod,
     customElements,
-    customResultTypes
+    customResultTypes,
+    aliases
   } = event.data;
   
   if (type !== 'search') return;
@@ -994,6 +997,7 @@ self.onmessage = (event) => {
   // 更新自定义数据
   if (customElements) workerCustomElements = customElements;
   if (customResultTypes) workerCustomResultTypes = customResultTypes;
+  if (aliases) workerAliases = aliases;
   
   // 预计算所有历史数据的元素值
   workerPrecomputedMap = shared.precomputeAllElementValues(historyData);

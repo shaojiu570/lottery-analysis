@@ -30,7 +30,7 @@ interface UseSearchWorkerReturn {
 }
 
 export function useSearchWorker(): UseSearchWorkerReturn {
-  const { historyData, customElements, customResultTypes } = useAppStore();
+  const { historyData, customElements, customResultTypes, aliases } = useAppStore();
   const [results, setResults] = useState<SearchResult[]>([]);
   const [intermediateResults, setIntermediateResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -125,9 +125,10 @@ export function useSearchWorker(): UseSearchWorkerReturn {
       rightExpand,
       targetPeriod,
       customElements,
-      customResultTypes
+      customResultTypes,
+      aliases
     });
-  }, [createWorker, historyData, customElements, customResultTypes]);
+  }, [createWorker, historyData, customElements, customResultTypes, aliases]);
 
   const cancel = useCallback(() => {
     // 不立即终止worker，让它继续运行直到完成

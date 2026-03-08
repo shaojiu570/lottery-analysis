@@ -54,7 +54,7 @@ const ELEMENT_ALIASES: Record<string, string> = {
 };
 
 // 标准化元素名称
-export function normalizeElementName(name: string): string {
+export function normalizeElementName(name: string, userAliases: Record<string, string[]> = loadAliases()): string {
   let normalized = name;
   
   // 保护结果类型不被替换（如五行类、肖位类等）
@@ -117,7 +117,6 @@ export function normalizeElementName(name: string): string {
   }
 
   // 首先应用用户自定义别名
-  const userAliases = loadAliases();
   const sortedUserAliases = Object.entries(userAliases).flatMap(([standard, aliasList]) => 
     aliasList.map(alias => [alias, standard])
   ).sort((a, b) => b[0].length - a[0].length);

@@ -1,6 +1,6 @@
-import { Formula, ResultType } from '@/types';
+import { Formula, ResultType, AliasMapping } from '@/types';
 import { normalizeElementName } from './elements';
-import { getCustomResultTypes } from './storage';
+import { getCustomResultTypes, loadAliases } from './storage';
 import { chineseToNumber } from './workerShared';
 
 const BUILTIN_RESULT_TYPES: ResultType[] = ['尾数类', '头数类', '合数类', '波色类', '五行类', '肖位类', '单特类', '大小单双类'];
@@ -14,12 +14,14 @@ export interface ParsedFormula {
   leftExpand: number;
   rightExpand: number;
   rawExpression: string;
+  originalLineIndex?: number;
 }
 
 // 解析公式
 export function parseFormula(
   input: string,
-  customResultTypes: any[] = getCustomResultTypes()
+  customResultTypes: any[] = getCustomResultTypes(),
+  aliases: AliasMapping = loadAliases()
 ): ParsedFormula | null {
   try {
     // 标准化输入
@@ -69,7 +71,7 @@ export function parseFormula(
     formula = formula.replace(/<<ZONGFEN_HEWEI>>/g, '总分合尾');
     
     // 处理元素别名（如"特码波" -> "特波"）
-    formula = normalizeElementName(formula);
+    formula = normalizeElementName(formula, aliases);
     
     // 清理补偿值格式（如 +00 -> +0）
     formula = formula.replace(/([+-])0+(\d+)/g, '$1$2');
@@ -174,7 +176,8 @@ export interface ParsedFormulaWithIndex extends ParsedFormula {
 // 批量解析公式
 export function parseFormulas(
   input: string,
-  customResultTypes: any[] = getCustomResultTypes()
+  customResultTypes: any[] = getCustomResultTypes(),
+  aliases: AliasMapping = loadAliases()
 ): { formulas: ParsedFormulaWithIndex[]; errors: ParseError[] } {
   const allLines = input.split('\n');
   const nonEmptyLineIndices: number[] = [];
@@ -211,7 +214,7 @@ export function parseFormulas(
       continue;
     }
     
-    const parsed = parseFormula(cleanLine, customResultTypes);
+    const parsed = parseFormula(cleanLine, customResultTypes, aliases);
     
     if (!parsed) {
       console.error(`第 ${i + 1} 行解析失败:`, cleanLine);

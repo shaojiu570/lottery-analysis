@@ -1,5 +1,36 @@
 import { LotteryData, CustomResultType, CustomElement } from '@/types';
 
+// ==================== 基础常量 ====================
+export const ZODIAC_NAMES: Record<number, string> = {
+  1: '鼠', 2: '牛', 3: '虎', 4: '兔', 5: '龙', 6: '蛇',
+  7: '马', 8: '羊', 9: '猴', 10: '鸡', 11: '狗', 12: '猪'
+};
+
+const BASE_YEAR = 2020;
+
+const SPRING_FESTIVAL_DATES: Record<number, string> = {
+  2020: '0125', 2021: '0212', 2022: '0201', 2023: '0122',
+  2024: '0210', 2025: '0129', 2026: '0217', 2027: '0206',
+  2028: '0126', 2029: '0213', 2030: '0203', 2031: '0122',
+};
+
+// ==================== 生肖计算逻辑 ====================
+export function getZodiacIndexByYear(year?: number): number {
+  const targetYear = year || new Date().getFullYear();
+  const diff = targetYear - BASE_YEAR;
+  return ((diff % 12) + 12) % 12 + 1;
+}
+
+export function getZodiacYearByPeriod(period: number): number {
+  const year = Math.floor(period / 1000);
+  const periodNum = period % 1000;
+  const springFestival = SPRING_FESTIVAL_DATES[year];
+  if (!springFestival) return getZodiacIndexByYear(year);
+  
+  const isAfterSpringFestival = periodNum >= 30;
+  return isAfterSpringFestival ? getZodiacIndexByYear(year) : getZodiacIndexByYear(year - 1);
+}
+
 export interface VerifyResult {
   formula: {
     rule: string;

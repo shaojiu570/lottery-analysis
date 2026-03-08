@@ -19,7 +19,7 @@ interface UseWorkerVerifyReturn {
 }
 
 export function useWorkerVerify(): UseWorkerVerifyReturn {
-  const { historyData, customElements, customResultTypes } = useAppStore();
+  const { historyData, customElements, customResultTypes, aliases } = useAppStore();
   const [results, setResults] = useState<VerifyResult[]>([]);
   const [isVerifying, setIsVerifying] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
@@ -89,9 +89,10 @@ export function useWorkerVerify(): UseWorkerVerifyReturn {
       rightExpand,
       offset,
       customElements,
-      customResultTypes
+      customResultTypes,
+      aliases
     });
-  }, [historyData, customElements, customResultTypes]);
+  }, [historyData, customElements, customResultTypes, aliases]);
 
   const cancel = useCallback(() => {
     if (workerRef.current) {
