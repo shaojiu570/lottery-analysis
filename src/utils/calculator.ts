@@ -236,23 +236,62 @@ export function countHitsPerPeriod(results: VerifyResult[], historyData: Lottery
     // 统计所有公式在该期的结果转换为号码后，命中特码的总次数
     let hitCount = 0;
     for (const result of results) {
-      // 找到该公式在该期的计算结果
-      const periodResult = result.periodResults.find(pr => pr.period === period);
-      if (periodResult) {
-        // 每条公式用自己对应期的period计算生肖年份（与aggregateAllNumbers一致）
-        const formulaPeriod = periodResult.period;
-        const zodiacYear = getZodiacYearByPeriod(formulaPeriod);
+      // 预测模式：重新计算公式在该期的结果
+      if (targetPeriod === null || targetPeriod === undefined) {
+        // 使用该期的历史数据重新验证公式
+        const tempResult = shared.verifyFormula(
+          result.formula,
+          historyData,
+          period, // 使用当前统计的期数作为目标期数
+          result.formula.periods,
+          result.formula.leftExpand,
+          result.formula.rightExpand,
+          result.formula.offset,
+          [], // customElements
+          [], // customResultTypes
+          new Map() // precomputedMap
+        );
         
-        // 将该期的所有扩展结果转换为号码，统计命中特码的次数
-        for (const value of periodResult.expandedResults) {
-          const numbers = convertResultToNumbers(
-            resultToText(value, result.formula.resultType, zodiacYear),
-            result.formula.resultType,
-            zodiacYear
-          );
-          for (const num of numbers) {
-            if (num === actualTeNum) {
-              hitCount++;
+        if (tempResult && tempResult.periodResults.length > 0) {
+          const tempPeriodResult = tempResult.periodResults.find(pr => pr.period === period);
+          if (tempPeriodResult) {
+            // 使用该期数的期数计算对应的生肖年份
+            const zodiacYear = getZodiacYearByPeriod(period);
+            
+            // 将该期的所有扩展结果转换为号码，统计命中特码的次数
+            for (const value of tempPeriodResult.expandedResults) {
+              const numbers = convertResultToNumbers(
+                resultToText(value, result.formula.resultType, zodiacYear),
+                result.formula.resultType,
+                zodiacYear
+              );
+              for (const num of numbers) {
+                if (num === actualTeNum) {
+                  hitCount++;
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // 回溯模式：使用已有的计算结果
+        const periodResult = result.periodResults.find(pr => pr.period === period);
+        if (periodResult) {
+          // 每条公式用自己对应期的period计算生肖年份（与aggregateAllNumbers一致）
+          const formulaPeriod = periodResult.period;
+          const zodiacYear = getZodiacYearByPeriod(formulaPeriod);
+          
+          // 将该期的所有扩展结果转换为号码，统计命中特码的次数
+          for (const value of periodResult.expandedResults) {
+            const numbers = convertResultToNumbers(
+              resultToText(value, result.formula.resultType, zodiacYear),
+              result.formula.resultType,
+              zodiacYear
+            );
+            for (const num of numbers) {
+              if (num === actualTeNum) {
+                hitCount++;
+              }
             }
           }
         }
@@ -354,6 +393,66 @@ export function groupByResultType(
 
       if (typeMap.has(attrText)) {
         typeMap.set(attrText, typeMap.get(attrText)! + 1);
+      }
+    }
+
+    grouped.set(type, typeMap);
+  }
+
+  return { countsMap: grouped, formulaCountByType };
+}
+
+// 按结果类型分组统计公式结果（而不是历史开奖统计）
+export function groupFormulaResults(
+  results: VerifyResult[]
+): { countsMap: Map<string, Map<string, number>>, formulaCountByType: Map<string, number> } {
+  const grouped = new Map<string, Map<string, number>>();
+  const formulaCountByType = new Map<string, number>();
+
+  // 按类型分组公式数量
+  const byType = new Map<string, VerifyResult[]>();
+  for (const result of results) {
+    const type = result.formula.resultType;
+    if (!byType.has(type)) {
+      byType.set(type, []);
+    }
+    byType.get(type)!.push(result);
+  }
+
+  // 对每个类型统计公式数量
+  byType.forEach((typeResults, type) => {
+    formulaCountByType.set(type, typeResults.length);
+  });
+
+  // 对每种结果类型，统计公式的实际结果分布
+  for (const [type, typeResults] of byType) {
+    const typeMap = new Map<string, number>();
+
+    // 统计该类型所有公式的结果
+    for (const result of typeResults) {
+      // 确定要统计的期数（验证模式：目标期，预测模式：最新期）
+      const targetPeriod = result.targetPeriod;
+      let periodsToCount: any[] = [];
+      
+      if (targetPeriod !== null && targetPeriod !== undefined) {
+        // 验证模式：只统计目标期的结果
+        periodsToCount = result.periodResults.filter(pr => pr.period === targetPeriod);
+      } else {
+        // 预测模式：只统计最新期的结果（第一个periodResult）
+        if (result.periodResults.length > 0) {
+          periodsToCount = [result.periodResults[0]];
+        }
+      }
+
+      // 统计选定期数的结果
+      for (const periodResult of periodsToCount) {
+        const zodiacYear = getZodiacYearByPeriod(periodResult.period);
+        
+        // 将该期的所有扩展结果转换为文字结果
+        for (const value of periodResult.expandedResults) {
+          const resultText = shared.resultToText(value, type, zodiacYear);
+          typeMap.set(resultText, (typeMap.get(resultText) || 0) + 1);
+        }
       }
     }
 

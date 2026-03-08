@@ -1,7 +1,7 @@
 import { useRef, useEffect, useMemo, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { VerifyResult, LotteryData, ResultType } from '@/types';
 import { formatFormula, ParseError } from '@/utils/formulaParser';
-import { countHitsPerPeriod, groupByResultType, aggregateAllNumbers } from '@/utils/calculator';
+import { countHitsPerPeriod, groupByResultType, aggregateAllNumbers, groupFormulaResults } from '../utils/calculator';
 import { resultToText, getNumberAttribute } from '@/utils/mappings';
 
 interface ResultDisplayProps {
@@ -54,7 +54,8 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
     if (results.length === 0) {
       return { hitsPerPeriod: [], groupedResults: new Map(), formulaCountByType: new Map(), allNumberCounts: new Map() };
     }
-    const { countsMap, formulaCountByType } = groupByResultType(results, historyData);
+    // 修复：使用公式结果统计，而不是历史开奖统计
+    const { countsMap, formulaCountByType } = groupFormulaResults(results);
     return {
       hitsPerPeriod: countHitsPerPeriod(results, historyData),
       groupedResults: countsMap,
@@ -105,7 +106,8 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
       });
       const sortedCounts = Array.from(byCount.entries()).sort((a, b) => a[0] - b[0]);
       const formulaCount = formulaCountByType.get(type) || 0;
-      const totalResults = Array.from(counts.values() as number[]).reduce((sum, c) => sum + c, 0);
+      // 修复：统计实际有结果的码数，而不是历史次数总和
+      const totalResults = sortedCounts.reduce((sum, [count, resultList]) => sum + resultList.length, 0);
       lines.push(`【${type}结果】${resultPeriodLabel}期:`);
       sortedCounts.forEach(([count, resultList]) => {
         const markedResults = resultList.map(r => r === teAttrText ? `${r}★` : r);
