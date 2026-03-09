@@ -293,11 +293,14 @@ export const BASE_ZODIAC_NUMBERS: Record<number, number[]> = {
   12: [12, 24, 36, 48],
 };
 
-export const ZODIAC_NAMES: Record<number, string> = {
-  1: '鼠', 2: '牛', 3: '虎', 4: '兔',
-  5: '龙', 6: '蛇', 7: '马', 8: '羊',
-  9: '猴', 10: '鸡', 11: '狗', 12: '猪'
-};
+export function getZodiacName(position: number): string {
+  const ZODIAC_NAMES: Record<number, string> = {
+    1: '鼠', 2: '牛', 3: '虎', 4: '兔',
+    5: '龙', 6: '蛇', 7: '马', 8: '羊',
+    9: '猴', 10: '鸡', 11: '狗', 12: '猪'
+  };
+  return ZODIAC_NAMES[position];
+}
 
 export const BIG_SMALL_ODD_EVEN: Record<string, number[]> = {
   小单: [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23],
@@ -630,11 +633,6 @@ export function getWaveColorName(value: number): string {
 export function getFiveElementName(value: number): string {
   const names = ['金', '木', '水', '火', '土'];
   return names[value % 5];
-}
-
-export function getZodiacName(position: number): string {
-  const pos = ((position - 1) % 12) + 1;
-  return ZODIAC_NAMES[pos] || '鼠';
 }
 
 export function resultToText(value: number, resultType: string, zodiacYear: number, customTypes: CustomResultType[] = []): string {
