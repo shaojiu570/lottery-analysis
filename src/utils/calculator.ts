@@ -204,7 +204,12 @@ export function countHitsPerPeriod(
   if (targetPeriod) {
     // 回溯模式：按照目标期数起算的历史数据
     let startIndex = historyData.findIndex(d => d.period === targetPeriod);
-    if (startIndex === -1) startIndex = 0;
+    if (startIndex === -1) {
+      startIndex = 0;
+    } else {
+      // 跳过目标期本身
+      startIndex = startIndex + 1;
+    }
     for (let i = 0; i < displayCount && startIndex + i < historyData.length; i++) {
       periodsToCount.push(historyData[startIndex + i].period);
     }
@@ -290,6 +295,9 @@ export function groupByResultType(
     let startIndex = historyData.findIndex(d => d.period === targetPeriod);
     if (startIndex === -1) {
       startIndex = 0;
+    } else {
+      // 跳过目标期本身，仅使用其之后的历史数据作为统计基准
+      startIndex = startIndex + 1;
     }
     const dataToAnalyze = historyData.slice(startIndex, Math.min(startIndex + periodsToAnalyze, historyData.length));
 
