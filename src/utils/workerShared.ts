@@ -193,14 +193,11 @@ export function verifyFormula(
       summaryZodiacYear = getZodiacYearByPeriod(lastRes.period);
     }
   } else {
-    const calcData = historyData[0];
-    if (calcData) {
-      const cache = precomputedMap.get(calcData.period)?.find(p => p.useSort === useSort)?.elementValues;
-      const rawResult = evaluateExpression(parsed.expression, calcData, useSort, customElements, cache);
-      const cycledResult = applyCycle(rawResult + offset, parsed.resultType, customResultTypes);
-      latestResultsForSummary = getExpandedResults(cycledResult, leftExpand, rightExpand, parsed.resultType, customResultTypes);
-      // 预测最新期+1
-      summaryZodiacYear = getZodiacYearByPeriod(calcData.period + 1);
+    // 预测模式：使用最后一次验证的结果作为预测结果
+    if (periodResults.length > 0) {
+      const lastRes = periodResults[periodResults.length - 1];
+      latestResultsForSummary = lastRes.expandedResults;
+      summaryZodiacYear = getZodiacYearByPeriod(lastRes.period + 1); // 预测下一期的生肖年份
     }
   }
 
@@ -550,9 +547,17 @@ export function evaluateExpression(
       }
     }
   } else {
-    // 动态计算（较慢）
-    // 这种情况下我们需要知道所有可能的元素名称，或者递归解析
-    // 这里简单处理：目前公式解析后通常只剩下标准元素名
+    // 动态计算（较慢）- 修复：必须计算元素值
+    // 使用正则表达式匹配所有可能的元素名称
+    const elementPattern = /[平\d]+[号头尾合合头合尾波段行肖位特号头尾合合头合尾波段行肖位期数总分上期数星期]+/g;
+    const matches = normalized.match(elementPattern);
+    
+    if (matches) {
+      for (const element of matches) {
+        const elementValue = calculateElementValue(element, data);
+        normalized = normalized.split(element).join(elementValue.toString());
+      }
+    }
   }
   
   // 4. 清理并计算
