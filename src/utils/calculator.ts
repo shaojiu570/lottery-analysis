@@ -265,7 +265,12 @@ export function groupByResultType(
     // 回溯模式：统计历史数据中各结果类型的实际分布情况
     // 确定统计范围：取最近的验证期数或默认最近10期
     const periodsToAnalyze = results.length > 0 ? results[0].totalPeriods : 10;
-    const dataToAnalyze = historyData.slice(0, Math.min(periodsToAnalyze, historyData.length));
+    // 确保从目标期数开始向后取 periodsToAnalyze 期数据（而非始终取最新几期）
+    let startIndex = historyData.findIndex(d => d.period === targetPeriod);
+    if (startIndex === -1) {
+      startIndex = 0;
+    }
+    const dataToAnalyze = historyData.slice(startIndex, Math.min(startIndex + periodsToAnalyze, historyData.length));
 
     // 对每种结果类型，统计历史开奖记录的分布
     const allTypes = Array.from(byType.keys());

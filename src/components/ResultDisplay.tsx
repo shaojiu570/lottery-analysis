@@ -59,7 +59,7 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
     // 第二层统计：使用历史开奖记录的固定统计（固定不变）
     const { countsMap, formulaCountByType } = groupByResultType(results, historyData, targetPeriod);
     return {
-      hitsPerPeriod: countHitsPerPeriod(allNumberCounts, historyData, results[0]?.targetPeriod, results[0]?.totalPeriods || 10),
+      hitsPerPeriod: countHitsPerPeriod(allNumberCounts, historyData, targetPeriod || results[0]?.targetPeriod, results[0]?.totalPeriods || 10),
       groupedResults: countsMap,
       formulaCountByType,
       allNumberCounts,
