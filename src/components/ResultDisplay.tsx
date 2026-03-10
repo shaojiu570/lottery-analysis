@@ -1,7 +1,7 @@
 import { useRef, useEffect, useMemo, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { VerifyResult, LotteryData, ResultType } from '@/types';
 import { formatFormula, ParseError } from '@/utils/formulaParser';
-import { countHitsPerPeriod, groupByResultType, aggregateAllNumbers, groupFormulaResults } from '../utils/calculator';
+import { groupByResultType, groupFormulaResults, countHitsPerPeriod, aggregateAllNumbers } from '../utils/calculator';
 import { resultToText, getNumberAttribute } from '@/utils/mappings';
 
 interface ResultDisplayProps {
@@ -54,8 +54,8 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
     if (results.length === 0) {
       return { hitsPerPeriod: [], groupedResults: new Map(), formulaCountByType: new Map(), allNumberCounts: new Map() };
     }
-    // 修复：使用公式结果统计，而不是历史开奖统计
-    const { countsMap, formulaCountByType } = groupFormulaResults(results);
+    // 第二层统计：使用历史开奖记录的固定统计（固定不变）
+    const { countsMap, formulaCountByType } = groupByResultType(results, historyData);
     return {
       hitsPerPeriod: countHitsPerPeriod(results, historyData),
       groupedResults: countsMap,

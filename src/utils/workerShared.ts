@@ -78,22 +78,37 @@ export function verifyFormula(
   // 构建用于计算的索引列表
   const verifyIndices: number[] = [];
   if (targetPeriod) {
-    // 回溯模式：使用目标期之前的数据来预测目标期
-    const idx = historyData.findIndex(d => d.period === targetPeriod);
-    if (idx !== -1) {
-      if (descending) {
-        // 目标期在开头，后面的元素是之前的期数
-        for (let k = idx + 1; k < historyData.length && verifyIndices.length < periods; k++) {
-          verifyIndices.push(k);
-        }
-      } else {
-        // 升序历史：目标期在末尾，前面的元素是之前的期数
-        for (let k = idx - 1; k >= 0 && verifyIndices.length < periods; k--) {
-          verifyIndices.push(k);
+      // 回溯模式：使用目标期之前的数据来预测目标期
+      const idx = historyData.findIndex(d => d.period === targetPeriod);
+      if (idx !== -1) {
+        if (descending) {
+          // 目标期在开头，后面的元素是之前的期数
+          // 修复：确保有足够的历史数据进行回溯
+          for (let k = idx + 1; k < historyData.length && verifyIndices.length < periods; k++) {
+            verifyIndices.push(k);
+          }
+        } else {
+          // 升序历史：目标期在末尾，前面的元素是之前的期数
+          // 修复：确保有足够的历史数据进行回溯
+          for (let k = idx - 1; k >= 0 && verifyIndices.length < periods; k--) {
+            verifyIndices.push(k);
+          }
         }
       }
-    }
-  } else {
+      // 如果没有找到目标期或历史数据不足，使用默认逻辑
+      if (verifyIndices.length === 0) {
+        // 回退到预测模式逻辑
+        if (descending) {
+          for (let k = 0; k < periods && k < historyData.length; k++) {
+            verifyIndices.push(k);
+          }
+        } else {
+          for (let k = historyData.length - periods; k < historyData.length && k >= 0; k++) {
+            verifyIndices.push(k);
+          }
+        }
+      }
+    } else {
     // 预测模式：使用最新的历史数据来预测未来期
     // 取最新的 periods 期数据用于计算预测
     if (descending) {
