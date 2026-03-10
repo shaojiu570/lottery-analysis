@@ -291,12 +291,43 @@ export function groupByResultType(
   for (const [type, typeResults] of byType) {
     const typeMap = new Map<string, number>();
 
-    // 对于尾数类，希望显示所有0-9尾，即使未被预测
-    if (type === '尾数类') {
-      for (let i = 0; i < 10; i++) {
-        const text = resultToText(i, type, 1);
-        typeMap.set(text, 0);
+    // 初始化所有可能的结果值为0（保证全部展示）
+    const allPossibleValues: string[] = [];
+    if (type === '肖位类') {
+      for (let i = 1; i <= 12; i++) {
+        allPossibleValues.push(resultToText(i, type, 1));
       }
+    } else if (type === '单特类') {
+      for (let i = 1; i <= 49; i++) {
+        allPossibleValues.push(resultToText(i, type, 1));
+      }
+    } else if (type === '波色类') {
+      for (let i = 0; i < 3; i++) {
+        allPossibleValues.push(resultToText(i, type, 1));
+      }
+    } else if (type === '五行类') {
+      for (let i = 0; i < 5; i++) {
+        allPossibleValues.push(resultToText(i, type, 1));
+      }
+    } else if (type === '头数类') {
+      for (let i = 0; i < 5; i++) {
+        allPossibleValues.push(resultToText(i, type, 1));
+      }
+    } else if (type === '合数类') {
+      for (let i = 1; i <= 13; i++) {
+        allPossibleValues.push(resultToText(i, type, 1));
+      }
+    } else if (type === '尾数类') {
+      for (let i = 0; i < 10; i++) {
+        allPossibleValues.push(resultToText(i, type, 1));
+      }
+    } else if (type === '大小单双类') {
+      for (let i = 0; i < 4; i++) {
+        allPossibleValues.push(resultToText(i, type, 1));
+      }
+    }
+    for (const val of allPossibleValues) {
+      typeMap.set(val, 0);
     }
 
     for (const result of typeResults) {
