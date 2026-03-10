@@ -128,13 +128,11 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
       const totalNumbers = Array.from(allNumberCounts.values()).reduce((sum, c) => sum + c, 0);
       lines.push(`【全码类结果】${resultPeriodLabel}期:`);
       sortedCounts.forEach(([count, numbers]) => {
-        if (count > 0) {  // 只显示被预测到的号码（计数 > 0）
-          const numStr = numbers.sort((a, b) => a - b).map(n => {
-            const str = n.toString().padStart(2, '0');
-            return str === teNumStr ? `${str}★` : str;
-          }).join(',');
-          lines.push(`〖${count}次〗：${numStr}（共${numbers.length}码）`);
-        }
+        const numStr = numbers.sort((a, b) => a - b).map(n => {
+          const str = n.toString().padStart(2, '0');
+          return str === teNumStr ? `${str}★` : str;
+        }).join(',');
+        lines.push(`〖${count}次〗：${numStr}（共${numbers.length}码）`);
       });
       lines.push(`本次运算共${formulaCount}行, 总计${totalNumbers}码`);
     }
