@@ -188,51 +188,67 @@ export function verifyFormulas(
 }
 
 // 统计每期全码类结果中各号码出现的次数
-// 基于全码类结果统计每期特码的预测次数
-export function countHitsPerPeriod(allNumberCounts: Map<number, number>, historyData: LotteryData[], targetPeriod?: number, periods: number = 10): number[] {
+// 对于预测模式，使用 allNumberCounts；对于回溯模式，使用 results.periodResults
+export function countHitsPerPeriod(
+  results: VerifyResult[],
+  allNumberCounts: Map<number, number>,
+  historyData: LotteryData[],
+  targetPeriod?: number,
+  periods: number = 10
+): number[] {
   if (historyData.length === 0) return [];
-  
-  // 获取要统计的期数（最多10期用于显示）
+
   const displayCount = Math.min(periods, 10);
   let periodsToCount: number[] = [];
-  
+
   if (targetPeriod) {
-    // 回溯模式：从目标期数开始向后取periods期
-    let startIndex = 0;
-    const targetIdx = historyData.findIndex(d => d.period === targetPeriod);
-    if (targetIdx !== -1) {
-      startIndex = targetIdx;
-    }
-    
+    // 回溯模式：按照目标期数起算的历史数据
+    let startIndex = historyData.findIndex(d => d.period === targetPeriod);
+    if (startIndex === -1) startIndex = 0;
     for (let i = 0; i < displayCount && startIndex + i < historyData.length; i++) {
       periodsToCount.push(historyData[startIndex + i].period);
     }
   } else {
-    // 预测模式：统计最近10期
+    // 预测模式：最近的 displayCount 期
     periodsToCount = historyData.slice(-displayCount).map(d => d.period);
   }
-  
-  // 初始化计数数组
+
   const counts: number[] = [];
-  
-  // 对每个期数，获取特码在全码类结果中的预测次数
+
   for (const period of periodsToCount) {
-    // 找到该期的开奖数据
     const periodData = historyData.find(d => d.period === period);
     if (!periodData) {
       counts.push(0);
       continue;
     }
-    
-    // 获取该期的实际特码
     const actualTeNum = periodData.numbers[6];
-    
-    // 特码的预测次数
-    const hitCount = allNumberCounts.get(actualTeNum) || 0;
+
+    let hitCount = 0;
+    if (targetPeriod) {
+      // 回溯：对每个公式查找该期对应的 periodResults
+      for (const result of results) {
+        const pr = result.periodResults.find(pr => pr.period === period);
+        if (pr) {
+          const zodiacYear = getZodiacYearByPeriod(pr.period);
+          for (const value of pr.expandedResults) {
+            const nums = convertResultToNumbers(
+              resultToText(value, result.formula.resultType, zodiacYear),
+              result.formula.resultType,
+              zodiacYear
+            );
+            for (const num of nums) {
+              if (num === actualTeNum) hitCount++;
+            }
+          }
+        }
+      }
+    } else {
+      // 预测：直接从全码统计中取值
+      hitCount = allNumberCounts.get(actualTeNum) || 0;
+    }
     counts.push(hitCount);
   }
-  
-  // 反转数组，让最右边是最新的一期（在指定范围内）
+
   return counts.reverse();
 }
 
