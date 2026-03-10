@@ -225,20 +225,25 @@ export function countHitsPerPeriod(
 
     let hitCount = 0;
     if (targetPeriod) {
-      // 回溯：对每个公式查找该期对应的 periodResults
+      // 回溯：统计每个公式是否命中过本期特码（每公式计1次）
       for (const result of results) {
         const pr = result.periodResults.find(pr => pr.period === period);
         if (pr) {
           const zodiacYear = getZodiacYearByPeriod(pr.period);
+          let formulaHit = false;
           for (const value of pr.expandedResults) {
             const nums = convertResultToNumbers(
               resultToText(value, result.formula.resultType, zodiacYear),
               result.formula.resultType,
               zodiacYear
             );
-            for (const num of nums) {
-              if (num === actualTeNum) hitCount++;
+            if (nums.includes(actualTeNum)) {
+              formulaHit = true;
+              break;
             }
+          }
+          if (formulaHit) {
+            hitCount++;
           }
         }
       }
