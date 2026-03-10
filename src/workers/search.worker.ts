@@ -1,6 +1,6 @@
 import type { LotteryData, ResultType, CustomElement, CustomResultType, AliasMapping } from '../types';
 import * as shared from '../utils/workerShared';
-import { parseFormula } from '../utils/formulaParser';
+import { parseFormula, generateFormulaKey } from '../utils/formulaParser';
 
 // 存储自定义数据
 let workerCustomElements: CustomElement[] = [];
@@ -20,14 +20,16 @@ const ELEMENT_GROUPS = {
   段数组: ['平1段', '平2段', '平3段', '平4段', '平5段', '平6段', '特段'],
   肖位数组: ['平1肖位', '平2肖位', '平3肖位', '平4肖位', '平5肖位', '平6肖位', '特肖位'],
   号数组: ['平1号', '平2号', '平3号', '平4号', '平5号', '平6号', '特号'],
+  合头数组: ['平1合头', '平2合头', '平3合头', '平4合头', '平5合头', '平6合头'],
+  合尾数组: ['平1合尾', '平2合尾', '平3合尾', '平4合尾', '平5合尾', '平6合尾'],
   外部数据组: ['星期'],  // 简化：只保留星期元素
 };
 
 // 结果类型与元素组的映射
 const RESULT_TYPE_ELEMENT_MAP: Record<ResultType, string[]> = {
-  '尾数类': ['尾数组', '期数组', '合数组', '外部数据组'],
-  '头数类': ['头数组', '期数组', '外部数据组'],
-  '合数类': ['合数组', '期数组', '总分组', '外部数据组'],
+  '尾数类': ['尾数组', '期数组', '合数组', '合尾数组', '外部数据组'],
+  '头数类': ['头数组', '期数组', '合头数组', '外部数据组'],
+  '合数类': ['合数组', '期数组', '总分组', '合头数组', '合尾数组', '外部数据组'],
   '波色类': ['波数组', '期数组', '外部数据组'],
   '五行类': ['行数组', '期数组', '外部数据组'],
   '肖位类': ['肖位数组', '期数组', '外部数据组'],
@@ -517,9 +519,9 @@ function buildComplexFormulas(
   const seenFormulaKeys = new Set<string>(); // 新增：标准化公式键集合
   
   // 使用模式学习的元素数量建议
-  const suggestedCount = pattern?.elementCount || 3;
+  const suggestedCount = pattern?.elementCount || 5; // 增加默认元素数量
   const minElements = Math.max(2, suggestedCount - 2);
-  const maxElements = Math.min(8, suggestedCount + 3);
+  const maxElements = Math.min(12, suggestedCount + 3); // 增加最大元素数量
   
   for (const [elem1, elem2] of topPairs) {
     // 2元素公式 - 当前类型
@@ -668,8 +670,6 @@ function crossTypeFormulas(
 }
 
 // 验证公式字符串
-import { parseFormula, generateFormulaKey } from '../utils/formulaParser';
-
 function verifyFormulaString(
   formulaStr: string,
   historyData: LotteryData[],
@@ -890,7 +890,7 @@ function optimizedSearch(
       
       // 使用智能元素选择
       const allAvailableElements = getAllAvailableElements(currentResultType);
-      const currentElementCount = 2 + Math.floor(Math.random() * 4);
+      const currentElementCount = 3 + Math.floor(Math.random() * 7); // 3-9个元素，控制组合数量
       const shuffled = [...allAvailableElements].sort(() => Math.random() - 0.5);
       const selected = shuffled.slice(0, currentElementCount);
       

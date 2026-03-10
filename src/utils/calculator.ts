@@ -1,6 +1,6 @@
 import { LotteryData, ResultType, VerifyResult, PeriodResult } from '@/types';
 import { calculateElementValue, normalizeElementName } from './elements';
-import { applyCycle, getExpandedResults, getNumberAttribute, resultToText, getZodiacMap } from './mappings';
+import { applyCycle, getExpandedResults, getNumberAttribute, resultToText, getZodiacMap, getZodiacYearByPeriod } from './mappings';
 import { ParsedFormula } from './formulaParser';
 import { getCustomElements, getCustomResultTypes } from './storage';
 import * as shared from './workerShared';
@@ -450,11 +450,11 @@ export function aggregateAllNumbers(results: VerifyResult[]): Map<number, number
       // 寻找对应的 zodiacYear：如果是预测模式，使用最新期+1
       let evalZodiacYear = 7;
       if (result.targetPeriod) {
-        evalZodiacYear = shared.getZodiacYearByPeriod(result.targetPeriod);
+        evalZodiacYear = getZodiacYearByPeriod(result.targetPeriod);
       } else if (result.periodResults.length > 0) {
         // 预测模式，取最新一条记录的期数+1
         const latestRecorded = result.periodResults[result.periodResults.length - 1].period;
-        evalZodiacYear = shared.getZodiacYearByPeriod(latestRecorded);
+        evalZodiacYear = getZodiacYearByPeriod(latestRecorded);
       }
 
       const numbers = convertResultToNumbers(resText, type, evalZodiacYear);
