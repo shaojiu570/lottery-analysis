@@ -54,13 +54,15 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
     if (results.length === 0) {
       return { hitsPerPeriod: [], groupedResults: new Map(), formulaCountByType: new Map(), allNumberCounts: new Map() };
     }
+    // 计算全码类结果统计
+    const allNumberCounts = aggregateAllNumbers(results);
     // 第二层统计：使用历史开奖记录的固定统计（固定不变）
     const { countsMap, formulaCountByType } = groupByResultType(results, historyData);
     return {
-      hitsPerPeriod: countHitsPerPeriod(results, historyData),
+      hitsPerPeriod: countHitsPerPeriod(allNumberCounts, historyData, results[0]?.targetPeriod, results[0]?.totalPeriods || 10),
       groupedResults: countsMap,
       formulaCountByType,
-      allNumberCounts: aggregateAllNumbers(results),
+      allNumberCounts,
     };
   }, [results, historyData, targetPeriod, latestPeriod]);
 
