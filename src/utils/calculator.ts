@@ -287,95 +287,19 @@ export function groupByResultType(
     formulaCountByType.set(type, typeResults.length);
   });
 
-  if (targetPeriod) {
-    // 回溯模式：统计历史数据中各结果类型的实际分布情况
-    // 确定统计范围：取最近的验证期数或默认最近10期
-    const periodsToAnalyze = results.length > 0 ? results[0].totalPeriods : 10;
-    // 确保从目标期数开始向后取 periodsToAnalyze 期数据（而非始终取最新几期）
-    let startIndex = historyData.findIndex(d => d.period === targetPeriod);
-    if (startIndex === -1) {
-      startIndex = 0;
-    } else {
-      // 跳过目标期本身，仅使用其之后的历史数据作为统计基准
-      startIndex = startIndex + 1;
+  // 无论是否在回溯，都只统计当前预测结果中的各结果值出现次数
+  for (const [type, typeResults] of byType) {
+    const typeMap = new Map<string, number>();
+
+    for (const result of typeResults) {
+      // 使用 Set 避免同一公式内的重复结果
+      const uniqueResults = new Set(result.results);
+      for (const res of uniqueResults) {
+        typeMap.set(res, (typeMap.get(res) || 0) + 1);
+      }
     }
-    const dataToAnalyze = historyData.slice(startIndex, Math.min(startIndex + periodsToAnalyze, historyData.length));
 
-    // 对每种结果类型，统计历史开奖记录的分布
-    const allTypes = Array.from(byType.keys());
-    for (const type of allTypes) {
-      const typeMap = new Map<string, number>();
-
-      // 初始化所有可能的结果值为0
-      const allPossibleValues: string[] = [];
-      if (type === '肖位类') {
-        for (let i = 1; i <= 12; i++) {
-          allPossibleValues.push(resultToText(i, type, 1)); // 使用默认生肖年份
-        }
-      } else if (type === '单特类') {
-        for (let i = 1; i <= 49; i++) {
-          allPossibleValues.push(resultToText(i, type, 1));
-        }
-      } else if (type === '波色类') {
-        for (let i = 0; i < 3; i++) {
-          allPossibleValues.push(resultToText(i, type, 1));
-        }
-      } else if (type === '五行类') {
-        for (let i = 0; i < 5; i++) {
-          allPossibleValues.push(resultToText(i, type, 1));
-        }
-      } else if (type === '头数类') {
-        for (let i = 0; i < 5; i++) {
-          allPossibleValues.push(resultToText(i, type, 1));
-        }
-      } else if (type === '合数类') {
-        for (let i = 1; i <= 13; i++) {
-          allPossibleValues.push(resultToText(i, type, 1));
-        }
-      } else if (type === '尾数类') {
-        for (let i = 0; i < 10; i++) {
-          allPossibleValues.push(resultToText(i, type, 1));
-        }
-      } else if (type === '大小单双类') {
-        for (let i = 0; i < 4; i++) {
-          allPossibleValues.push(resultToText(i, type, 1));
-        }
-      }
-
-      // 初始化计数
-      for (const val of allPossibleValues) {
-        typeMap.set(val, 0);
-      }
-
-      // 统计历史数据中该类型的结果分布
-      for (const data of dataToAnalyze) {
-        const teNum = data.numbers[6];
-        const zodiacYear = data.zodiacYear;
-        const attrValue = getNumberAttribute(teNum, type, zodiacYear);
-        const attrText = resultToText(attrValue, type, zodiacYear);
-
-        if (typeMap.has(attrText)) {
-          typeMap.set(attrText, typeMap.get(attrText)! + 1);
-        }
-      }
-
-      grouped.set(type, typeMap);
-    }
-  } else {
-    // 预测模式：统计当前预测结果中各结果值的出现次数
-    for (const [type, typeResults] of byType) {
-      const typeMap = new Map<string, number>();
-
-      for (const result of typeResults) {
-        // 使用 Set 避免同一公式内的重复结果
-        const uniqueResults = new Set(result.results);
-        for (const res of uniqueResults) {
-          typeMap.set(res, (typeMap.get(res) || 0) + 1);
-        }
-      }
-
-      grouped.set(type, typeMap);
-    }
+    grouped.set(type, typeMap);
   }
 
   return { countsMap: grouped, formulaCountByType };
