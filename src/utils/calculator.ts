@@ -291,6 +291,14 @@ export function groupByResultType(
   for (const [type, typeResults] of byType) {
     const typeMap = new Map<string, number>();
 
+    // 对于尾数类，希望显示所有0-9尾，即使未被预测
+    if (type === '尾数类') {
+      for (let i = 0; i < 10; i++) {
+        const text = resultToText(i, type, 1);
+        typeMap.set(text, 0);
+      }
+    }
+
     for (const result of typeResults) {
       // 使用 Set 避免同一公式内的重复结果
       const uniqueResults = new Set(result.results);
