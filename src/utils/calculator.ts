@@ -208,18 +208,20 @@ export function countHitsPerPeriod(
     // 验证模式：统计目标期数之前的10期
     target = targetPeriod;
   } else {
-    // 预测模式：统计最新期数之前的10期
-    target = historyData[historyData.length - 1]?.period || 0;
+    // 预测模式：取最新期数（降序排列，historyData[0]是最新的）
+    target = historyData[0]?.period || 0;
   }
 
   // 统计从 target - (displayCount - 1) 到 target 的期数
   const startPeriod = target - (displayCount - 1);
+  // 按期数升序收集（从旧到新）
   for (let p = startPeriod; p <= target; p++) {
     const data = historyData.find(d => d.period === p);
     if (data) {
       periodsToCount.push(p);
     }
   }
+  // 保持升序（从旧到新），后面会反转显示
 
   const counts: number[] = [];
 
