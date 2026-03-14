@@ -153,21 +153,21 @@ export function verifyFormula(
         hit = false;
       }
     } else {
-      // 预测模式：使用该期数据预测下一期
+      // 预测模式：始终预测未来期（最新期+1），不做回溯验证
+      // 始终用最新一期数据预测下一期，不管 historyData 中是否有对应期数
+      const latestPeriod = verifyData.period;
+      recordedPeriod = latestPeriod + 1;
+      
+      // 只有当有历史数据时可以计算命中率（针对已存在的期数）
       const predictedIdx = descending ? verifyIdx - 1 : verifyIdx + 1;
-      if (predictedIdx >= 0 && predictedIdx < historyData.length) {
-        // 预测的是已存在的期数（回溯验证）
+      if (predictedIdx >= 0 && predictedIdx < historyData.length && verifyIdx === (descending ? 0 : historyData.length - 1)) {
+        // 只对最新期计算命中率（避免回溯验证影响结果）
         const actualData = historyData[predictedIdx];
-        recordedPeriod = actualData.period;
         targetValue = getNumberAttribute(actualData.numbers[6], parsed.resultType, actualData.zodiacYear, customResultTypes);
         hit = expandedResults.includes(targetValue);
       } else {
-        // 预测的是未来期（即真正的预测）
-        // 获取下一期的期数（假设+1）
-        const latestPeriod = verifyData.period;
-        recordedPeriod = latestPeriod + 1;
         targetValue = NaN;
-        hit = false; // 未来期尚未开奖，命中未知
+        hit = false;
       }
     }
 
