@@ -630,10 +630,15 @@ export function applyCycle(value: number, resultType: string, customTypes: Custo
     if (ct) cycle = ct.mappings.length;
   }
 
-  const result = ((value % cycle) + cycle) % cycle;
+  let result = ((value % cycle) + cycle) % cycle;
   
+  // 肖位类和单特类需要从1开始
+  if ((resultType === '肖位类' || resultType === '单特类') && result === 0) {
+    result = cycle;
+  }
+  // 合数类需要从1开始
   if (resultType === '合数类' && result === 0) {
-    return 13;
+    result = 13;
   }
   
   return result;
