@@ -101,7 +101,8 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
     }
     const periodCounts = hitsPerPeriod.slice(-10).map(count => count.toString().padStart(2, '0')).join(',');
     const modeLabel = isVerifyMode ? `验证期数` : `预测期数`;
-    lines.push(`【近10期开出次数】${modeLabel} ${displayPeriod} 命中: ${periodCounts}`);
+    lines.push(`【近10期开出次数】${modeLabel} ${displayPeriod}`);
+    lines.push(`命中: ${periodCounts}`);
     lines.push('');
     const resultPeriodLabel = isVerifyMode ? displayPeriod : `预测${displayPeriod}`;
     groupedResults.forEach((counts, type) => {
