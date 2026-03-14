@@ -264,7 +264,7 @@ export function countHitsPerPeriod(
   if (targetPeriod !== null && targetPeriod !== undefined) {
     displayPeriod = targetPeriod;
   } else {
-    const latestPeriod = historyData[historyData.length - 1]?.period || 0;
+    const latestPeriod = historyData[0]?.period || 0;
     displayPeriod = latestPeriod + 1;
   }
 
