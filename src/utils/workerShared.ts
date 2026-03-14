@@ -140,17 +140,31 @@ export function verifyFormula(
     let recordedPeriod = verifyData.period; // 默认使用当前期作为展示
 
     if (targetPeriod) {
-      // 回溯模式：预测下一期（目标期）
-      const predictedIdx = descending ? verifyIdx - 1 : verifyIdx + 1;
-      if (predictedIdx >= 0 && predictedIdx < historyData.length) {
-        const actualData = historyData[predictedIdx];
-        recordedPeriod = actualData.period; // 用预测期作为记录
-        targetValue = getNumberAttribute(actualData.numbers[6], parsed.resultType, actualData.zodiacYear, customResultTypes);
-        hit = expandedResults.includes(targetValue);
+      // 验证模式：用目标期之前一期的数据计算，验证目标期
+      // verifyIdx = 0 对应最新期数据，但实际要验证的是 targetPeriod
+      // 只有当 verifyData.period === targetPeriod - 1 时，才是用目标期之前的数据计算
+      if (verifyData.period === targetPeriod - 1) {
+        const targetData = historyData.find(d => d.period === targetPeriod);
+        if (targetData) {
+          recordedPeriod = targetPeriod; // 用目标期作为记录
+          targetValue = getNumberAttribute(targetData.numbers[6], parsed.resultType, targetData.zodiacYear, customResultTypes);
+          hit = expandedResults.includes(targetValue);
+        } else {
+          targetValue = NaN;
+          hit = false;
+        }
       } else {
-        // 没有可比较的下一期
-        targetValue = NaN;
-        hit = false;
+        // 其他期数：正常用下一期数据计算（历史验证）
+        const predictedIdx = descending ? verifyIdx - 1 : verifyIdx + 1;
+        if (predictedIdx >= 0 && predictedIdx < historyData.length) {
+          const actualData = historyData[predictedIdx];
+          recordedPeriod = actualData.period;
+          targetValue = getNumberAttribute(actualData.numbers[6], parsed.resultType, actualData.zodiacYear, customResultTypes);
+          hit = expandedResults.includes(targetValue);
+        } else {
+          targetValue = NaN;
+          hit = false;
+        }
       }
     } else {
       // 预测模式：用该期数据预测下一期
@@ -170,9 +184,8 @@ export function verifyFormula(
       }
     }
 
-    if (targetValue !== undefined && !isNaN(targetValue)) {
-      hits.push(hit);
-    }
+    // 所有循环都计入 hits（包括未来期，虽然命中未知）
+    hits.push(hit);
 
     periodResults.push({
       period: recordedPeriod,
@@ -193,13 +206,12 @@ export function verifyFormula(
   let summaryZodiacYear = 7; // 默认
 
   if (targetPeriod) {
-    // 找到以目标期为记录的条目（预测的那一期）
-    const targetRes = periodResults.find(pr => pr.period === targetPeriod);
-    if (targetRes) {
-      latestResultsForSummary = targetRes.expandedResults;
-      // 使用目标期的开奖数据中的生肖年份，如果没有（未来期），则推算
-      const targetData = historyData.find(d => d.period === targetPeriod);
-      summaryZodiacYear = targetData?.zodiacYear || getZodiacYearByPeriod(targetPeriod);
+    // 验证模式：显示目标期之前一期（targetPeriod - 1）的计算结果，用于预测目标期
+    const calcRes = periodResults.find(pr => pr.period === targetPeriod - 1);
+    if (calcRes) {
+      latestResultsForSummary = calcRes.expandedResults;
+      const calcData = historyData.find(d => d.period === targetPeriod - 1);
+      summaryZodiacYear = calcData?.zodiacYear || getZodiacYearByPeriod(targetPeriod - 1);
     } else if (periodResults.length > 0) {
       // 兜底：取最后一条
       const lastRes = periodResults[periodResults.length - 1];
