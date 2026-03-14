@@ -207,11 +207,20 @@ export function verifyFormula(
       summaryZodiacYear = getZodiacYearByPeriod(lastRes.period);
     }
   } else {
-    // 预测模式：使用最后一次验证的结果作为预测结果
-    if (periodResults.length > 0) {
-      const lastRes = periodResults[periodResults.length - 1];
-      latestResultsForSummary = lastRes.expandedResults;
-      summaryZodiacYear = getZodiacYearByPeriod(lastRes.period + 1); // 预测下一期的生肖年份
+    // 预测模式：使用最新期（historyData[0]）的计算结果作为预测结果
+    if (periodResults.length > 0 && historyData.length > 0) {
+      const latestPeriod = historyData[0].period;
+      // 找到对应最新期计算的结果（recordedPeriod = latestPeriod + 1）
+      const latestRes = periodResults.find(pr => pr.period === latestPeriod + 1);
+      if (latestRes) {
+        latestResultsForSummary = latestRes.expandedResults;
+        summaryZodiacYear = getZodiacYearByPeriod(latestPeriod + 1);
+      } else {
+        // 兜底：用最后一条
+        const lastRes = periodResults[periodResults.length - 1];
+        latestResultsForSummary = lastRes.expandedResults;
+        summaryZodiacYear = getZodiacYearByPeriod(lastRes.period + 1);
+      }
     }
   }
 
