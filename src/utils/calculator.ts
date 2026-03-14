@@ -188,34 +188,37 @@ export function verifyFormulas(
 }
 
 // 统计每期全码类结果中各号码出现的次数
-// 对于预测模式，使用 allNumberCounts；对于回溯模式，使用 results.periodResults
+// 统一为历史数据统计：根据已开出的期数统计命中次数
 export function countHitsPerPeriod(
   results: VerifyResult[],
   allNumberCounts: Map<number, number>,
   historyData: LotteryData[],
-  targetPeriod?: number,
+  targetPeriod?: number | null,
   periods: number = 10
-): number[] {
-  if (historyData.length === 0) return [];
+): { counts: number[], displayPeriod: number, statsPeriods: number[] } {
+  if (historyData.length === 0) return { counts: [], displayPeriod: 0, statsPeriods: [] };
 
   const displayCount = Math.min(periods, 10);
   let periodsToCount: number[] = [];
 
-  if (targetPeriod) {
-    // 回溯模式：按照目标期数起算的历史数据
-    let startIndex = historyData.findIndex(d => d.period === targetPeriod);
-    if (startIndex === -1) {
-      startIndex = 0;
-    } else {
-      // 跳过目标期本身
-      startIndex = startIndex + 1;
-    }
-    for (let i = 0; i < displayCount && startIndex + i < historyData.length; i++) {
-      periodsToCount.push(historyData[startIndex + i].period);
-    }
+  // 预测模式：使用最新期数+1作为预测期，统计最新期数之前的10期
+  // 验证模式：使用目标期数作为验证期，统计目标期数之前的10期
+  let target: number;
+  if (targetPeriod !== null && targetPeriod !== undefined) {
+    // 验证模式：统计目标期数之前的10期
+    target = targetPeriod;
   } else {
-    // 预测模式：最近的 displayCount 期
-    periodsToCount = historyData.slice(-displayCount).map(d => d.period);
+    // 预测模式：统计最新期数之前的10期
+    target = historyData[historyData.length - 1]?.period || 0;
+  }
+
+  // 统计从 target - (displayCount - 1) 到 target 的期数
+  const startPeriod = target - (displayCount - 1);
+  for (let p = startPeriod; p <= target; p++) {
+    const data = historyData.find(d => d.period === p);
+    if (data) {
+      periodsToCount.push(p);
+    }
   }
 
   const counts: number[] = [];
@@ -229,37 +232,45 @@ export function countHitsPerPeriod(
     const actualTeNum = periodData.numbers[6];
 
     let hitCount = 0;
-    if (targetPeriod) {
-      // 回溯：统计每个公式是否命中过本期特码（每公式计1次）
-      for (const result of results) {
-        const pr = result.periodResults.find(pr => pr.period === period);
-        if (pr) {
-          const zodiacYear = getZodiacYearByPeriod(pr.period);
-          let formulaHit = false;
-          for (const value of pr.expandedResults) {
-            const nums = convertResultToNumbers(
-              resultToText(value, result.formula.resultType, zodiacYear),
-              result.formula.resultType,
-              zodiacYear
-            );
-            if (nums.includes(actualTeNum)) {
-              formulaHit = true;
-              break;
-            }
-          }
-          if (formulaHit) {
-            hitCount++;
+    // 无论预测还是回溯，都统计每个公式是否命中过本期特码（每公式计1次）
+    for (const result of results) {
+      const pr = result.periodResults.find(pr => pr.period === period);
+      if (pr) {
+        const zodiacYear = getZodiacYearByPeriod(pr.period);
+        let formulaHit = false;
+        for (const value of pr.expandedResults) {
+          const nums = convertResultToNumbers(
+            resultToText(value, result.formula.resultType, zodiacYear),
+            result.formula.resultType,
+            zodiacYear
+          );
+          if (nums.includes(actualTeNum)) {
+            formulaHit = true;
+            break;
           }
         }
+        if (formulaHit) {
+          hitCount++;
+        }
       }
-    } else {
-      // 预测：直接从全码统计中取值
-      hitCount = allNumberCounts.get(actualTeNum) || 0;
     }
     counts.push(hitCount);
   }
 
-  return counts.reverse();
+  // 计算显示期数：预测模式用最新期+1，验证模式用目标期
+  let displayPeriod: number;
+  if (targetPeriod !== null && targetPeriod !== undefined) {
+    displayPeriod = targetPeriod;
+  } else {
+    const latestPeriod = historyData[historyData.length - 1]?.period || 0;
+    displayPeriod = latestPeriod + 1;
+  }
+
+  return { 
+    counts: counts.reverse(), 
+    displayPeriod,
+    statsPeriods: [...periodsToCount].reverse()
+  };
 }
 
 // 按结果类型分组统计当前预测结果或历史统计
@@ -267,7 +278,7 @@ export function countHitsPerPeriod(
 export function groupByResultType(
   results: VerifyResult[],
   historyData: LotteryData[] = [],
-  targetPeriod?: number
+  targetPeriod?: number | null
 ): { countsMap: Map<ResultType, Map<string, number>>, formulaCountByType: Map<ResultType, number> } {
   const grouped = new Map<ResultType, Map<string, number>>();
   const formulaCountByType = new Map<ResultType, number>();

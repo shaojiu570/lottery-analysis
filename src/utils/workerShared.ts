@@ -592,9 +592,9 @@ export function evaluateExpression(
 export function getNumberAttribute(num: number, resultType: string, zodiacYear: number, customTypes: CustomResultType[] = []): number {
   switch (resultType) {
     case '尾数类': return num % 10;
-    case '头数类': return Math.floor(num / 10);
-    case '合数类': return digitSum(num);
-    case '波色类': return getWaveColor(num);
+    case '头数类': return num % 5;
+    case '合数类': return num % 13 || 13;
+    case '波色类': return num % 3;
     case '五行类': return getFiveElement(num, zodiacYear);
     case '肖位类': return getZodiacPosition(num, zodiacYear);
     case '单特类': return num;
@@ -630,10 +630,13 @@ export function applyCycle(value: number, resultType: string, customTypes: Custo
     if (ct) cycle = ct.mappings.length;
   }
 
-  if (resultType === '肖位类' || resultType === '单特类' || resultType === '合数类') {
-    return ((value - 1) % cycle + cycle) % cycle + 1;
+  const result = ((value % cycle) + cycle) % cycle;
+  
+  if (resultType === '合数类' && result === 0) {
+    return 13;
   }
-  return ((value % cycle) + cycle) % cycle;
+  
+  return result;
 }
 
 export function getExpandedResults(baseValue: number, leftExpand: number, rightExpand: number, resultType: string, customTypes: CustomResultType[] = []): number[] {

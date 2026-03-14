@@ -52,20 +52,23 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
   // 计算统计数据
   const stats = useMemo(() => {
     if (results.length === 0) {
-      return { hitsPerPeriod: [], groupedResults: new Map(), formulaCountByType: new Map(), allNumberCounts: new Map() };
+      return { hitsPerPeriod: [], displayPeriod: 0, statsPeriods: [], groupedResults: new Map(), formulaCountByType: new Map(), allNumberCounts: new Map() };
     }
     // 计算全码类结果统计
     const allNumberCounts = aggregateAllNumbers(results);
     // 第二层统计：使用历史开奖记录的固定统计（固定不变）
     const { countsMap, formulaCountByType } = groupByResultType(results, historyData, targetPeriod);
+    const hitStats = countHitsPerPeriod(
+      results,
+      allNumberCounts,
+      historyData,
+      targetPeriod,
+      results[0]?.totalPeriods || 10
+    );
     return {
-      hitsPerPeriod: countHitsPerPeriod(
-        results,
-        allNumberCounts,
-        historyData,
-        targetPeriod || results[0]?.targetPeriod,
-        results[0]?.totalPeriods || 10
-      ),
+      hitsPerPeriod: hitStats.counts,
+      displayPeriod: hitStats.displayPeriod,
+      statsPeriods: hitStats.statsPeriods,
       groupedResults: countsMap,
       formulaCountByType,
       allNumberCounts,
@@ -78,10 +81,9 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
       return '';
     }
 
-    const { hitsPerPeriod, groupedResults, formulaCountByType, allNumberCounts } = stats;
+    const { hitsPerPeriod, displayPeriod, statsPeriods, groupedResults, formulaCountByType, allNumberCounts } = stats;
     const lines: string[] = [];
     const isVerifyMode = targetPeriod !== null && targetPeriod !== undefined;
-    const displayPeriod = isVerifyMode ? targetPeriod : latestPeriod + 1;
     const verifyPeriodData = isVerifyMode ? historyData.find(d => d.period === targetPeriod) : null;
     const teNum = verifyPeriodData?.numbers[6];
     const targetZodiacYear = verifyPeriodData?.zodiacYear;
@@ -98,7 +100,11 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
       lines.push('');
     }
     const periodCounts = hitsPerPeriod.slice(-10).map(count => count.toString().padStart(2, '0')).join(',');
-    lines.push(`[近${Math.min(10, hitsPerPeriod.length)}期开出次数${periodCounts}]`);
+    const statsPeriodsStr = statsPeriods.slice(-10).map(p => p.toString().slice(-3)).join(' ');
+    const modeLabel = isVerifyMode ? `验证期数` : `预测期数`;
+    lines.push(`【近10期开出次数】${modeLabel} ${displayPeriod}`);
+    lines.push(`  期数: ${statsPeriodsStr}`);
+    lines.push(`  命中: ${periodCounts}`);
     lines.push('');
     const resultPeriodLabel = isVerifyMode ? displayPeriod : `预测${displayPeriod}`;
     groupedResults.forEach((counts, type) => {
