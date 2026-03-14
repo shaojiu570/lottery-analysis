@@ -236,9 +236,11 @@ export function countHitsPerPeriod(
     let hitCount = 0;
     // 无论预测还是回溯，都统计每个公式是否命中过本期特码（每公式计1次）
     for (const result of results) {
+      // 找到该期对应的预测结果（recordedPeriod = period）
+      // 验证模式下：period = 059 表示用 058 期数据验证 059 期
       const pr = result.periodResults.find(pr => pr.period === period);
       if (pr) {
-        const zodiacYear = getZodiacYearByPeriod(pr.period);
+        const zodiacYear = getZodiacYearByPeriod(period);
         let formulaHit = false;
         for (const value of pr.expandedResults) {
           const nums = convertResultToNumbers(
