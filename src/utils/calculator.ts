@@ -201,16 +201,9 @@ export function countHitsPerPeriod(
   const displayCount = Math.min(periods, 10);
   let periodsToCount: number[] = [];
 
-  // 预测模式：使用最新期数+1作为预测期，统计最新期数之前的10期
-  // 验证模式：使用目标期数作为验证期，统计目标期数之前的10期
-  let target: number;
-  if (targetPeriod !== null && targetPeriod !== undefined) {
-    // 验证模式：统计目标期数之前的10期
-    target = targetPeriod;
-  } else {
-    // 预测模式：取最新期数（降序排列，historyData[0]是最新的）
-    target = historyData[0]?.period || 0;
-  }
+  // 统一使用最新期数之前10期进行统计（预测和验证模式一致）
+  const latestPeriod = historyData[0]?.period || 0;
+  const target = latestPeriod;
 
   // 统计从 target - (displayCount - 1) 到 target 的期数
   const startPeriod = target - (displayCount - 1);
