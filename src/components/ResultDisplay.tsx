@@ -98,9 +98,19 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
     results.forEach((result, index) => {
       // 获取要显示的10期数据（根据验证目标期数）
       const savedTargetPeriod = result.targetPeriod;
-      const statsTarget = savedTargetPeriod !== null && savedTargetPeriod !== undefined 
-        ? savedTargetPeriod - 1  // 验证模式：统计目标期之前10期
-        : latestPeriod - 1;       // 预测模式：统计最新期之前10期
+      
+      // 验证模式：用目标期-1；预测模式：用最新期-1
+      let statsTarget: number;
+      if (savedTargetPeriod !== null && savedTargetPeriod !== undefined) {
+        statsTarget = savedTargetPeriod - 1;
+      } else if (targetPeriod !== null && targetPeriod !== undefined) {
+        // 如果 props 中的 targetPeriod 有值（验证模式）
+        statsTarget = targetPeriod - 1;
+      } else {
+        // 预测模式
+        statsTarget = latestPeriod - 1;
+      }
+      
       const startPeriod = statsTarget - 9;
       
       // 从 periodResults 中提取这10期的命中数据
