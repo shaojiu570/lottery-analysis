@@ -95,53 +95,21 @@ export function verifyFormula(
 
     let targetValue: number;
     let hit: boolean;
-    let recordedPeriod = verifyData.period; // 默认使用当前期作为展示
+    let recordedPeriod: number;
 
-    if (targetPeriod) {
-      // 验证模式：用目标期之前一期的数据计算，验证目标期
-      // verifyIdx = 0 对应最新期数据，但实际要验证的是 targetPeriod
-      // 只有当 verifyData.period === targetPeriod - 1 时，才是用目标期之前的数据计算
-      if (verifyData.period === targetPeriod - 1) {
-        const targetData = historyData.find(d => d.period === targetPeriod);
-        if (targetData) {
-          recordedPeriod = targetPeriod; // 用目标期作为记录
-          targetValue = getNumberAttribute(targetData.numbers[6], parsed.resultType, targetData.zodiacYear, customResultTypes);
-          hit = expandedResults.includes(targetValue);
-        } else {
-          targetValue = NaN;
-          hit = false;
-        }
-    } else {
-      // 其他期数：正常用下一期数据计算（历史验证）
-      const predictedPeriod = verifyPeriod + 1;
-      const actualData = historyData.find(d => d.period === predictedPeriod);
-      if (actualData) {
-        recordedPeriod = actualData.period;
-        targetValue = getNumberAttribute(actualData.numbers[6], parsed.resultType, actualData.zodiacYear, customResultTypes);
-        hit = expandedResults.includes(targetValue);
-      } else {
-        // 没有下一期数据时，记录该期但不做验证（用于后续统计）
-        recordedPeriod = verifyPeriod;
-        targetValue = NaN;
-        hit = false;
-      }
-    }
-  } else {
-    // 预测模式：用该期数据预测下一期
+    // 预测模式/验证模式：都是用下一期数据验证
     const predictedPeriod = verifyPeriod + 1;
     const actualData = historyData.find(d => d.period === predictedPeriod);
     if (actualData) {
-      // 预测的是已存在的期数（历史验证）
       recordedPeriod = actualData.period;
       targetValue = getNumberAttribute(actualData.numbers[6], parsed.resultType, actualData.zodiacYear, customResultTypes);
       hit = expandedResults.includes(targetValue);
     } else {
-      // 预测的是未来期（真正的预测）
-      recordedPeriod = verifyPeriod + 1;
+      // 没有下一期数据时，记录该期但不做验证（用于后续统计）
+      recordedPeriod = verifyPeriod;
       targetValue = NaN;
       hit = false;
     }
-  }
 
     // 所有循环都计入 hits（包括未来期，虽然命中未知）
     hits.push(hit);
