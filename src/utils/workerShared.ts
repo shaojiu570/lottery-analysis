@@ -74,8 +74,10 @@ export function verifyFormula(
   
   // 近10期窗口移动：构造固定的窗口范围
   const latestPeriod = historyData[0]?.period ?? 0;
-  let endPeriod = targetPeriod ? targetPeriod - 1 : latestPeriod - 1;
-  if (endPeriod < 0) endPeriod = Math.max(0, latestPeriod - 1);
+  // 预测模式：窗口为 latestPeriod-9 到 latestPeriod
+  // 验证模式：窗口为 targetPeriod-10 到 targetPeriod-1
+  let endPeriod = targetPeriod ? targetPeriod - 1 : latestPeriod;
+  if (endPeriod < 0) endPeriod = Math.max(0, latestPeriod);
   const startPeriod = endPeriod - 9;
   const verifyPeriods: number[] = [];
   for (let p = startPeriod; p <= endPeriod; p++) verifyPeriods.push(p);
