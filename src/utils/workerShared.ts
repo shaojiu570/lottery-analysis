@@ -72,31 +72,22 @@ export function verifyFormula(
   const hits = [];
   const useSort = parsed.rule === 'D';
   
-  // 确定是否为降序历史（新期在前）
-  const descending = historyData.length > 1 && historyData[0].period > historyData[1].period;
-
-  // 构建用于计算的索引列表
-  const verifyIndices: number[] = [];
-  
-  // 验证模式和预测模式都使用最新 periods 期数据来计算，保证结果一致
-  if (descending) {
-    // 降序：最新的在前面
-    for (let k = 0; k < periods && k < historyData.length; k++) {
-      verifyIndices.push(k);
-    }
-  } else {
-    // 升序：最新的在后面
-    for (let k = historyData.length - periods; k < historyData.length && k >= 0; k--) {
-      verifyIndices.push(k);
-    }
-  }
+  // 近10期窗口移动：构造固定的窗口范围
+  const latestPeriod = historyData[0]?.period ?? 0;
+  let endPeriod = targetPeriod ? targetPeriod - 1 : latestPeriod - 1;
+  if (endPeriod < 0) endPeriod = Math.max(0, latestPeriod - 1);
+  const startPeriod = endPeriod - 9;
+  const verifyPeriods: number[] = [];
+  for (let p = startPeriod; p <= endPeriod; p++) verifyPeriods.push(p);
   
   // 执行验证计算
-  for (let i = 0; i < verifyIndices.length; i++) {
-    const verifyIdx = verifyIndices[i];
-    const verifyData = historyData[verifyIdx];
-    const cache = precomputedMap.get(verifyData.period)?.find(p => p.useSort === useSort)?.elementValues;
-    const rawResult = evaluateExpression(parsed.expression, verifyData, useSort, customElements, cache);
+  for (let i = 0; i < verifyPeriods.length; i++) {
+    const verifyPeriod = verifyPeriods[i];
+    let verifyData = historyData.find(d => d.period === verifyPeriod);
+    if (!verifyData) verifyData = { period: verifyPeriod, numbers: [0,0,0,0,0,0,0], zodiacYear: 7 } as LotteryData;
+    const verifyDataAny = verifyData as any;
+    const cache = precomputedMap.get(verifyDataAny.period)?.find(p => p.useSort === useSort)?.elementValues;
+    const rawResult = evaluateExpression(parsed.expression, verifyDataAny, useSort, customElements, cache);
     const withOffset = rawResult + offset;
 
     const cycledResult = applyCycle(withOffset, parsed.resultType, customResultTypes);
@@ -120,38 +111,37 @@ export function verifyFormula(
           targetValue = NaN;
           hit = false;
         }
-      } else {
-        // 其他期数：正常用下一期数据计算（历史验证）
-        const predictedIdx = descending ? verifyIdx - 1 : verifyIdx + 1;
-        if (predictedIdx >= 0 && predictedIdx < historyData.length) {
-          const actualData = historyData[predictedIdx];
-          recordedPeriod = actualData.period;
-          targetValue = getNumberAttribute(actualData.numbers[6], parsed.resultType, actualData.zodiacYear, customResultTypes);
-          hit = expandedResults.includes(targetValue);
-        } else {
-          // 没有下一期数据时，记录该期但不做验证（用于后续统计）
-          recordedPeriod = verifyData.period;
-          targetValue = NaN;
-          hit = false;
-        }
-      }
     } else {
-      // 预测模式：用该期数据预测下一期
-      const predictedIdx = descending ? verifyIdx - 1 : verifyIdx + 1;
-      if (predictedIdx >= 0 && predictedIdx < historyData.length) {
-        // 预测的是已存在的期数（历史验证）
-        const actualData = historyData[predictedIdx];
+      // 其他期数：正常用下一期数据计算（历史验证）
+      const predictedPeriod = verifyPeriod + 1;
+      const actualData = historyData.find(d => d.period === predictedPeriod);
+      if (actualData) {
         recordedPeriod = actualData.period;
         targetValue = getNumberAttribute(actualData.numbers[6], parsed.resultType, actualData.zodiacYear, customResultTypes);
         hit = expandedResults.includes(targetValue);
       } else {
-        // 预测的是未来期（真正的预测）
-        const latestPeriod = verifyData.period;
-        recordedPeriod = latestPeriod + 1;
+        // 没有下一期数据时，记录该期但不做验证（用于后续统计）
+        recordedPeriod = verifyPeriod;
         targetValue = NaN;
         hit = false;
       }
     }
+  } else {
+    // 预测模式：用该期数据预测下一期
+    const predictedPeriod = verifyPeriod + 1;
+    const actualData = historyData.find(d => d.period === predictedPeriod);
+    if (actualData) {
+      // 预测的是已存在的期数（历史验证）
+      recordedPeriod = actualData.period;
+      targetValue = getNumberAttribute(actualData.numbers[6], parsed.resultType, actualData.zodiacYear, customResultTypes);
+      hit = expandedResults.includes(targetValue);
+    } else {
+      // 预测的是未来期（真正的预测）
+      recordedPeriod = verifyPeriod + 1;
+      targetValue = NaN;
+      hit = false;
+    }
+  }
 
     // 所有循环都计入 hits（包括未来期，虽然命中未知）
     hits.push(hit);
