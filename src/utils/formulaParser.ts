@@ -266,8 +266,8 @@ export function formatFormula(
 ): string {
   const num = (index + 1).toString().padStart(3, '0');
   // hits 数组顺序是 [最旧期, ..., 最新期]
-  // 取最后10期（最新的10期）
-  const recentHits = hits.slice(-10);
+  // 取最后10期，并反转顺序（从旧到新，和第二层一致）
+  const recentHits = hits.slice(-10).reverse();
   const stars = recentHits.map(h => h ? '★' : '☆').join('');
   const resultStr = results.join(',');
   
