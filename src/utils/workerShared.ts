@@ -129,8 +129,10 @@ export function verifyFormula(
           targetValue = getNumberAttribute(actualData.numbers[6], parsed.resultType, actualData.zodiacYear, customResultTypes);
           hit = expandedResults.includes(targetValue);
         } else {
-          // 验证模式下不需要记录未来期
-          continue;
+          // 没有下一期数据时，记录该期但不做验证（用于后续统计）
+          recordedPeriod = verifyData.period;
+          targetValue = NaN;
+          hit = false;
         }
       }
     } else {
