@@ -110,7 +110,9 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
         displayHits.push(pr?.hit ?? false);
       }
       
-      lines.push(formatFormula(index, result.totalPeriods, result.hitCount, result.results, displayHits));
+      // 使用显示的10期中的实际命中次数
+      const displayHitCount = displayHits.filter(h => h).length;
+      lines.push(formatFormula(index, 10, displayHitCount, result.results, displayHits));
     });
     lines.push('');
     if (parseErrors.length > 0) {
