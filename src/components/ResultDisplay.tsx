@@ -96,7 +96,21 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
     lines.push(`【验证设置】${periodLabel}`);
     lines.push('');
     results.forEach((result, index) => {
-      lines.push(formatFormula(index, result.totalPeriods, result.hitCount, result.results, result.hits));
+      // 获取要显示的10期数据（根据验证目标期数）
+      const savedTargetPeriod = result.targetPeriod;
+      const statsTarget = savedTargetPeriod !== null && savedTargetPeriod !== undefined 
+        ? savedTargetPeriod - 1  // 验证模式：统计目标期之前10期
+        : latestPeriod - 1;       // 预测模式：统计最新期之前10期
+      const startPeriod = statsTarget - 9;
+      
+      // 从 periodResults 中提取这10期的命中数据
+      const displayHits: boolean[] = [];
+      for (let p = startPeriod; p <= statsTarget; p++) {
+        const pr = result.periodResults.find(pr => pr.period === p);
+        displayHits.push(pr?.hit ?? false);
+      }
+      
+      lines.push(formatFormula(index, result.totalPeriods, result.hitCount, result.results, displayHits));
     });
     lines.push('');
     if (parseErrors.length > 0) {

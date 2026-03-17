@@ -262,13 +262,11 @@ export function formatFormula(
   totalPeriods: number,
   hitCount: number,
   results: string[],
-  hits: boolean[]
+  hits: boolean[]  // 已经是正确的10期数据，从旧到新
 ): string {
   const num = (index + 1).toString().padStart(3, '0');
-  // hits 数组顺序是 [最旧期, ..., 最新期]
-  // 取最后10期，并反转顺序（从旧到新，和第二层一致）
-  const recentHits = hits.slice(-10).reverse();
-  const stars = recentHits.map(h => h ? '★' : '☆').join('');
+  // hits 已经是正确的10期数据，从旧到新
+  const stars = hits.map(h => h ? '★' : '☆').join('');
   const resultStr = results.join(',');
   
   return `[${num}]${stars}≡${totalPeriods}中${hitCount}次=${resultStr}`;
