@@ -187,13 +187,14 @@ export function verifyFormula(
     }
   } else {
     // 预测模式：使用最新期（historyData[0]）的计算结果作为预测结果
+    // 和验证模式一致，取 latestPeriod 的数据
     if (periodResults.length > 0 && historyData.length > 0) {
       const latestPeriod = historyData[0].period;
-      // 找到对应最新期计算的结果（recordedPeriod = latestPeriod + 1）
-      const latestRes = periodResults.find(pr => pr.period === latestPeriod + 1);
+      // 找到对应最新期计算的结果（recordedPeriod = latestPeriod）
+      const latestRes = periodResults.find(pr => pr.period === latestPeriod);
       if (latestRes) {
         latestResultsForSummary = latestRes.expandedResults;
-        summaryZodiacYear = getZodiacYearByPeriod(latestPeriod + 1);
+        summaryZodiacYear = getZodiacYearByPeriod(latestPeriod + 1); // 预测下一期
       } else {
         // 兜底：用最后一条
         const lastRes = periodResults[periodResults.length - 1];
