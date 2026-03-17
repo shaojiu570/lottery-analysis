@@ -107,7 +107,9 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
       const displayHits: boolean[] = [];
       for (let p = startPeriod; p <= statsTarget; p++) {
         const pr = result.periodResults.find(pr => pr.period === p);
-        displayHits.push(pr?.hit ?? false);
+        // 只有当 targetValue 有效时才计入命中
+        const isValidHit = pr && pr.targetValue !== undefined && !isNaN(pr.targetValue);
+        displayHits.push(isValidHit ? (pr.hit ?? false) : false);
       }
       
       // 使用显示的10期中的实际命中次数
