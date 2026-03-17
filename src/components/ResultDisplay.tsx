@@ -50,19 +50,24 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
   };
 
   // 计算统计数据
+  // 使用结果中的 targetPeriod（如果有验证过的话），而不是 props 中的 targetPeriod
+  // 这样设置变化但没点击验证时不会影响统计
   const stats = useMemo(() => {
     if (results.length === 0) {
       return { hitsPerPeriod: [], displayPeriod: 0, statsPeriods: [], groupedResults: new Map(), formulaCountByType: new Map(), allNumberCounts: new Map() };
     }
+    // 使用验证结果中保存的 targetPeriod，而不是 props 中的
+    const savedTargetPeriod = results[0]?.targetPeriod ?? targetPeriod;
+    
     // 计算全码类结果统计
     const allNumberCounts = aggregateAllNumbers(results);
     // 第二层统计：使用历史开奖记录的固定统计（固定不变）
-    const { countsMap, formulaCountByType } = groupByResultType(results, historyData, targetPeriod);
+    const { countsMap, formulaCountByType } = groupByResultType(results, historyData, savedTargetPeriod);
     const hitStats = countHitsPerPeriod(
       results,
       allNumberCounts,
       historyData,
-      targetPeriod,
+      savedTargetPeriod,
       results[0]?.totalPeriods || 10
     );
     return {
