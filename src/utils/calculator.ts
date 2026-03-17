@@ -263,7 +263,7 @@ export function countHitsPerPeriod(
   }
 
   return { 
-    counts: counts.reverse(), 
+    counts, 
     displayPeriod,
     statsPeriods: [...periodsToCount].reverse()
   };
