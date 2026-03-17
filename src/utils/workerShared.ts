@@ -165,8 +165,8 @@ export function verifyFormula(
   let summaryZodiacYear = 7; // 默认
 
   if (targetPeriod) {
-    // 验证模式：显示目标期之前一期（targetPeriod - 1）的计算结果，用于预测目标期
-    const calcRes = periodResults.find(pr => pr.period === targetPeriod - 1);
+    // 验证模式：用targetPeriod-1的数据计算，结果存储在period=targetPeriod中
+    const calcRes = periodResults.find(pr => pr.period === targetPeriod);
     if (calcRes) {
       latestResultsForSummary = calcRes.expandedResults;
       const calcData = historyData.find(d => d.period === targetPeriod - 1);
