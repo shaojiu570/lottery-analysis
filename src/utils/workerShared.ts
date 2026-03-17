@@ -78,43 +78,16 @@ export function verifyFormula(
   // 构建用于计算的索引列表
   const verifyIndices: number[] = [];
   
-  if (targetPeriod) {
-    // 验证模式：取目标期之前 periods 期的数据
-    const targetIdx = historyData.findIndex(d => d.period === targetPeriod);
-    if (targetIdx !== -1) {
-      // 从目标期位置往前取 periods 期
-      if (descending) {
-        for (let k = targetIdx + 1; k < historyData.length && verifyIndices.length < periods; k++) {
-          verifyIndices.push(k);
-        }
-      } else {
-        for (let k = targetIdx - 1; k >= 0 && verifyIndices.length < periods; k--) {
-          verifyIndices.push(k);
-        }
-      }
-    }
-    // 如果数据不足，补最新数据
-    if (verifyIndices.length < periods) {
-      if (descending) {
-        for (let k = 0; k < periods && k < historyData.length && !verifyIndices.includes(k); k++) {
-          verifyIndices.push(k);
-        }
-      } else {
-        for (let k = historyData.length - 1; k >= 0 && verifyIndices.length < periods && !verifyIndices.includes(k); k--) {
-          verifyIndices.push(k);
-        }
-      }
+  // 验证模式和预测模式都使用最新 periods 期数据来计算，保证结果一致
+  if (descending) {
+    // 降序：最新的在前面
+    for (let k = 0; k < periods && k < historyData.length; k++) {
+      verifyIndices.push(k);
     }
   } else {
-    // 预测模式：取最新 periods 期数据
-    if (descending) {
-      for (let k = 0; k < periods && k < historyData.length; k++) {
-        verifyIndices.push(k);
-      }
-    } else {
-      for (let k = historyData.length - periods; k < historyData.length && k >= 0; k--) {
-        verifyIndices.push(k);
-      }
+    // 升序：最新的在后面
+    for (let k = historyData.length - periods; k < historyData.length && k >= 0; k--) {
+      verifyIndices.push(k);
     }
   }
   
