@@ -103,7 +103,7 @@ export function verifyFormula(
     const predictedPeriod = verifyPeriod + 1;
     const actualData = historyData.find(d => d.period === predictedPeriod);
     if (actualData) {
-      recordedPeriod = actualData.period;
+      recordedPeriod = verifyPeriod; // 记录当期期数
       targetValue = getNumberAttribute(actualData.numbers[6], parsed.resultType, actualData.zodiacYear, customResultTypes);
       hit = expandedResults.includes(targetValue);
     } else {
