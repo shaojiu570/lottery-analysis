@@ -1,6 +1,6 @@
 import { LotteryData, ResultType, VerifyResult, PeriodResult } from '@/types';
 import { calculateElementValue, normalizeElementName } from './elements';
-import { applyCycle, getExpandedResults, getNumberAttribute, resultToText, getZodiacMap, getZodiacYearByPeriod, convertResultToNumbers } from './mappings';
+import { getNumberAttribute, getZodiacYearByPeriod, resultToText, getZodiacMap } from './mappings';
 import { ParsedFormula } from './formulaParser';
 import { getCustomElements, getCustomResultTypes } from './storage';
 import * as shared from './workerShared';
@@ -243,18 +243,9 @@ export function countHitsPerPeriod(
       const pr = result.periodResults.find(pr => pr.period === period);
       if (pr && pr.targetValue !== undefined && !isNaN(pr.targetValue)) {
         const zodiacYear = getZodiacYearByPeriod(period);
-        let formulaHit = false;
-        for (const value of pr.expandedResults) {
-          const nums = convertResultToNumbers(
-            resultToText(value, result.formula.resultType, zodiacYear),
-            result.formula.resultType,
-            zodiacYear
-          );
-          if (nums.includes(actualTeNum)) {
-            formulaHit = true;
-            break;
-          }
-        }
+        // 直接比较：将实际特码转换为对应的结果值，然后比较
+        const actualResultValue = getNumberAttribute(actualTeNum, result.formula.resultType, zodiacYear);
+        const formulaHit = pr.expandedResults.includes(actualResultValue);
         if (formulaHit) {
           hitCount++;
         }
