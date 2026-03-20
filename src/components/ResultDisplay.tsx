@@ -111,9 +111,10 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
         statsTarget = latestPeriod;
       }
       
-      const startPeriod = statsTarget - 9;
+      const displayCount = result.totalPeriods || 10;
+      const startPeriod = statsTarget - (displayCount - 1);
       
-      // 从 periodResults 中提取这10期的命中数据
+      // 从 periodResults 中提取这 displayCount 期的命中数据
       const displayHits: boolean[] = [];
       for (let p = startPeriod; p <= statsTarget; p++) {
         const pr = result.periodResults.find(pr => pr.period === p);
@@ -124,7 +125,7 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
       
       // 使用显示的10期中的实际命中次数
       const displayHitCount = displayHits.filter(h => h).length;
-      lines.push(formatFormula(index, 10, displayHitCount, result.results, displayHits));
+      lines.push(formatFormula(index, result.totalPeriods || 10, displayHitCount, result.results, displayHits));
     });
     lines.push('');
     if (parseErrors.length > 0) {
