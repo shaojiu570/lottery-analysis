@@ -198,19 +198,20 @@ export function countHitsPerPeriod(
 ): { counts: number[], displayPeriod: number, statsPeriods: number[] } {
   if (historyData.length === 0) return { counts: [], displayPeriod: 0, statsPeriods: [] };
 
-  const displayCount = Math.min(periods, 10);
+  const displayCount = 10; // 固定10期
   let periodsToCount: number[] = [];
 
-  // 预测模式：统计最新期之前10期（包含最新期）
-  // 验证模式：统计目标期之前10期（不包含目标期）
+  // 窗口范围：目标期-10 到 目标期-1（不包含目标期）
+  // 预测模式：目标期是 latestPeriod
+  // 验证模式：目标期是 targetPeriod
   let target: number;
   if (targetPeriod !== null && targetPeriod !== undefined) {
     // 验证模式：统计目标期之前10期
     target = targetPeriod - 1;
   } else {
-    // 预测模式：统计最新期（包含最新期）
+    // 预测模式：统计最新期之前10期（不包含最新期）
     const latestPeriod = historyData[0]?.period || 0;
-    target = latestPeriod;
+    target = latestPeriod - 1;
   }
 
   // 统计从 target - (displayCount - 1) 到 target 的期数

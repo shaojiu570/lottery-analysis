@@ -74,10 +74,11 @@ export function verifyFormula(
   
   // 近10期窗口移动：构造固定的窗口范围
   const latestPeriod = historyData[0]?.period ?? 0;
-  // 预测模式：窗口为 latestPeriod-9 到 latestPeriod
-  // 验证模式：窗口为 targetPeriod-10 到 targetPeriod-1
-  let endPeriod = targetPeriod ? targetPeriod - 1 : latestPeriod;
-  if (endPeriod < 0) endPeriod = Math.max(0, latestPeriod);
+  // 窗口为 目标期-10 到 目标期-1（不包含目标期）
+  // 预测模式：目标期是 latestPeriod
+  // 验证模式：目标期是 targetPeriod
+  let endPeriod = targetPeriod ? targetPeriod - 1 : latestPeriod - 1;
+  if (endPeriod < 0) endPeriod = Math.max(0, latestPeriod - 1);
   const startPeriod = endPeriod - 9;
   const verifyPeriods: number[] = [];
   for (let p = startPeriod; p <= endPeriod; p++) verifyPeriods.push(p);
@@ -135,8 +136,8 @@ export function verifyFormula(
   let summaryZodiacYear = 7; // 默认
 
   if (targetPeriod) {
-    // 验证模式：用targetPeriod-1的数据计算，结果存储在period=targetPeriod中
-    const calcRes = periodResults.find(pr => pr.period === targetPeriod);
+    // 验证模式：用targetPeriod-1的数据计算，结果存储在period=targetPeriod-1中
+    const calcRes = periodResults.find(pr => pr.period === targetPeriod - 1);
     if (calcRes) {
       latestResultsForSummary = calcRes.expandedResults;
       const calcData = historyData.find(d => d.period === targetPeriod - 1);
@@ -148,20 +149,19 @@ export function verifyFormula(
       summaryZodiacYear = getZodiacYearByPeriod(lastRes.period);
     }
   } else {
-    // 预测模式：使用最新期（historyData[0]）的计算结果作为预测结果
-    // 和验证模式一致，取 latestPeriod 的数据
+    // 预测模式：用latestPeriod-1的数据计算，结果存储在period=latestPeriod-1中
     if (periodResults.length > 0 && historyData.length > 0) {
       const latestPeriod = historyData[0].period;
-      // 找到对应最新期计算的结果（recordedPeriod = latestPeriod）
-      const latestRes = periodResults.find(pr => pr.period === latestPeriod);
+      // 找到对应latestPeriod-1计算的结果
+      const latestRes = periodResults.find(pr => pr.period === latestPeriod - 1);
       if (latestRes) {
         latestResultsForSummary = latestRes.expandedResults;
-        summaryZodiacYear = getZodiacYearByPeriod(latestPeriod + 1); // 预测下一期
+        summaryZodiacYear = getZodiacYearByPeriod(latestPeriod); // 预测下一期
       } else {
         // 兜底：用最后一条
         const lastRes = periodResults[periodResults.length - 1];
         latestResultsForSummary = lastRes.expandedResults;
-        summaryZodiacYear = getZodiacYearByPeriod(lastRes.period + 1);
+        summaryZodiacYear = getZodiacYearByPeriod(lastRes.period);
       }
     }
   }

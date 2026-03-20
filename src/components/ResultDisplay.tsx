@@ -99,7 +99,9 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
       // 获取要显示的10期数据（根据验证目标期数）
       const savedTargetPeriod = result.targetPeriod;
       
-      // 验证模式：用目标期-1；预测模式：用最新期
+      // 窗口范围：目标期-10 到 目标期-1（不包含目标期）
+      // 验证模式：目标期是 targetPeriod
+      // 预测模式：目标期是 latestPeriod
       let statsTarget: number;
       if (savedTargetPeriod !== null && savedTargetPeriod !== undefined) {
         statsTarget = savedTargetPeriod - 1;
@@ -107,11 +109,12 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
         // 如果 props 中的 targetPeriod 有值（验证模式）
         statsTarget = targetPeriod - 1;
       } else {
-        // 预测模式：用最新期
-        statsTarget = latestPeriod;
+        // 预测模式：目标期是最新期
+        statsTarget = latestPeriod - 1;
       }
       
-      const displayCount = result.totalPeriods || 10;
+      // 星号固定显示10期
+      const displayCount = 10;
       const startPeriod = statsTarget - (displayCount - 1);
       
       // 从 periodResults 中提取这 displayCount 期的命中数据
