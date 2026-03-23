@@ -542,7 +542,7 @@ export function evaluateExpression(
 export function getNumberAttribute(num: number, resultType: string, zodiacYear: number, customTypes: CustomResultType[] = []): number {
   switch (resultType) {
     case '尾数类': return num % 10;
-    case '头数类': return num % 5;
+    case '头数类': return Math.floor(num / 10);
     case '合数类': return num % 13 || 13;
     case '波色类': return num % 3;
     case '五行类': return getFiveElement(num, zodiacYear);
