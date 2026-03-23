@@ -201,17 +201,17 @@ export function countHitsPerPeriod(
   const displayCount = 10; // 固定10期
   let periodsToCount: number[] = [];
 
-  // 窗口范围：目标期-10 到 目标期-1（不包含目标期）
-  // 预测模式：目标期是 latestPeriod
-  // 验证模式：目标期是 targetPeriod
+  // 窗口范围：预测模式包含最新期，验证模式不包含目标期
+  // 预测模式：窗口是 latestPeriod-9 到 latestPeriod（包含最新期）
+  // 验证模式：窗口是 targetPeriod-10 到 targetPeriod-1（不包含目标期）
   let target: number;
   if (targetPeriod !== null && targetPeriod !== undefined) {
     // 验证模式：统计目标期之前10期
     target = targetPeriod - 1;
   } else {
-    // 预测模式：统计最新期之前10期（不包含最新期）
+    // 预测模式：统计最新期（包含最新期）
     const latestPeriod = historyData[0]?.period || 0;
-    target = latestPeriod - 1;
+    target = latestPeriod;
   }
 
   // 统计从 target - (displayCount - 1) 到 target 的期数

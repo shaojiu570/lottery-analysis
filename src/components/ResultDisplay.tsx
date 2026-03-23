@@ -99,9 +99,9 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
       // 获取要显示的10期数据（根据验证目标期数）
       const savedTargetPeriod = result.targetPeriod;
       
-      // 窗口范围：目标期-10 到 目标期-1（不包含目标期）
-      // 验证模式：目标期是 targetPeriod
-      // 预测模式：目标期是 latestPeriod
+      // 窗口范围：预测模式包含最新期，验证模式不包含目标期
+      // 预测模式：窗口是 latestPeriod-9 到 latestPeriod（包含最新期）
+      // 验证模式：窗口是 targetPeriod-10 到 targetPeriod-1（不包含目标期）
       let statsTarget: number;
       if (savedTargetPeriod !== null && savedTargetPeriod !== undefined) {
         statsTarget = savedTargetPeriod - 1;
@@ -110,7 +110,7 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
         statsTarget = targetPeriod - 1;
       } else {
         // 预测模式：目标期是最新期
-        statsTarget = latestPeriod - 1;
+        statsTarget = latestPeriod;
       }
       
       // 星号固定显示10期

@@ -75,10 +75,10 @@ export function verifyFormula(
   // 近10期窗口移动：构造固定的窗口范围
   const latestPeriod = historyData[0]?.period ?? 0;
   // 窗口为 目标期-10 到 目标期-1（不包含目标期）
-  // 预测模式：目标期是 latestPeriod
-  // 验证模式：目标期是 targetPeriod
-  let endPeriod = targetPeriod ? targetPeriod - 1 : latestPeriod - 1;
-  if (endPeriod < 0) endPeriod = Math.max(0, latestPeriod - 1);
+  // 预测模式：目标期是 latestPeriod+1（未开期），窗口是 latestPeriod-9 到 latestPeriod
+  // 验证模式：目标期是 targetPeriod，窗口是 targetPeriod-10 到 targetPeriod-1
+  let endPeriod = targetPeriod ? targetPeriod - 1 : latestPeriod;
+  if (endPeriod < 0) endPeriod = Math.max(0, latestPeriod);
   const startPeriod = endPeriod - 9;
   const verifyPeriods: number[] = [];
   for (let p = startPeriod; p <= endPeriod; p++) verifyPeriods.push(p);
@@ -149,14 +149,14 @@ export function verifyFormula(
       summaryZodiacYear = getZodiacYearByPeriod(lastRes.period);
     }
   } else {
-    // 预测模式：用latestPeriod-1的数据计算，结果存储在period=latestPeriod-1中
+    // 预测模式：用latestPeriod的数据计算，结果存储在period=latestPeriod中
     if (periodResults.length > 0 && historyData.length > 0) {
       const latestPeriod = historyData[0].period;
-      // 找到对应latestPeriod-1计算的结果
-      const latestRes = periodResults.find(pr => pr.period === latestPeriod - 1);
+      // 找到对应latestPeriod计算的结果
+      const latestRes = periodResults.find(pr => pr.period === latestPeriod);
       if (latestRes) {
         latestResultsForSummary = latestRes.expandedResults;
-        summaryZodiacYear = getZodiacYearByPeriod(latestPeriod); // 预测下一期
+        summaryZodiacYear = getZodiacYearByPeriod(latestPeriod + 1); // 预测下一期
       } else {
         // 兜底：用最后一条
         const lastRes = periodResults[periodResults.length - 1];
