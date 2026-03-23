@@ -5,16 +5,16 @@ import { chineseToNumber, calculateElementValue as sharedCalculateElementValue }
 
 // 元素别名映射表
 const ELEMENT_ALIASES: Record<string, string> = {
-  // 特码相关
-  '特码': '特',
-  '特号': '特',
-  '特': '特',
+  // 特码相关 - 标准名称：特号、特头、特尾、特合、特波、特段、特行、特肖位
+  '特码': '特号',
+  '特': '特号',
   '特码头': '特头',
   '特码尾': '特尾',
   '特码合': '特合',
   '特码波': '特波',
   '特码段': '特段',
   '特码行': '特行',
+  '特码肖位': '特肖位',
   // 平码相关 - 支持"平六波"、"平6波"
   '平一': '平1',
   '平二': '平2',
