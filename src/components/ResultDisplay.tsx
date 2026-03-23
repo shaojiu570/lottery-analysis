@@ -175,14 +175,29 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
       const sortedCounts = Array.from(byCount.entries()).sort((a, b) => a[0] - b[0]);
       const formulaCount = results.length;
       const totalNumbers = Array.from(allNumberCounts.values()).reduce((sum, c) => sum + c, 0);
+      const average = totalNumbers / 49;
+      
       lines.push(`【全码类结果】${resultPeriodLabel}期:`);
+      let lastCount = -1;
       sortedCounts.forEach(([count, numbers]) => {
+        // 在平均线位置显示分隔线
+        if (lastCount >= 0 && average > lastCount && average <= count) {
+          lines.push(`--- 平均线：${average.toFixed(2)}次 ---`);
+        }
+        
         const numStr = numbers.sort((a, b) => a - b).map(n => {
           const str = n.toString().padStart(2, '0');
           return str === teNumStr ? `${str}★` : str;
         }).join(',');
         lines.push(`〖${count}次〗：${numStr}（共${numbers.length}码）`);
+        lastCount = count;
       });
+      
+      // 如果平均线在最后一组之后
+      if (lastCount >= 0 && average > lastCount) {
+        lines.push(`--- 平均线：${average.toFixed(2)}次 ---`);
+      }
+      
       lines.push(`本次运算共${formulaCount}行, 总计${totalNumbers}码`);
     }
     return lines.join('\n');
