@@ -104,12 +104,14 @@ export function normalizeElementName(name: string, userAliases: Record<string, s
       const suffix = standard.slice(alias.length);
       // Only handle simple character suffixes to avoid complex regex
       if (/^[\u4e00-\u9fa5a-zA-Z0-9]+$/.test(suffix)) {
-        patternStr += `(?:${escapeRegex(suffix)})*`;
+        // 添加负向前瞻，确保不在特码属性（头、尾、合等）前面
+        patternStr += `(?:${escapeRegex(suffix)})*(?![头尾合波段行肖位])`;
       }
     } 
     // Case 2: Standard is the same as alias, allow matching repeated alias (e.g., 特 -> 特)
     else if (alias === standard) {
-      patternStr = `(?<![平特])${escapeRegex(alias)}+`;
+      // 添加负向前瞻，确保不在特码属性（头、尾、合等）前面
+      patternStr = `(?<![平特])${escapeRegex(alias)}+(?![头尾合波段行肖位])`;
     }
     
     const pattern = new RegExp(patternStr, 'g');
