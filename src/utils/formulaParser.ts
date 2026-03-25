@@ -141,7 +141,7 @@ function generateFormulaId(): string {
 }
 
 // 标准化表达式用于去重（将元素排序）
-// 例如 "平3号+特尾" 和 "特尾+平3号" 标准化后都是 "平3号+特尾"
+// 例如 "平3码+特尾" 和 "特尾+平3码" 标准化后都是 "平3码+特尾"
 function normalizeExpressionForDedup(expression: string): string {
   // 只处理加法表达式（因为加法满足交换律）
   // 如果包含减法，保持原样（因为减法不满足交换律）
@@ -227,7 +227,7 @@ export function parseFormulas(
     }
     
     // 标准化表达式用于去重：将元素排序
-    // 例如 "平3号+特尾" 和 "特尾+平3号" 应该被视为同一个公式
+    // 例如 "平3码+特尾" 和 "特尾+平3码" 应该被视为同一个公式
     const formulaKey = generateFormulaKey(parsed);
     
     if (!seen.has(formulaKey)) {

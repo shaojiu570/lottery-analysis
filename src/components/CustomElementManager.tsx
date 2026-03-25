@@ -69,7 +69,7 @@ export function CustomElementManager({ elements, onSave, onDelete }: CustomEleme
               className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none"
             />
             <textarea
-              placeholder="逻辑表达式 (如: 平1号+平2号+平3号)"
+              placeholder="逻辑表达式 (如: 平1码+平2码+平3码)"
               value={editExpression}
               onChange={e => setEditExpression(e.target.value)}
               className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none h-16 resize-none"

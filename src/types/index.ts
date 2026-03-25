@@ -115,7 +115,7 @@ export type AliasMapping = Record<string, string[]>;
 export interface CustomElement {
   id: string;
   name: string;      // 元素名称，如 "前三总合"
-  expression: string; // 基础元素表达式，如 "平1号+平2号+平3号"
+  expression: string; // 基础元素表达式，如 "平1码+平2码+平3码"
 }
 
 // 自定义结果类型映射项
