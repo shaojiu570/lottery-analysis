@@ -95,8 +95,9 @@ export function normalizeElementName(name: string, userAliases: Record<string, s
   }
 
   // helper to create a regex that handles doubling of standard name suffix
-  function applyAlias(str: string, alias: string, standard: string): string {
-    let patternStr = `(?<![平特])${escapeRegex(alias)}`;
+  function applyAlias(str: string, alias: string, standard: string, isUserAlias: boolean = false): string {
+    // 用户自定义别名不需要负向后顾检查
+    let patternStr = isUserAlias ? escapeRegex(alias) : `(?<![平特])${escapeRegex(alias)}`;
     
     // Case 1: Standard ends with alias or standard starts with alias (e.g., 期 -> 期数, 总 -> 总分)
     // We want to match the alias followed by any number of the standard name's suffix
@@ -124,7 +125,7 @@ export function normalizeElementName(name: string, userAliases: Record<string, s
   ).sort((a, b) => b[0].length - a[0].length);
 
   for (const [alias, standard] of sortedUserAliases) {
-    normalized = applyAlias(normalized, alias, standard);
+    normalized = applyAlias(normalized, alias, standard, true);
   }
 
   // 然后处理内置别名
