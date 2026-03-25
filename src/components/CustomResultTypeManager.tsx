@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CustomResultType, CustomResultMappingItem } from '@/types';
 import { Trash2, Plus, Edit2 } from 'lucide-react';
+import { zodiacNamesToNumbers } from '@/utils/mappings';
 
 interface CustomResultTypeManagerProps {
   types: CustomResultType[];
@@ -13,6 +14,7 @@ export function CustomResultTypeManager({ types, onSave, onDelete }: CustomResul
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editMappings, setEditMappings] = useState<CustomResultMappingItem[]>([]);
+  const [inputMode, setInputMode] = useState<'values' | 'zodiac'>('values');
 
   const handleStartAdd = () => {
     setEditName('');
@@ -26,6 +28,12 @@ export function CustomResultTypeManager({ types, onSave, onDelete }: CustomResul
     setEditMappings(type.mappings.map(m => ({ ...m })));
     setEditingId(type.id);
     setIsAdding(false);
+    // 检查是否有 zodiacNames
+    if (type.mappings.some(m => m.zodiacNames && m.zodiacNames.length > 0)) {
+      setInputMode('zodiac');
+    } else {
+      setInputMode('values');
+    }
   };
 
   const handleCancel = () => {
@@ -34,26 +42,51 @@ export function CustomResultTypeManager({ types, onSave, onDelete }: CustomResul
   };
 
   const handleAddMapping = () => {
-    setEditMappings([...editMappings, { label: '', values: [] }]);
+    if (inputMode === 'zodiac') {
+      setEditMappings([...editMappings, { label: '', zodiacNames: [] }]);
+    } else {
+      setEditMappings([...editMappings, { label: '', values: [] }]);
+    }
   };
 
   const handleRemoveMapping = (index: number) => {
     setEditMappings(editMappings.filter((_, i) => i !== index));
   };
 
-  const handleMappingChange = (index: number, label: string, valuesStr: string) => {
-    const values = valuesStr.split(/[,，\s]+/).map(v => parseInt(v)).filter(v => !isNaN(v));
+  const handleMappingChange = (index: number, label: string, inputStr: string) => {
     const newMappings = [...editMappings];
-    newMappings[index] = { label, values };
+    if (inputMode === 'zodiac') {
+      const zodiacNames = inputStr.split(/[,，\s]+/).map(v => v.trim()).filter(v => v);
+      newMappings[index] = { label, zodiacNames };
+    } else {
+      const values = inputStr.split(/[,，\s]+/).map(v => parseInt(v)).filter(v => !isNaN(v));
+      newMappings[index] = { label, values };
+    }
     setEditMappings(newMappings);
   };
 
   const handleSave = () => {
     if (!editName.trim() || editMappings.length === 0) return;
+    
+    // 转换 zodiacNames 为 values
+    const convertedMappings = editMappings.map(m => {
+      if (!m.label.trim()) return null;
+      if (m.zodiacNames && m.zodiacNames.length > 0) {
+        return {
+          label: m.label,
+          values: zodiacNamesToNumbers(m.zodiacNames)
+        };
+      }
+      if (m.values && m.values.length > 0) {
+        return m;
+      }
+      return null;
+    }).filter((m): m is CustomResultMappingItem => m !== null);
+    
     onSave({
       id: editingId || `rt_${Date.now()}`,
       name: editName.trim(),
-      mappings: editMappings.filter(m => m.label.trim() && m.values.length > 0)
+      mappings: convertedMappings
     });
     setIsAdding(false);
     setEditingId(null);
@@ -82,21 +115,39 @@ export function CustomResultTypeManager({ types, onSave, onDelete }: CustomResul
             onChange={e => setEditName(e.target.value)}
             className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none"
           />
+          <div className="flex gap-2 text-xs">
+            <button
+              onClick={() => setInputMode('values')}
+              className={`px-2 py-1 rounded ${inputMode === 'values' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+            >
+              号码
+            </button>
+            <button
+              onClick={() => setInputMode('zodiac')}
+              className={`px-2 py-1 rounded ${inputMode === 'zodiac' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+            >
+              生肖
+            </button>
+          </div>
           <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-            <p className="text-[10px] text-gray-400">映射规则：标签 &rarr; 命中数值列表 (用逗号隔开)</p>
+            <p className="text-[10px] text-gray-400">
+              {inputMode === 'values' 
+                ? '映射规则：标签 → 命中号码列表 (用逗号隔开，如 1,2,3)' 
+                : '映射规则：标签 → 生肖名称 (用逗号隔开，如 鼠,牛,虎)'}
+            </p>
             {editMappings.map((m, i) => (
               <div key={i} className="flex gap-2 items-start">
                 <input
                   type="text"
                   placeholder="标签 (春)"
                   value={m.label}
-                  onChange={e => handleMappingChange(i, e.target.value, m.values.join(','))}
+                  onChange={e => handleMappingChange(i, e.target.value, inputMode === 'zodiac' ? (m.zodiacNames || []).join(',') : (m.values || []).join(','))}
                   className="w-20 px-2 py-1 text-xs border border-gray-200 rounded outline-none"
                 />
                 <input
                   type="text"
-                  placeholder="数值 (1,2,3)"
-                  value={m.values.join(',')}
+                  placeholder={inputMode === 'values' ? '号码 (1,2,3)' : '生肖 (鼠,牛,虎)'}
+                  value={inputMode === 'zodiac' ? (m.zodiacNames || []).join(',') : (m.values || []).join(',')}
                   onChange={e => handleMappingChange(i, m.label, e.target.value)}
                   className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded outline-none"
                 />
@@ -133,7 +184,7 @@ export function CustomResultTypeManager({ types, onSave, onDelete }: CustomResul
             <div className="flex flex-wrap gap-1">
               {t.mappings.slice(0, 3).map((m, i) => (
                 <span key={i} className="px-1.5 py-0.5 bg-white text-[10px] text-gray-500 rounded border border-gray-200">
-                  {m.label}: {m.values.length}码
+                  {m.label}: {(m.values || []).length}码
                 </span>
               ))}
               {t.mappings.length > 3 && <span className="text-[10px] text-gray-400">...</span>}

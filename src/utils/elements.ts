@@ -6,7 +6,6 @@ import { chineseToNumber, calculateElementValue as sharedCalculateElementValue }
 // 元素别名映射表
 const ELEMENT_ALIASES: Record<string, string> = {
   // 特码相关 - 标准名称：特号、特头、特尾、特合、特波、特段、特行、特肖位
-  '特码': '特号',
   '特': '特号',
   '特码头': '特头',
   '特码尾': '特尾',
@@ -22,13 +21,20 @@ const ELEMENT_ALIASES: Record<string, string> = {
   '平四': '平4',
   '平五': '平5',
   '平六': '平6',
-  // 平码别名：平码1=平1码
-  '平码1': '平1码',
-  '平码2': '平2码',
-  '平码3': '平3码',
-  '平码4': '平4码',
-  '平码5': '平5码',
-  '平码6': '平6码',
+  // 平码别名：平码1=平1码，平1码=平1号（码->号转换）
+  '平码1': '平1号',
+  '平码2': '平2号',
+  '平码3': '平3号',
+  '平码4': '平4号',
+  '平码5': '平5号',
+  '平码6': '平6号',
+  '平1码': '平1号',
+  '平2码': '平2号',
+  '平3码': '平3号',
+  '平4码': '平4号',
+  '平5码': '平5号',
+  '平6码': '平6号',
+  '特码': '特号',
   // 平码属性简写：1头=平1头, 1行=平1行, 1肖位=平1肖位
   '1头': '平1头', '2头': '平2头', '3头': '平3头', '4头': '平4头', '5头': '平5头', '6头': '平6头',
   '1尾': '平1尾', '2尾': '平2尾', '3尾': '平3尾', '4尾': '平4尾', '5尾': '平5尾', '6尾': '平6尾',
@@ -67,6 +73,39 @@ export function normalizeElementName(name: string, userAliases: Record<string, s
     rtList.push(rt);
   }
   
+  // helper: escape regex special chars
+  function escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  // helper to create a regex that handles doubling of standard name suffix
+  function applyAlias(str: string, alias: string, standard: string, isUserAlias: boolean = false): string {
+    // 用户自定义别名不需要负向后顾检查
+    let patternStr = isUserAlias ? escapeRegex(alias) : `(?<![平特])${escapeRegex(alias)}`;
+    
+    if (standard.startsWith(alias) && standard.length > alias.length) {
+      const suffix = standard.slice(alias.length);
+      if (/^[\u4e00-\u9fa5a-zA-Z0-9]+$/.test(suffix)) {
+        patternStr += `(?:${escapeRegex(suffix)})*(?![头尾合波段行肖位])`;
+      }
+    } 
+    else if (alias === standard) {
+      patternStr = `(?<![平特])${escapeRegex(alias)}+(?![头尾合波段行肖位])`;
+    }
+    
+    const pattern = new RegExp(patternStr, 'g');
+    return str.replace(pattern, standard);
+  }
+
+  // 首先应用用户自定义别名（在chineseToNumber转换之前）
+  const sortedUserAliases = Object.entries(userAliases).flatMap(([standard, aliasList]) => 
+    aliasList.map(alias => [alias, standard])
+  ).sort((a, b) => b[0].length - a[0].length);
+
+  for (const [alias, standard] of sortedUserAliases) {
+    normalized = applyAlias(normalized, alias, standard, true);
+  }
+
   // 先保护完整的元素名称，避免被chineseToNumber错误转换
   normalized = normalized.replace(/期数合尾/g, '__QISHU_HEWEI__');
   normalized = normalized.replace(/期数合/g, '__QISHU_HE__');
@@ -89,45 +128,6 @@ export function normalizeElementName(name: string, userAliases: Record<string, s
   normalized = normalized.replace(/__ZONGFEN_HE__/g, '总分合');
   normalized = normalized.replace(/__ZONGFEN_HEWEI__/g, '总分合尾');
   
-  // helper: escape regex special chars
-  function escapeRegex(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  // helper to create a regex that handles doubling of standard name suffix
-  function applyAlias(str: string, alias: string, standard: string, isUserAlias: boolean = false): string {
-    // 用户自定义别名不需要负向后顾检查
-    let patternStr = isUserAlias ? escapeRegex(alias) : `(?<![平特])${escapeRegex(alias)}`;
-    
-    // Case 1: Standard ends with alias or standard starts with alias (e.g., 期 -> 期数, 总 -> 总分)
-    // We want to match the alias followed by any number of the standard name's suffix
-    if (standard.startsWith(alias) && standard.length > alias.length) {
-      const suffix = standard.slice(alias.length);
-      // Only handle simple character suffixes to avoid complex regex
-      if (/^[\u4e00-\u9fa5a-zA-Z0-9]+$/.test(suffix)) {
-        // 添加负向前瞻，确保不在特码属性（头、尾、合等）前面
-        patternStr += `(?:${escapeRegex(suffix)})*(?![头尾合波段行肖位])`;
-      }
-    } 
-    // Case 2: Standard is the same as alias, allow matching repeated alias (e.g., 特 -> 特)
-    else if (alias === standard) {
-      // 添加负向前瞻，确保不在特码属性（头、尾、合等）前面
-      patternStr = `(?<![平特])${escapeRegex(alias)}+(?![头尾合波段行肖位])`;
-    }
-    
-    const pattern = new RegExp(patternStr, 'g');
-    return str.replace(pattern, standard);
-  }
-
-  // 首先应用用户自定义别名
-  const sortedUserAliases = Object.entries(userAliases).flatMap(([standard, aliasList]) => 
-    aliasList.map(alias => [alias, standard])
-  ).sort((a, b) => b[0].length - a[0].length);
-
-  for (const [alias, standard] of sortedUserAliases) {
-    normalized = applyAlias(normalized, alias, standard, true);
-  }
-
   // 然后处理内置别名
   const sortedBuiltInAliases = Object.entries(ELEMENT_ALIASES).sort((a, b) => b[0].length - a[0].length);
   for (const [alias, standard] of sortedBuiltInAliases) {

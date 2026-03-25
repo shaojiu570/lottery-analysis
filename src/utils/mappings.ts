@@ -142,6 +142,22 @@ export function getZodiacNameByNumber(num: number, zodiacYear?: number): string 
   return '鼠';  // 默认返回鼠
 }
 
+// 生肖名称列表转换为号码列表
+// 用于自定义结果类中根据生肖名称自动转换为号码
+export function zodiacNamesToNumbers(zodiacNames: string[], zodiacYear?: number): number[] {
+  const zodiacMap = getZodiacMap(zodiacYear);
+  const result: number[] = [];
+  
+  for (const name of zodiacNames) {
+    const numbers = zodiacMap[name];
+    if (numbers) {
+      result.push(...numbers);
+    }
+  }
+  
+  return [...new Set(result)].sort((a, b) => a - b);
+}
+
 // 段位映射：号码 -> 段位 (1-7)
 export function getSegment(num: number): number {
   if (num >= 1 && num <= 7) return 1;

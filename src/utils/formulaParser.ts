@@ -51,6 +51,9 @@ export function parseFormula(
     formula = formula.replace(/总分尾/g, '<<ZONGFEN_WEI>>');
     formula = formula.replace(/总分/g, '<<ZONGFEN>>');
     
+    // 处理元素别名（如"特码波" -> "特波"），在chineseToNumber之前处理用户别名
+    formula = normalizeElementName(formula, aliases);
+    
     // 转换中文数字为阿拉伯数字
     formula = chineseToNumber(formula);
     
@@ -69,9 +72,6 @@ export function parseFormula(
     formula = formula.replace(/<<ZONGFEN_WEI>>/g, '总分尾');
     formula = formula.replace(/<<ZONGFEN_HE>>/g, '总分合');
     formula = formula.replace(/<<ZONGFEN_HEWEI>>/g, '总分合尾');
-    
-    // 处理元素别名（如"特码波" -> "特波"）
-    formula = normalizeElementName(formula, aliases);
     
     // 清理补偿值格式（如 +00 -> +0）
     formula = formula.replace(/([+-])0+(\d+)/g, '$1$2');

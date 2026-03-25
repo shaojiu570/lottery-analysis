@@ -120,8 +120,9 @@ export interface CustomElement {
 
 // 自定义结果类型映射项
 export interface CustomResultMappingItem {
-  values: number[];  // 命中的原始数值列表，如 [1, 2, 3]
-  label: string;     // 对应的文字，如 "春"
+  values?: number[];        // 命中的原始数值列表，如 [1, 2, 3]
+  zodiacNames?: string[];   // 生肖名称列表，如 ["鼠", "牛", "虎"]
+  label: string;            // 对应的文字，如 "春"
 }
 
 // 自定义结果类型
