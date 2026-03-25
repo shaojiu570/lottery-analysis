@@ -543,8 +543,8 @@ export function getNumberAttribute(num: number, resultType: string, zodiacYear: 
   switch (resultType) {
     case '尾数类': return num % 10;
     case '头数类': return Math.floor(num / 10);
-    case '合数类': return num % 13 || 13;
-    case '波色类': return num % 3;
+    case '合数类': return digitSum(num) % 13 || 13;
+    case '波色类': return getWaveColor(num);
     case '五行类': return getFiveElement(num, zodiacYear);
     case '肖位类': return getZodiacPosition(num, zodiacYear);
     case '单特类': return num;
