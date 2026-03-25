@@ -514,7 +514,8 @@ export function evaluateExpression(
   } else {
     // 动态计算（较慢）- 修复：必须计算元素值
     // 使用正则表达式匹配所有可能的元素名称
-    const elementPattern = /[平\d]+[号头尾合合头合尾波段行肖位特号头尾合合头合尾波段行肖位期数总分上期数星期]+/g;
+    // 支持平码、特码、期数、总分等元素
+    const elementPattern = /(?:平\d*|特|期数|总分|上期数|星期)[号头尾合合头合尾波段行肖位]?/g;
     const matches = normalized.match(elementPattern);
     
     if (matches) {
