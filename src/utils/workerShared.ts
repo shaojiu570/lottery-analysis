@@ -68,8 +68,8 @@ export function verifyFormula(
   customResultTypes: CustomResultType[],
   precomputedMap: Map<number, PrecomputedData[]>
 ): VerifyResult {
-  const periodResults = [];
-  const hits = [];
+  const periodResults: any[] = [];
+  const hits: boolean[] = [];
   const useSort = parsed.rule === 'D';
   
   // 近10期窗口移动：构造固定的窗口范围
@@ -143,6 +143,14 @@ export function verifyFormula(
   const displayPeriodResults = periodResults.slice(-10);
   
   const hitCount = hits.filter(h => h).length;
+  // DEBUG: 临时附加到 results 中用于调试
+  console.log('DEBUG verifyFormula:', {
+    parsedPeriods: parsed.periods,
+    totalPeriodsUsed,
+    hitsLength: hits.length,
+    hitCount,
+    verifyPeriodsAllLength: verifyPeriodsAll.length
+  });
   
   // 确定显示用的结果集合
   let latestResultsForSummary: number[] = [];
