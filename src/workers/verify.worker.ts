@@ -58,7 +58,6 @@ self.onmessage = async (event) => {
       const batch = formulas.slice(i, i + BATCH_SIZE);
       
       for (const formula of batch) {
-        console.log('DEBUG verify.worker: formula.periods=', formula.periods, 'passed periods=', formula.periods || 15);
         const result = shared.verifyFormula(
           formula,
           historyData,
@@ -71,7 +70,6 @@ self.onmessage = async (event) => {
           workerCustomResultTypes,
           precomputedDataMap
         );
-        console.log('DEBUG verify.worker result: totalPeriods=', result.totalPeriods, 'hitCount=', result.hitCount);
         results.push({
           ...result,
           originalLineIndex: formula.originalLineIndex ?? 0
