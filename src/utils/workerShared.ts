@@ -81,7 +81,9 @@ export function verifyFormula(
   if (endPeriod < 0) endPeriod = Math.max(0, latestPeriod);
   
   // 总期数使用公式定义的periods，避免预测/回溯由于数据不足出现不同
-  const totalPeriodsUsed = parsed.periods || periods;
+  // 但不能超过历史数据可验证的期数（需要下一期数据来验证）
+  const maxVerifyPeriods = historyData.length - 1; // 最多验证 historyData.length - 1 期
+  const totalPeriodsUsed = Math.min(parsed.periods || periods, maxVerifyPeriods);
   
   // 验证所有periods期（用于计算总命中次数）
   const startPeriodAll = endPeriod - (totalPeriodsUsed - 1);
