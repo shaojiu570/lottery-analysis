@@ -126,9 +126,9 @@ export const ResultDisplay = forwardRef<ResultDisplayRef, ResultDisplayProps>(({
         displayHits.push(isValidHit ? (pr.hit ?? false) : false);
       }
       
-      // 使用显示的10期中的实际命中次数
-      const displayHitCount = displayHits.filter(h => h).length;
-      lines.push(formatFormula(index, result.totalPeriods || 10, displayHitCount, result.results, displayHits));
+      // 使用全部 periods 期的命中次数
+      const totalHitCount = result.hitCount;
+      lines.push(formatFormula(index, result.totalPeriods || 10, totalHitCount, result.results, displayHits));
     });
     lines.push('');
     if (parseErrors.length > 0) {
