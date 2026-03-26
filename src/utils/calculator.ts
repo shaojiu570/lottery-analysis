@@ -333,6 +333,15 @@ export function groupByResultType(
       for (let i = 0; i < 4; i++) {
         allPossibleValues.push(resultToText(i, type, 1));
       }
+    } else {
+      // 自定义结果类型：根据 mappings 初始化所有可能的结果值
+      const customTypes = getCustomResultTypes();
+      const customType = customTypes.find(t => t.name === type);
+      if (customType) {
+        for (const mapping of customType.mappings) {
+          allPossibleValues.push(mapping.label);
+        }
+      }
     }
     for (const val of allPossibleValues) {
       typeMap.set(val, 0);

@@ -79,13 +79,23 @@ export function verifyFormula(
   // 验证模式：目标期是 targetPeriod，窗口是 targetPeriod-10 到 targetPeriod-1
   let endPeriod = targetPeriod ? targetPeriod - 1 : latestPeriod;
   if (endPeriod < 0) endPeriod = Math.max(0, latestPeriod);
-  const startPeriod = endPeriod - 9;
-  const verifyPeriods: number[] = [];
-  for (let p = startPeriod; p <= endPeriod; p++) verifyPeriods.push(p);
   
-  // 执行验证计算
-  for (let i = 0; i < verifyPeriods.length; i++) {
-    const verifyPeriod = verifyPeriods[i];
+  // 总期数使用公式定义的periods，避免预测/回溯由于数据不足出现不同
+  const totalPeriodsUsed = parsed.periods || periods;
+  
+  // 验证所有periods期（用于计算总命中次数）
+  const startPeriodAll = endPeriod - (totalPeriodsUsed - 1);
+  const verifyPeriodsAll: number[] = [];
+  for (let p = startPeriodAll; p <= endPeriod; p++) verifyPeriodsAll.push(p);
+  
+  // 仅显示10期（第一层星号显示用）
+  const startPeriodDisplay = endPeriod - 9;
+  const verifyPeriodsDisplay: number[] = [];
+  for (let p = startPeriodDisplay; p <= endPeriod; p++) verifyPeriodsDisplay.push(p);
+  
+  // 执行验证计算（验证所有 periods 期）
+  for (let i = 0; i < verifyPeriodsAll.length; i++) {
+    const verifyPeriod = verifyPeriodsAll[i];
     let verifyData = historyData.find(d => d.period === verifyPeriod);
     if (!verifyData) verifyData = { period: verifyPeriod, numbers: [0,0,0,0,0,0,0], zodiacYear: 7 } as LotteryData;
     const verifyDataAny = verifyData as any;
@@ -126,11 +136,12 @@ export function verifyFormula(
     });
   }
   
+  // 仅保留最后10期用于显示（第一层星号）
+  const displayHits = hits.slice(-10);
+  const displayPeriodResults = periodResults.slice(-10);
+  
   const hitCount = hits.filter(h => h).length;
   
-  // 总期数使用公式定义的periods，避免预测/回溯由于数据不足出现不同
-  const totalPeriodsUsed = parsed.periods || periods;
-
   // 确定显示用的结果集合
   let latestResultsForSummary: number[] = [];
   let summaryZodiacYear = 7; // 默认
@@ -167,9 +178,9 @@ export function verifyFormula(
   }
 
   // 为 UI 保持原始顺序（最新在后）或按 UI 期望的反转
-  // 注意：hits.reverse() 会影响后续使用，所以我们先克隆或直接在返回时处理
-  const hitsForReturn = [...hits].reverse();
-  const periodResultsForReturn = [...periodResults].reverse();
+  // 仅返回最后10期用于第一层星号显示，但 hitCount 是全部 periods 期的命中数
+  const hitsForReturn = [...displayHits].reverse();
+  const periodResultsForReturn = [...displayPeriodResults].reverse();
   
   const results = Array.from(latestResultsForSummary).sort((a, b) => a - b).map(v => resultToText(v, parsed.resultType, summaryZodiacYear, customResultTypes));
   
