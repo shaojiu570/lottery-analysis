@@ -129,7 +129,7 @@ export function SettingsModal({
   const renderParamsTab = () => (
     <div className="space-y-4">
       <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
-        <span>补偿:{offsetInput || '0'} 期:{periodsInput || '15'} 左:{leftExpandInput || '0'} 右:{rightExpandInput || '0'}</span>
+        <span>补偿:{offsetInput || '0'} 期:{periodsInput || '15'} 左界:{leftExpandInput || '0'} 右界:{rightExpandInput || '0'}</span>
         <button
           onClick={() => { handleSaveParams(); onClose(); }}
           className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"

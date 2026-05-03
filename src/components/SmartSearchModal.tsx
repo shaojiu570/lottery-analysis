@@ -169,7 +169,7 @@ export function SmartSearchModal({
           <div className="p-3 sm:p-4 border-b border-gray-200 space-y-3 sm:space-y-4">
             {/* 参数提示行 */}
             <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 px-2 sm:px-3 py-2 rounded-lg gap-2">
-              <span className="truncate">补偿:{offsetInput || '0'} 期:{periodsInput || '15'} 左:{leftExpandInput || '0'} 右:{rightExpandInput || '0'}</span>
+              <span className="truncate">补偿:{offsetInput || '0'} 期:{periodsInput || '15'} 左界:{leftExpandInput || '0'} 右界:{rightExpandInput || '0'}</span>
               <button
                 onClick={handleSearch}
                 disabled={isSearching}
