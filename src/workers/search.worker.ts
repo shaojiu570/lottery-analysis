@@ -624,8 +624,8 @@ function buildFormula(
   const sortedElements = [...elements].sort((a, b) => a.localeCompare(b, 'zh-CN'));
   const expression = sortedElements.join('+');
   const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
-  const leftStr = leftExpand > 0 ? `左${leftExpand}` : '';
-  const rightStr = rightExpand > 0 ? `右${rightExpand}` : '';
+  const leftStr = leftExpand > 0 ? `左界${leftExpand}` : '';
+  const rightStr = rightExpand > 0 ? `右界${rightExpand}` : '';
   
   return `[${rule}${resultType}]${expression}${offsetStr}=${periods}${leftStr}${rightStr}`;
 }
