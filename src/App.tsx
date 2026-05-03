@@ -248,8 +248,8 @@ function App() {
           const leftVal = newSettings.leftExpand ?? settings.leftExpand;
           const rightVal = newSettings.rightExpand ?? settings.rightExpand;
           const offsetStr = offsetVal >= 0 ? `+${offsetVal}` : `${offsetVal}`;
-          const leftStr = leftVal > 0 ? `左${leftVal}` : '';
-          const rightStr = rightVal > 0 ? `右${rightVal}` : '';
+          const leftStr = leftVal > 0 ? `左界${leftVal}` : '';
+          const rightStr = rightVal > 0 ? `右界${rightVal}` : '';
           return `[${p.rule}${p.resultType}]${p.expression}${offsetStr}=${periodsVal}${leftStr}${rightStr}`;
         });
         setFormulaInput(addFormulaNumbers(updatedLines.join('\n')));
