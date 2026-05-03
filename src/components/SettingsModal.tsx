@@ -160,7 +160,7 @@ export function SettingsModal({
           />
         </div>
         <div>
-          <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">左扩</label>
+          <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">左界</label>
           <input
             type="text"
             inputMode="numeric"
@@ -170,7 +170,7 @@ export function SettingsModal({
           />
         </div>
         <div>
-          <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">右扩</label>
+          <label className="block text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">右界</label>
           <input
             type="text"
             inputMode="numeric"
